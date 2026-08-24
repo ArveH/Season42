@@ -1,0 +1,15 @@
+// Code signing configuration.
+//
+// DEVELOPMENT_TEAM is per-developer: it names the Apple Developer account the
+// build signs with, so it must not be committed. Put yours in Local.xcconfig
+// (gitignored) next to this file:
+//
+//     DEVELOPMENT_TEAM = ABCDE12345
+//
+// Copy Local.xcconfig.example to get started. Find your team ID in Xcode under
+// Settings > Accounts, or at developer.apple.com/account (Membership details).
+//
+// Without it, simulator builds still work; only device builds and archives
+// need a team.
+
+#include? "Local.xcconfig"
