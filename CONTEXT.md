@@ -15,12 +15,16 @@ A template entry in the Catalog. Tracking one copies it into the user's data; th
 The user's own collection of Tracked Series and Tracked Movies. Lives only on the device; does not include the cached Catalog.
 _Avoid_: user data, my shows, collection
 
+**Library Entry**:
+One thing in the Library, whichever kind it is — a Tracked Series or a Tracked Movie. What the Library tab lists; nothing else in the app treats the two as one.
+_Avoid_: item, record
+
 **Tracked Series**:
 A series the user has added to their own data — hand-entered or copied from the Catalog — including seasons, episode counts, and their watch position.
 _Avoid_: show, subscription, my series
 
 **Tracked Movie**:
-A movie in the user's data. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie).
+A movie in the user's data. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie), held as `isWatched`. Marking one watched stamps the date; un-marking corrects the state and leaves the stamp alone, as un-watching an episode of a Tracked Series does.
 
 **Description**:
 The user's own free-text note on what a Tracked Series or Tracked Movie is about. Carried in code as `summary`, because SwiftData reserves the name `description`.
@@ -35,7 +39,7 @@ The season and episode of a Tracked Series the user has most recently watched.
 _Avoid_: progress, bookmark
 
 **Watched At**:
-The moment the user last marked an episode of a Tracked Series watched. Stamped by each advance of the Position, and the sole basis for the Watching tab's "most recently watched" order. An un-watch corrects the Position but leaves the stamp alone. Carried in code as `lastWatchedAt`.
+The moment the user last marked an episode of a Tracked Series watched. Stamped by each advance of the Position, and the sole basis for the Watching tab's "most recently watched" order. An un-watch corrects the Position but leaves the stamp alone. Carried in code as `lastWatchedAt`. A Tracked Movie has the same idea in `watchedAt`: when it was last marked watched, likewise untouched by an un-mark.
 _Avoid_: last seen, watch history
 
 **Next Episode Date**:

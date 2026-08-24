@@ -119,7 +119,7 @@ struct LibraryTests {
     func aSeriesWithoutATitleIsRejected(title: String) throws {
         let library = try Library.inMemory()
 
-        #expect(throws: LibraryError.titleIsBlank) {
+        #expect(throws: LibraryError.seriesTitleIsBlank) {
             try library.addTrackedSeries(title: title, seasons: [10], status: .planned)
         }
     }
