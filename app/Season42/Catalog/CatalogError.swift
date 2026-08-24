@@ -8,10 +8,20 @@ enum CatalogError: Error, Equatable, LocalizedError {
     /// broken, not merely offline.
     case snapshotMissing
 
+    /// The API was reached but answered a Sync with something other than a Catalog.
+    case notServed(status: Int)
+
+    /// The API answered, but what came back doesn't decode as a Catalog.
+    case notACatalog
+
     var errorDescription: String? {
         switch self {
         case .snapshotMissing:
             "This build is missing its Catalog snapshot."
+        case .notServed(let status):
+            "The Catalog service answered with \(status)."
+        case .notACatalog:
+            "The Catalog service answered with something that isn't a Catalog."
         }
     }
 }

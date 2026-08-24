@@ -8,6 +8,10 @@ struct CatalogView: View {
     let catalog: Catalog
     /// Where a copied entry lands, and what knows whether an entry is already tracked.
     let library: Library
+    /// Where a Sync the user asks for gets the Catalog from.
+    let api: any CatalogFetching
+
+    @State private var syncFailureMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -16,13 +20,42 @@ struct CatalogView: View {
                     ContentUnavailableView(
                         "No Catalog",
                         systemImage: "square.grid.2x2",
-                        description: Text("This build could not load its Catalog snapshot.")
+                        description: Text(
+                            "This build could not load its Catalog snapshot. Sync to fetch "
+                                + "the Catalog from the service."
+                        )
                     )
                 } else {
                     listing
                 }
             }
             .navigationTitle("Catalog")
+            .toolbar { syncButton }
+            .failureAlert("Couldn't sync the Catalog", message: $syncFailureMessage)
+        }
+    }
+
+    /// Fetches the Catalog afresh, saying so while it happens. Unlike the silent refresh
+    /// a launch does, this one was asked for — so a failure is reported rather than
+    /// swallowed, and either way what was cached is still there to browse.
+    @ToolbarContentBuilder
+    private var syncButton: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            if catalog.isSyncing {
+                ProgressView()
+            } else {
+                Button("Sync", systemImage: "arrow.clockwise") {
+                    Task { await sync() }
+                }
+            }
+        }
+    }
+
+    private func sync() async {
+        do {
+            try await catalog.sync(using: api)
+        } catch {
+            syncFailureMessage = error.localizedDescription
         }
     }
 
@@ -149,7 +182,7 @@ private struct CatalogSeriesView: View {
         }
         .navigationTitle(series.title)
         .navigationBarTitleDisplayMode(.inline)
-        .trackingFailure($failureMessage)
+        .failureAlert("Couldn't track this", message: $failureMessage)
     }
 
     private func track() {
@@ -190,7 +223,7 @@ private struct CatalogMovieView: View {
         }
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
-        .trackingFailure($failureMessage)
+        .failureAlert("Couldn't track this", message: $failureMessage)
     }
 
     private func track() {
@@ -216,11 +249,12 @@ private func trackingFootnote(isTracked: Bool, otherwise whatItDoes: String) -> 
 }
 
 private extension View {
-    /// Shows whatever the Library refused a copy for, verbatim — the same bargain the
-    /// hand-entry forms strike with it.
-    func trackingFailure(_ message: Binding<String?>) -> some View {
+    /// Shows whatever went wrong verbatim — whatever the Library refused a copy for, the
+    /// same bargain the hand-entry forms strike with it, or why a Sync the user asked for
+    /// didn't happen.
+    func failureAlert(_ title: String, message: Binding<String?>) -> some View {
         alert(
-            "Couldn't track this",
+            title,
             isPresented: .init(
                 get: { message.wrappedValue != nil },
                 set: { if !$0 { message.wrappedValue = nil } }
@@ -252,5 +286,5 @@ private func episodePhrase(_ count: Int) -> String {
 #Preview {
     let catalog = try! Catalog.inMemory()
     try? catalog.fillFromBundledSnapshotIfEmpty()
-    return CatalogView(catalog: catalog, library: try! Library.inMemory())
+    return CatalogView(catalog: catalog, library: try! Library.inMemory(), api: CatalogApi())
 }
