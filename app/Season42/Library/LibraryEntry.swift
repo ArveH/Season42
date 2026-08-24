@@ -27,4 +27,27 @@ enum LibraryEntry: Identifiable {
         case .movie(let movie): movie.addedAt
         }
     }
+
+    var kind: Kind {
+        switch self {
+        case .series: .series
+        case .movie: .movie
+        }
+    }
+
+    /// Which of the two a Library Entry is — what the Library tab's series-or-movie
+    /// filter picks between.
+    enum Kind: String, CaseIterable, Identifiable, Sendable {
+        case series
+        case movie
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .series: "Series"
+            case .movie: "Movies"
+            }
+        }
+    }
 }
