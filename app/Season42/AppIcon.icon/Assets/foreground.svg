@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Foreground layer: the whole mark, type and rule together, as one rigid object.
+       Nothing here may be split onto another layer - Liquid Glass parallaxes layers
+       independently and half the mark sliding against the other half reads as broken.
+
+       Core phosphor #4AFF4A  - the lit 42 and the lit two thirds of the rule.
+       Dim phosphor  #24732C  - the S and the unlit third. Same hue, lower drive. Held up
+                                off a darker value so the S survives at 40pt instead of
+                                sinking into the ground.
+
+       Glyphs are constructed monoline geometry (stroke 54, butt caps, miter joins), not an
+       outlined typeface: monoline is what terminal type is, and it avoids embedding a
+       licensed font's outlines in a shipped icon. -->
+
+  <g fill="none" stroke-width="54" stroke-linecap="butt" stroke-linejoin="miter">
+
+    <!-- S - dim. Cap height 260, baseline y=590, glyph box x 190-382. -->
+    <path stroke="#24732C" d="
+      M 355 415
+      C 355 375, 325 357, 286 357
+      C 247 357, 217 375, 217 412
+      C 217 445, 243 458, 286 460
+      C 329 462, 355 477, 355 508
+      C 355 545, 325 563, 286 563
+      C 247 563, 217 545, 217 505"/>
+
+    <!-- 4 - lit. Closed triangular counter; the bar overshoots the stem to the right. -->
+    <path stroke="#4AFF4A" d="M 540 357 L 443 478 L 581 478"/>
+    <path stroke="#4AFF4A" d="M 540 357 L 540 563"/>
+
+    <!-- 2 - lit. Geometric: top bowl, straight-ish diagonal, flat base. -->
+    <path stroke="#4AFF4A" d="
+      M 669 412
+      C 669 372, 700 357, 738 357
+      C 776 357, 807 375, 807 415
+      C 807 455, 760 490, 669 563
+      L 807 563"/>
+  </g>
+
+  <!-- The episode meter: the structural baseline the type sits on, and the watch position.
+       SEGMENTED, not a continuous bar - a series advances one episode at a time, and
+       discrete blocks say "episodes" where a solid fill says "loading". Sharp corners, no
+       radius: these are terminal block characters, not iOS progress chrome.
+
+       Six segments of 89 on a 22 gap, spanning x 190-834 to match the type exactly.
+       Four lit of six is the two thirds from Q10, and the lit/unlit boundary falls at
+       x 612-634 - dead inside the gap between the 4 and the 2 (608-642). The alignment
+       point is exact rather than approximate, which the continuous bar never managed.
+
+       Held 26px clear of the baseline so it reads as the line the type stands on rather
+       than as a separate underline.
+
+       Lit segments are TALLER than unlit (68 vs 44, common bottom edge at y=684). That step
+       is what carries the watch position into the tinted and clear variants, where colour is
+       stripped and only silhouette survives. -->
+  <g fill="#4AFF4A">
+    <rect x="190" y="616" width="89" height="68"/>
+    <rect x="301" y="616" width="89" height="68"/>
+    <rect x="412" y="616" width="89" height="68"/>
+    <rect x="523" y="616" width="89" height="68"/>
+  </g>
+  <g fill="#24732C">
+    <rect x="634" y="640" width="89" height="44"/>
+    <rect x="745" y="640" width="89" height="44"/>
+  </g>
+</svg>
