@@ -285,4 +285,49 @@ struct SeasonsTests {
         #expect((Seasons(episodeCounts: [9, 0, 0])).firstSeasonWithoutEpisodes == 2)
         #expect((Seasons(episodeCounts: [9, 10])).firstSeasonWithoutEpisodes == nil)
     }
+
+    // MARK: - Stepping through episodes
+
+    @Test func theEpisodeAfterOneMidSeasonIsTheNextInThatSeason() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(after: Position(season: 1, episode: 4)) == Position(season: 1, episode: 5))
+    }
+
+    @Test func theEpisodeAfterASeasonsLastIsTheNextSeasonsFirst() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(after: Position(season: 1, episode: 9)) == Position(season: 2, episode: 1))
+    }
+
+    @Test func thereIsNoEpisodeAfterTheLastEpisodeOfTheLastSeason() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(after: Position(season: 2, episode: 10)) == nil)
+    }
+
+    @Test func theEpisodeBeforeOneMidSeasonIsThePreviousInThatSeason() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(before: Position(season: 2, episode: 5)) == Position(season: 2, episode: 4))
+    }
+
+    @Test func theEpisodeBeforeASeasonsFirstIsThePreviousSeasonsLast() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(before: Position(season: 2, episode: 1)) == Position(season: 1, episode: 9))
+    }
+
+    @Test func thereIsNoEpisodeBeforeTheVeryFirstOne() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(before: Position(season: 1, episode: 1)) == nil)
+    }
+
+    @Test func steppingFromAPositionTheSeriesDoesNotHaveGoesNowhere() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.episode(after: Position(season: 3, episode: 1)) == nil)
+        #expect(seasons.episode(before: Position(season: 3, episode: 1)) == nil)
+    }
 }

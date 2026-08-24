@@ -14,6 +14,8 @@ final class TrackedSeries {
     var streamingService: String?
     var nextEpisodeDate: Date?
     var addedAt: Date
+    /// When the user last marked an episode watched, or nil if they never have.
+    var lastWatchedAt: Date?
 
     init(
         title: String,
@@ -23,7 +25,8 @@ final class TrackedSeries {
         position: Position?,
         streamingService: String?,
         nextEpisodeDate: Date?,
-        addedAt: Date
+        addedAt: Date,
+        lastWatchedAt: Date? = nil
     ) {
         self.title = title
         self.summary = summary
@@ -33,5 +36,31 @@ final class TrackedSeries {
         self.streamingService = streamingService
         self.nextEpisodeDate = nextEpisodeDate
         self.addedAt = addedAt
+        self.lastWatchedAt = lastWatchedAt
+    }
+}
+
+extension TrackedSeries {
+    /// The episode a "watched it" tap would mark: the first one when nothing is watched
+    /// yet, the next one otherwise. Nil once the Position sits at the last episode of the
+    /// last season the user has entered — there is nothing further to offer.
+    var nextEpisode: Position? {
+        guard let position else {
+            let first = Position(season: 1, episode: 1)
+            return seasons.contains(first) ? first : nil
+        }
+        return seasons.episode(after: position)
+    }
+
+    /// The episode an un-watch would step back to, or nil when the Position is at the very
+    /// first episode — there, un-watching leaves the series with nothing watched at all.
+    var previousEpisode: Position? {
+        position.flatMap { seasons.episode(before: $0) }
+    }
+
+    /// The Position is at the last episode this series knows about, so instead of another
+    /// "watched it" the app asks whether the series is Finished or Waiting for more.
+    var isAtLastKnownEpisode: Bool {
+        position != nil && nextEpisode == nil
     }
 }

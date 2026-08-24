@@ -9,12 +9,15 @@ import SwiftData
 final class Library {
     private let container: ModelContainer
     private var context: ModelContext { container.mainContext }
+    /// Where every timestamp the Library stamps comes from; tests hand it a clock they move.
+    private let now: @MainActor () -> Date
 
     /// Everything the user tracks, most recently added first.
     private(set) var trackedSeries: [TrackedSeries] = []
 
-    init(container: ModelContainer) {
+    init(container: ModelContainer, now: @escaping @MainActor () -> Date = Date.init) {
         self.container = container
+        self.now = now
         reload()
     }
 
@@ -52,7 +55,7 @@ final class Library {
             position: position,
             streamingService: streamingService?.trimmed.nilIfEmpty,
             nextEpisodeDate: nextEpisodeDate,
-            addedAt: Date()
+            addedAt: now()
         )
         context.insert(series)
         try context.save()
@@ -60,7 +63,62 @@ final class Library {
         return series
     }
 
+    // MARK: - Watching
+
+    /// What the Watching tab lists: series with status Watching, most recently watched
+    /// first. Ones the user hasn't started come last, most recently added first.
+    var watching: [TrackedSeries] {
+        trackedSeries
+            .filter { $0.status == .watching }
+            .sorted { series, other in
+                switch (series.lastWatchedAt, other.lastWatchedAt) {
+                case let (watched?, otherWatched?) where watched != otherWatched:
+                    watched > otherWatched
+                case (.some, nil):
+                    true
+                case (nil, .some):
+                    false
+                default:
+                    series.addedAt > other.addedAt
+                }
+            }
+    }
+
+    /// Advances the Position by one episode and stamps the watch, rolling over into the
+    /// next season at a season boundary. Does nothing once the Position is at the last
+    /// episode the series knows about — that is the app's cue to ask Finished or Waiting.
+    func markNextEpisodeWatched(_ series: TrackedSeries) {
+        guard let next = series.nextEpisode else { return }
+        series.position = next
+        series.lastWatchedAt = now()
+        save()
+    }
+
+    /// Steps the Position back one episode, across a season boundary where needed, and
+    /// back to nothing-watched at the very first episode. The watched-at stamp is left
+    /// alone: correcting a mistap shouldn't move the series down the Watching list.
+    func unwatchLastEpisode(_ series: TrackedSeries) {
+        guard series.position != nil else { return }
+        series.position = series.previousEpisode
+        save()
+    }
+
+    /// Sets the status the user picked — including the answer to Finished-or-Waiting,
+    /// which is what takes a series off the Watching tab.
+    func setStatus(_ status: WatchStatus, on series: TrackedSeries) {
+        series.status = status
+        save()
+    }
+
     // MARK: - Loading
+
+    /// Persists an edit to a series already in the store. Unlike a rejected new series,
+    /// there is nothing here for the user to fix and no useful degraded mode, so a failing
+    /// save leaves the in-memory Library as the user sees it and is not surfaced.
+    private func save() {
+        try? context.save()
+        reload()
+    }
 
     private func reload() {
         let newestFirst = FetchDescriptor<TrackedSeries>(
@@ -88,8 +146,8 @@ extension Library {
         )
     }
 
-    static func inMemory() throws -> Library {
-        Library(container: try inMemoryContainer())
+    static func inMemory(now: @escaping @MainActor () -> Date = Date.init) throws -> Library {
+        Library(container: try inMemoryContainer(), now: now)
     }
 
     /// A store at an explicit location. Tests use it to reopen the same file the way a

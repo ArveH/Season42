@@ -40,6 +40,30 @@ struct Seasons: Codable, Hashable, Sendable, ExpressibleByArrayLiteral {
         return Position(season: season, episode: min(max(position.episode, 1), episodes))
     }
 
+    /// The episode after `position`, rolling over to the next season's first episode at a
+    /// season boundary. Nil at the last episode of the last season, and nil for a Position
+    /// the series doesn't have.
+    func episode(after position: Position) -> Position? {
+        guard contains(position) else { return nil }
+        if position.episode < (episodeCount(inSeason: position.season) ?? 0) {
+            return Position(season: position.season, episode: position.episode + 1)
+        }
+        guard episodeCount(inSeason: position.season + 1) != nil else { return nil }
+        return Position(season: position.season + 1, episode: 1)
+    }
+
+    /// The episode before `position`, stepping back to the previous season's last episode
+    /// at a season boundary. Nil at the very first episode, and nil for a Position the
+    /// series doesn't have.
+    func episode(before position: Position) -> Position? {
+        guard contains(position) else { return nil }
+        if position.episode > 1 {
+            return Position(season: position.season, episode: position.episode - 1)
+        }
+        guard let episodes = episodeCount(inSeason: position.season - 1) else { return nil }
+        return Position(season: position.season - 1, episode: episodes)
+    }
+
     /// Grows or shrinks to `newCount` seasons, keeping the counts already entered.
     /// A newly added season starts out the same length as the one before it.
     mutating func setCount(_ newCount: Int) {

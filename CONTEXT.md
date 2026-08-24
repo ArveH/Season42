@@ -34,6 +34,10 @@ _Avoid_: state, watch state
 The season and episode of a Tracked Series the user has most recently watched.
 _Avoid_: progress, bookmark
 
+**Watched At**:
+The moment the user last marked an episode of a Tracked Series watched. Stamped by each advance of the Position, and the sole basis for the Watching tab's "most recently watched" order. An un-watch corrects the Position but leaves the stamp alone. Carried in code as `lastWatchedAt`.
+_Avoid_: last seen, watch history
+
 **Next Episode Date**:
 A user-entered, optional date on a Tracked Series recording when the next episode becomes available. Not derived from the Catalog.
 

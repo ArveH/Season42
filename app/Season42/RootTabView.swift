@@ -8,8 +8,9 @@ struct RootTabView: View {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Tab(tab.title, systemImage: tab.systemImage) {
                     switch tab {
+                    case .watching: WatchingView(library: library)
                     case .library: LibraryView(library: library)
-                    case .watching, .catalog: PlaceholderView(tab: tab)
+                    case .catalog: PlaceholderView(tab: tab)
                     }
                 }
             }
