@@ -1,0 +1,86 @@
+{
+  "streamingServices": [
+    { "externalId": "netflix", "name": "Netflix" },
+    { "externalId": "disney-plus", "name": "Disney+" },
+    { "externalId": "max", "name": "Max" },
+    { "externalId": "apple-tv-plus", "name": "Apple TV+" },
+    { "externalId": "prime-video", "name": "Prime Video" },
+    { "externalId": "viaplay", "name": "Viaplay" }
+  ],
+  "series": [
+    {
+      "externalId": "severance",
+      "title": "Severance",
+      "description": "Employees of Lumon Industries surgically divide their memories between work and personal lives.",
+      "posterUrl": null,
+      "seasons": [9, 10]
+    },
+    {
+      "externalId": "the-bear",
+      "title": "The Bear",
+      "description": "A young chef returns to Chicago to run his family's chaotic sandwich shop.",
+      "posterUrl": null,
+      "seasons": [8, 10, 10]
+    },
+    {
+      "externalId": "slow-horses",
+      "title": "Slow Horses",
+      "description": "Disgraced MI5 agents exiled to Slough House stumble into real espionage under Jackson Lamb.",
+      "posterUrl": null,
+      "seasons": [6, 6, 6, 6]
+    },
+    {
+      "externalId": "andor",
+      "title": "Andor",
+      "description": "Cassian Andor's path from cynical thief to committed rebel in the years before Rogue One.",
+      "posterUrl": null,
+      "seasons": [12, 12]
+    },
+    {
+      "externalId": "house-of-the-dragon",
+      "title": "House of the Dragon",
+      "description": "The Targaryen civil war over the Iron Throne, two centuries before Game of Thrones.",
+      "posterUrl": null,
+      "seasons": [10, 8]
+    },
+    {
+      "externalId": "dark",
+      "title": "Dark",
+      "description": "Four families in a German town uncover a time-travel conspiracy spanning generations.",
+      "posterUrl": null,
+      "seasons": [10, 8, 8]
+    }
+  ],
+  "movies": [
+    {
+      "externalId": "oppenheimer",
+      "title": "Oppenheimer",
+      "description": "The life of J. Robert Oppenheimer and the making of the atomic bomb.",
+      "posterUrl": null
+    },
+    {
+      "externalId": "dune-part-two",
+      "title": "Dune: Part Two",
+      "description": "Paul Atreides unites with the Fremen to wage war against House Harkonnen.",
+      "posterUrl": null
+    },
+    {
+      "externalId": "everything-everywhere-all-at-once",
+      "title": "Everything Everywhere All at Once",
+      "description": "A laundromat owner is swept into a multiversal battle only she can win.",
+      "posterUrl": null
+    },
+    {
+      "externalId": "the-holdovers",
+      "title": "The Holdovers",
+      "description": "A cranky teacher, a grieving cook, and a stranded student spend Christmas at a boarding school.",
+      "posterUrl": null
+    },
+    {
+      "externalId": "past-lives",
+      "title": "Past Lives",
+      "description": "Two childhood friends reunite in New York decades after one emigrated from Seoul.",
+      "posterUrl": null
+    }
+  ]
+}
