@@ -9,7 +9,7 @@ struct LibraryView: View {
 
     @State private var filter = LibraryFilter()
     @State private var form: EntryForm?
-    @State private var deleting: LibraryEntry?
+    @State private var deleting: PendingDeletion?
 
     var body: some View {
         NavigationStack {
@@ -27,7 +27,7 @@ struct LibraryView: View {
                         row(for: entry)
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", systemImage: "trash", role: .destructive) {
-                                    deleting = entry
+                                    deleting = PendingDeletion(entry)
                                 }
                                 Button("Edit", systemImage: "pencil") {
                                     form = .editing(entry)
@@ -67,8 +67,10 @@ struct LibraryView: View {
                     set: { if !$0 { deleting = nil } }
                 ),
                 presenting: deleting
-            ) { entry in
-                Button("Delete \(entry.title)", role: .destructive) { library.delete(entry) }
+            ) { pending in
+                Button("Delete \(pending.title)", role: .destructive) {
+                    library.delete(pending.entry)
+                }
             } message: { _ in
                 Text("This can't be undone.")
             }
@@ -124,6 +126,21 @@ struct LibraryView: View {
                     ? "line.3.horizontal.decrease.circle.fill"
                     : "line.3.horizontal.decrease.circle"
             )
+        }
+    }
+
+    /// A Library Entry the user has asked to delete, with its title taken down as plain
+    /// text: the confirmation is still on screen as the entry goes, and by then there is
+    /// no stored entry left to read a title off.
+    private struct PendingDeletion: Identifiable {
+        let entry: LibraryEntry
+        let title: String
+
+        var id: LibraryEntry.ID { entry.id }
+
+        init(_ entry: LibraryEntry) {
+            self.entry = entry
+            self.title = entry.title
         }
     }
 

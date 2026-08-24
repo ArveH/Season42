@@ -1,3 +1,5 @@
+import Foundation
+
 /// How the user has narrowed the Library listing: a search text matched against titles,
 /// a Status, and a kind of Library Entry. Each part is optional and they combine — an
 /// entry has to satisfy every part that is set. An untouched filter narrows nothing.

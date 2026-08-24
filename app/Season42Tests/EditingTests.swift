@@ -45,7 +45,7 @@ struct EditingTests {
             position: Position(season: 1, episode: 9)
         )
 
-        try library.updateTrackedSeries(
+        try library.edit(
             series,
             title: series.title,
             seasons: [9, 10],
@@ -70,7 +70,7 @@ struct EditingTests {
             nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
-        try library.updateTrackedSeries(series, title: "Severance", seasons: [9], status: .planned)
+        try library.edit(series, title: "Severance", seasons: [9], status: .planned)
 
         #expect(series.summary.isEmpty)
         #expect(series.position == nil)
@@ -87,7 +87,7 @@ struct EditingTests {
         let lastWatchedAt = series.lastWatchedAt
 
         clock = clock.addingTimeInterval(3600)
-        try library.updateTrackedSeries(series, title: "Severance!", seasons: [9], status: .watching)
+        try library.edit(series, title: "Severance!", seasons: [9], status: .watching)
 
         #expect(series.addedAt == addedAt)
         #expect(series.lastWatchedAt == lastWatchedAt)
@@ -97,7 +97,7 @@ struct EditingTests {
         let library = try Library.inMemory()
         let series = try library.addTrackedSeries(title: "Silo", seasons: [10], status: .watching)
 
-        try library.updateTrackedSeries(
+        try library.edit(
             series,
             title: "  Silo  ",
             seasons: [10],
@@ -117,7 +117,7 @@ struct EditingTests {
         let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
 
         #expect(throws: LibraryError.seriesTitleIsBlank) {
-            try library.updateTrackedSeries(series, title: title, seasons: [9], status: .watching)
+            try library.edit(series, title: title, seasons: [9], status: .watching)
         }
         #expect(series.title == "Severance")
     }
@@ -127,7 +127,7 @@ struct EditingTests {
         let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
 
         #expect(throws: LibraryError.seriesHasNoSeasons) {
-            try library.updateTrackedSeries(
+            try library.edit(
                 series,
                 title: "Severance",
                 seasons: Seasons(episodeCounts: []),
@@ -142,7 +142,7 @@ struct EditingTests {
         let series = try library.addTrackedSeries(title: "Severance", seasons: [9, 10], status: .watching)
 
         #expect(throws: LibraryError.seasonHasNoEpisodes(season: 2)) {
-            try library.updateTrackedSeries(
+            try library.edit(
                 series,
                 title: "Severance",
                 seasons: Seasons(episodeCounts: [9, 0]),
@@ -164,7 +164,7 @@ struct EditingTests {
         )
 
         #expect(throws: LibraryError.positionOutOfRange(position)) {
-            try library.updateTrackedSeries(
+            try library.edit(
                 series,
                 title: "Severance",
                 seasons: [9],
@@ -202,7 +202,7 @@ struct EditingTests {
         let movie = try library.addTrackedMovie(title: "Arrival")
 
         clock = clock.addingTimeInterval(3600)
-        try library.updateTrackedMovie(movie, title: "Arrival", isWatched: true)
+        try library.edit(movie, title: "Arrival", isWatched: true)
 
         #expect(movie.watchedAt == clock)
     }
@@ -217,7 +217,7 @@ struct EditingTests {
         let watchedAt = movie.watchedAt
 
         clock = clock.addingTimeInterval(3600)
-        try library.updateTrackedMovie(movie, title: "Arrival!", isWatched: true)
+        try library.edit(movie, title: "Arrival!", isWatched: true)
 
         #expect(movie.watchedAt == watchedAt)
     }
@@ -228,7 +228,7 @@ struct EditingTests {
         let movie = try library.addTrackedMovie(title: "Arrival")
         library.setWatched(true, on: movie)
 
-        try library.updateTrackedMovie(movie, title: "Arrival", isWatched: false)
+        try library.edit(movie, title: "Arrival", isWatched: false)
 
         #expect(!movie.isWatched)
         #expect(movie.watchedAt == watchedAt)
@@ -240,7 +240,7 @@ struct EditingTests {
         let movie = try library.addTrackedMovie(title: "Arrival")
 
         #expect(throws: LibraryError.movieTitleIsBlank) {
-            try library.updateTrackedMovie(movie, title: title)
+            try library.edit(movie, title: title)
         }
         #expect(movie.title == "Arrival")
     }
@@ -249,7 +249,7 @@ struct EditingTests {
         let library = try Library.inMemory()
         let movie = try library.addTrackedMovie(title: "Dune", streamingService: "Netflix")
 
-        try library.updateTrackedMovie(movie, title: "  Dune  ", streamingService: "   ")
+        try library.edit(movie, title: "  Dune  ", streamingService: "   ")
 
         #expect(movie.title == "Dune")
         #expect(movie.streamingService == nil)
@@ -288,7 +288,7 @@ struct EditingTests {
         let library = Library(container: try Library.container(at: storeURL))
         let series = try library.addTrackedSeries(title: "Severence", seasons: [9], status: .planned)
         let movie = try library.addTrackedMovie(title: "Arrival")
-        try library.updateTrackedSeries(
+        try library.edit(
             series,
             title: "Severance",
             seasons: [9, 10],
@@ -304,5 +304,49 @@ struct EditingTests {
         #expect(relaunched.trackedSeries.first?.status == .watching)
         #expect(relaunched.trackedSeries.first?.position == Position(season: 2, episode: 1))
         #expect(relaunched.trackedMovies.isEmpty)
+    }
+}
+
+/// An edit rewrites an entry whole, so the facade spells every field out and clears what
+/// a caller leaves out. These let a test name only the fields it is about; leaving one out
+/// clears it, exactly as clearing it in the form does.
+@MainActor
+private extension Library {
+    func edit(
+        _ series: TrackedSeries,
+        title: String,
+        summary: String = "",
+        seasons: Seasons,
+        status: WatchStatus,
+        position: Position? = nil,
+        streamingService: String? = nil,
+        nextEpisodeDate: Date? = nil
+    ) throws {
+        try updateTrackedSeries(
+            series,
+            title: title,
+            summary: summary,
+            seasons: seasons,
+            status: status,
+            position: position,
+            streamingService: streamingService,
+            nextEpisodeDate: nextEpisodeDate
+        )
+    }
+
+    func edit(
+        _ movie: TrackedMovie,
+        title: String,
+        summary: String = "",
+        streamingService: String? = nil,
+        isWatched: Bool = false
+    ) throws {
+        try updateTrackedMovie(
+            movie,
+            title: title,
+            summary: summary,
+            streamingService: streamingService,
+            isWatched: isWatched
+        )
     }
 }

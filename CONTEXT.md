@@ -16,7 +16,7 @@ The user's own collection of Tracked Series and Tracked Movies. Lives only on th
 _Avoid_: user data, my shows, collection
 
 **Library Entry**:
-One thing in the Library, whichever kind it is — a Tracked Series or a Tracked Movie. What the Library tab lists; nothing else in the app treats the two as one.
+One thing in the Library, whichever kind it is — a Tracked Series or a Tracked Movie. What the Library tab lists, searches, filters and deletes; outside the Library nothing treats the two as one.
 _Avoid_: item, record
 
 **Library Filter**:
