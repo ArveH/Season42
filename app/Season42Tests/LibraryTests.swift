@@ -3,7 +3,8 @@ import Testing
 @testable import Season42
 
 /// Tests the `Library` model facade against an in-memory SwiftData container.
-/// Nothing below the facade is tested directly.
+/// Persistence is the seam; nothing about how the facade stores things is asserted here.
+/// The one type tested below the facade is `Seasons` — see `SeasonsTests`.
 @MainActor
 struct LibraryTests {
     // MARK: - Creating a Tracked Series
