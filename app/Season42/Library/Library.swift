@@ -131,6 +131,53 @@ final class Library {
         save()
     }
 
+    // MARK: - Tracking from the Catalog
+
+    /// Copies a Catalog Series into the Library. What the Catalog knows — title,
+    /// description, seasons and episode counts — comes across, the user picks the Status,
+    /// and nothing is watched yet. The copy answers to every rule a hand-entered series
+    /// does, because it is one from here on: per ADR-0002 the two are strangers the moment
+    /// it exists, so editing the copy leaves the Catalog alone and replacing the Catalog
+    /// leaves the copy alone.
+    ///
+    /// - Throws: `LibraryError` if the Catalog entry is one the Library would refuse by
+    ///   hand; nothing is stored in that case.
+    @discardableResult
+    func track(_ series: CatalogSeries, status: WatchStatus) throws -> TrackedSeries {
+        try addTrackedSeries(
+            title: series.title,
+            summary: series.summary,
+            seasons: series.seasons,
+            status: status
+        )
+    }
+
+    /// Copies a Catalog Movie into the Library as an unwatched Tracked Movie — a
+    /// watchlist entry — on the same template terms as a series.
+    ///
+    /// - Throws: `LibraryError.movieTitleIsBlank`; nothing is stored in that case.
+    @discardableResult
+    func track(_ movie: CatalogMovie) throws -> TrackedMovie {
+        try addTrackedMovie(title: movie.title, summary: movie.summary)
+    }
+
+    /// Whether the user already tracks this Catalog Series — what marks it in the Catalog
+    /// tab so the same series isn't tracked twice by accident. A copy keeps no reference
+    /// to the entry it came from (ADR-0002), so the title is what the two still have in
+    /// common and the title is what is compared. That is the more useful question anyway:
+    /// a series the user typed in by hand is just as much a duplicate as a copied one, and
+    /// one they renamed is theirs now, not the Catalog's.
+    func isTracked(_ series: CatalogSeries) -> Bool {
+        trackedSeries.contains { $0.title.isSameTitle(as: series.title) }
+    }
+
+    /// Whether the user already tracks this Catalog Movie. As with a series, the title is
+    /// what is compared — and a Tracked Series never marks a movie, however alike the two
+    /// are named.
+    func isTracked(_ movie: CatalogMovie) -> Bool {
+        trackedMovies.contains { $0.title.isSameTitle(as: movie.title) }
+    }
+
     // MARK: - Editing and deleting what is already tracked
 
     /// Rewrites a Tracked Series with what the user edited it to. An edit answers to every
@@ -328,4 +375,14 @@ extension Library {
 private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
     var nilIfEmpty: String? { isEmpty ? nil : self }
+
+    /// Whether two titles name the same thing as far as the already-tracked mark goes.
+    /// Case, accents and surrounding space are set aside, exactly as `LibraryFilter` sets
+    /// them aside when the user searches for a title — one notion of the same title, not
+    /// two. The Catalog's own titles are trimmed here too: what the Library stores it
+    /// trims, but what the Catalog serves is not its to tidy.
+    func isSameTitle(as other: String) -> Bool {
+        trimmed.compare(other.trimmed, options: [.caseInsensitive, .diacriticInsensitive])
+            == .orderedSame
+    }
 }

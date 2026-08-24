@@ -11,7 +11,7 @@ struct RootTabView: View {
                     switch tab {
                     case .watching: WatchingView(library: library)
                     case .library: LibraryView(library: library)
-                    case .catalog: CatalogView(catalog: catalog)
+                    case .catalog: CatalogView(catalog: catalog, library: library)
                     }
                 }
             }
