@@ -2,6 +2,10 @@ import Foundation
 @testable import Season42
 
 extension CatalogSnapshot {
+    /// A Catalog with nothing in it — what an API that has been emptied serves, and what
+    /// a Sync then has to make of a cache that isn't.
+    static let empty = CatalogSnapshot(streamingServices: [], series: [], movies: [])
+
     /// A snapshot of a single series, movie and service — enough to tell one filling of
     /// the cache from another without leaning on what the bundled snapshot happens to say.
     static let justTheBear = CatalogSnapshot(

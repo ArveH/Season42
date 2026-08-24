@@ -62,5 +62,9 @@ A label on a Tracked Series or Tracked Movie recording where the user watches it
 _Avoid_: channel, platform, provider
 
 **Sync**:
-Replacing the device's cached Catalog with the API's current contents. Never touches Tracked Series or Tracked Movies.
+Replacing the device's cached Catalog with the API's current contents. Never touches Tracked Series or Tracked Movies. A Sync happens two ways, and which one it is decides only what the user is shown: one the user asked for on the Catalog tab shows that it is running and reports a failure, and a **Quiet Sync** — the one every launch starts — shows neither. Both replace the cache whole, an empty Catalog included; neither leaves a half-replaced one.
 _Avoid_: refresh, import
+
+**Quiet Sync**:
+The Sync a launch starts without being asked. Nobody is waiting on it, so it is invisible: no progress, and a failure keeps whatever is cached — the bundled snapshot on a first launch — and is not reported. An API that can't be reached is the ordinary case, not an error the user has anything to do about.
+_Avoid_: background sync, auto-refresh

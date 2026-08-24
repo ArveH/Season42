@@ -28,6 +28,11 @@ final class Catalog {
         streamingServices.isEmpty && series.isEmpty && movies.isEmpty
     }
 
+    /// Whether a Sync the user asked for is in flight, so the Catalog tab can show it.
+    /// A launch's Sync never sets it: one nobody asked for is one nobody is waiting on,
+    /// and a tab that spins by itself on every launch is not silent.
+    private(set) var isSyncing = false
+
     init(container: ModelContainer) {
         self.container = container
         reload()
@@ -90,6 +95,35 @@ final class Catalog {
 
         try context.save()
         reload()
+    }
+
+    // MARK: - Sync
+
+    /// Replaces the cached Catalog with what the API serves right now. A Sync that gets
+    /// as far as an answer says exactly what that answer says, an empty Catalog included;
+    /// one that doesn't get that far changes nothing, so the cache the user had is still
+    /// the cache they have. Either way the Library is in another store and out of reach
+    /// (ADR-0001), and the copies in it are the user's own (ADR-0002) — no outcome of a
+    /// Sync touches a Tracked Series or a Tracked Movie.
+    ///
+    /// - Throws: whatever fetching threw, or a store error. Nothing the API didn't answer
+    ///   with is cached, so a Sync that throws leaves what was cached to browse.
+    func sync(using api: any CatalogFetching) async throws {
+        isSyncing = true
+        defer { isSyncing = false }
+        try await replaceCache(using: api)
+    }
+
+    /// A Sync nobody asked for — what a launch does. There is nothing for the user to fix
+    /// about an API they can't reach and nothing they were waiting to see, so it says
+    /// nothing while it runs and nothing when it fails: the cache stays as it is. What
+    /// the user asked for themselves is `sync(using:)`, which shows both.
+    func syncQuietly(using api: any CatalogFetching) async {
+        try? await replaceCache(using: api)
+    }
+
+    private func replaceCache(using api: any CatalogFetching) async throws {
+        try fill(from: await api.fetchSnapshot())
     }
 
     /// Reads every listing back in the order the Catalog served it — the `order` each

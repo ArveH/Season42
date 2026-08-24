@@ -4,6 +4,9 @@ import SwiftUI
 struct Season42App: App {
     private let library: Library
     private let catalog: Catalog
+    /// The one Catalog source the running app has: the API, at the address `CatalogApi`
+    /// is configured with.
+    private let api: any CatalogFetching = CatalogApi()
 
     init() {
         do {
@@ -17,7 +20,7 @@ struct Season42App: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView(library: library, catalog: catalog)
+            RootTabView(library: library, catalog: catalog, api: api)
         }
     }
 
