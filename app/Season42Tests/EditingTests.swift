@@ -1,0 +1,308 @@
+import Foundation
+import Testing
+@testable import Season42
+
+/// Tests editing and deleting what is already in the Library, against the `Library`
+/// facade. An edit answers to exactly the same rules a new entry does; deletion is
+/// permanent.
+@MainActor
+struct EditingTests {
+    // MARK: - Editing a Tracked Series
+
+    @Test func everyFieldOfASeriesCanBeChanged() throws {
+        let library = try Library.inMemory()
+        let airDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let series = try library.addTrackedSeries(title: "Severence", seasons: [9], status: .planned)
+
+        try library.updateTrackedSeries(
+            series,
+            title: "Severance",
+            summary: "Work-life balance, surgically enforced.",
+            seasons: [9, 10],
+            status: .waiting,
+            position: Position(season: 2, episode: 3),
+            streamingService: "Apple TV+",
+            nextEpisodeDate: airDate
+        )
+
+        #expect(series.title == "Severance")
+        #expect(series.summary == "Work-life balance, surgically enforced.")
+        #expect(series.seasons == [9, 10])
+        #expect(series.status == .waiting)
+        #expect(series.position == Position(season: 2, episode: 3))
+        #expect(series.streamingService == "Apple TV+")
+        #expect(series.nextEpisodeDate == airDate)
+    }
+
+    /// The Catalog never grows an existing Tracked Series a season (ADR-0002), so adding
+    /// one by hand is the only way a returning series gets its new episodes.
+    @Test func aSeasonCanBeAddedToASeriesThatDidNotHaveIt() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            position: Position(season: 1, episode: 9)
+        )
+
+        try library.updateTrackedSeries(
+            series,
+            title: series.title,
+            seasons: [9, 10],
+            status: .watching,
+            position: series.position
+        )
+
+        #expect(series.seasons == [9, 10])
+        #expect(series.position == Position(season: 1, episode: 9))
+        #expect(series.nextEpisode == Position(season: 2, episode: 1))
+    }
+
+    @Test func anEditCanClearTheOptionalFields() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            summary: "A note.",
+            seasons: [9],
+            status: .watching,
+            position: Position(season: 1, episode: 2),
+            streamingService: "Apple TV+",
+            nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+
+        try library.updateTrackedSeries(series, title: "Severance", seasons: [9], status: .planned)
+
+        #expect(series.summary.isEmpty)
+        #expect(series.position == nil)
+        #expect(series.streamingService == nil)
+        #expect(series.nextEpisodeDate == nil)
+    }
+
+    @Test func anEditLeavesWhenTheSeriesWasAddedAndLastWatchedAlone() throws {
+        var clock = Date(timeIntervalSince1970: 1_700_000_000)
+        let library = try Library.inMemory(now: { clock })
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        library.markNextEpisodeWatched(series)
+        let addedAt = series.addedAt
+        let lastWatchedAt = series.lastWatchedAt
+
+        clock = clock.addingTimeInterval(3600)
+        try library.updateTrackedSeries(series, title: "Severance!", seasons: [9], status: .watching)
+
+        #expect(series.addedAt == addedAt)
+        #expect(series.lastWatchedAt == lastWatchedAt)
+    }
+
+    @Test func anEditedTitleIsTrimmedAndABlankServiceBecomesNoService() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Silo", seasons: [10], status: .watching)
+
+        try library.updateTrackedSeries(
+            series,
+            title: "  Silo  ",
+            seasons: [10],
+            status: .watching,
+            streamingService: "   "
+        )
+
+        #expect(series.title == "Silo")
+        #expect(series.streamingService == nil)
+    }
+
+    // MARK: - An edit answers to the same rules a new series does
+
+    @Test(arguments: ["", "   "])
+    func anEditThatBlanksTheTitleIsRejected(title: String) throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+
+        #expect(throws: LibraryError.seriesTitleIsBlank) {
+            try library.updateTrackedSeries(series, title: title, seasons: [9], status: .watching)
+        }
+        #expect(series.title == "Severance")
+    }
+
+    @Test func anEditThatRemovesEverySeasonIsRejected() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+
+        #expect(throws: LibraryError.seriesHasNoSeasons) {
+            try library.updateTrackedSeries(
+                series,
+                title: "Severance",
+                seasons: Seasons(episodeCounts: []),
+                status: .watching
+            )
+        }
+        #expect(series.seasons == [9])
+    }
+
+    @Test func anEditThatEmptiesASeasonIsRejected() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9, 10], status: .watching)
+
+        #expect(throws: LibraryError.seasonHasNoEpisodes(season: 2)) {
+            try library.updateTrackedSeries(
+                series,
+                title: "Severance",
+                seasons: Seasons(episodeCounts: [9, 0]),
+                status: .watching
+            )
+        }
+    }
+
+    /// Shrinking a series under the Position the user is at would leave them somewhere the
+    /// series no longer has, so the edit is refused whole rather than silently moved.
+    @Test func anEditThatLeavesThePositionOutsideTheSeriesIsRejected() throws {
+        let library = try Library.inMemory()
+        let position = Position(season: 2, episode: 3)
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9, 10],
+            status: .watching,
+            position: position
+        )
+
+        #expect(throws: LibraryError.positionOutOfRange(position)) {
+            try library.updateTrackedSeries(
+                series,
+                title: "Severance",
+                seasons: [9],
+                status: .watching,
+                position: position
+            )
+        }
+        #expect(series.seasons == [9, 10])
+        #expect(series.position == position)
+    }
+
+    // MARK: - Editing a Tracked Movie
+
+    @Test func everyFieldOfAMovieCanBeChanged() throws {
+        let library = try Library.inMemory()
+        let movie = try library.addTrackedMovie(title: "Arival")
+
+        try library.updateTrackedMovie(
+            movie,
+            title: "Arrival",
+            summary: "Linguistics, non-linearly.",
+            streamingService: "Netflix",
+            isWatched: true
+        )
+
+        #expect(movie.title == "Arrival")
+        #expect(movie.summary == "Linguistics, non-linearly.")
+        #expect(movie.streamingService == "Netflix")
+        #expect(movie.isWatched)
+    }
+
+    @Test func markingAMovieWatchedThroughAnEditStampsTheDate() throws {
+        var clock = Date(timeIntervalSince1970: 1_700_000_000)
+        let library = try Library.inMemory(now: { clock })
+        let movie = try library.addTrackedMovie(title: "Arrival")
+
+        clock = clock.addingTimeInterval(3600)
+        try library.updateTrackedMovie(movie, title: "Arrival", isWatched: true)
+
+        #expect(movie.watchedAt == clock)
+    }
+
+    /// Editing a movie's title is not watching it again: only a change of watched state
+    /// moves the stamp, exactly as tapping the row's toggle does.
+    @Test func anEditThatLeavesTheWatchedStateAloneKeepsTheStamp() throws {
+        var clock = Date(timeIntervalSince1970: 1_700_000_000)
+        let library = try Library.inMemory(now: { clock })
+        let movie = try library.addTrackedMovie(title: "Arrival")
+        library.setWatched(true, on: movie)
+        let watchedAt = movie.watchedAt
+
+        clock = clock.addingTimeInterval(3600)
+        try library.updateTrackedMovie(movie, title: "Arrival!", isWatched: true)
+
+        #expect(movie.watchedAt == watchedAt)
+    }
+
+    @Test func unmarkingAMovieThroughAnEditKeepsTheStamp() throws {
+        let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let library = try Library.inMemory(now: { watchedAt })
+        let movie = try library.addTrackedMovie(title: "Arrival")
+        library.setWatched(true, on: movie)
+
+        try library.updateTrackedMovie(movie, title: "Arrival", isWatched: false)
+
+        #expect(!movie.isWatched)
+        #expect(movie.watchedAt == watchedAt)
+    }
+
+    @Test(arguments: ["", "   "])
+    func anEditThatBlanksAMovieTitleIsRejected(title: String) throws {
+        let library = try Library.inMemory()
+        let movie = try library.addTrackedMovie(title: "Arrival")
+
+        #expect(throws: LibraryError.movieTitleIsBlank) {
+            try library.updateTrackedMovie(movie, title: title)
+        }
+        #expect(movie.title == "Arrival")
+    }
+
+    @Test func anEditedMovieTitleIsTrimmedAndABlankServiceBecomesNoService() throws {
+        let library = try Library.inMemory()
+        let movie = try library.addTrackedMovie(title: "Dune", streamingService: "Netflix")
+
+        try library.updateTrackedMovie(movie, title: "  Dune  ", streamingService: "   ")
+
+        #expect(movie.title == "Dune")
+        #expect(movie.streamingService == nil)
+    }
+
+    // MARK: - Deleting
+
+    @Test func aDeletedSeriesLeavesTheLibraryForGood() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .planned)
+
+        library.delete(.series(series))
+
+        #expect(library.trackedSeries.map(\.title) == ["Andor"])
+        #expect(library.entries.map(\.title) == ["Andor"])
+        #expect(library.watching.isEmpty)
+    }
+
+    @Test func aDeletedMovieLeavesTheLibraryForGood() throws {
+        let library = try Library.inMemory()
+        let movie = try library.addTrackedMovie(title: "Arrival")
+
+        library.delete(.movie(movie))
+
+        #expect(library.trackedMovies.isEmpty)
+        #expect(library.entries.isEmpty)
+    }
+
+    // MARK: - Persistence
+
+    @Test func anEditAndADeletionSurviveAnAppRelaunch() throws {
+        let storeURL = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let library = Library(container: try Library.container(at: storeURL))
+        let series = try library.addTrackedSeries(title: "Severence", seasons: [9], status: .planned)
+        let movie = try library.addTrackedMovie(title: "Arrival")
+        try library.updateTrackedSeries(
+            series,
+            title: "Severance",
+            seasons: [9, 10],
+            status: .watching,
+            position: Position(season: 2, episode: 1)
+        )
+        library.delete(.movie(movie))
+
+        let relaunched = Library(container: try Library.container(at: storeURL))
+
+        #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
+        #expect(relaunched.trackedSeries.first?.seasons == [9, 10])
+        #expect(relaunched.trackedSeries.first?.status == .watching)
+        #expect(relaunched.trackedSeries.first?.position == Position(season: 2, episode: 1))
+        #expect(relaunched.trackedMovies.isEmpty)
+    }
+}

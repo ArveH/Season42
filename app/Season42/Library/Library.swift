@@ -25,6 +25,11 @@ final class Library {
             .sorted { $0.addedAt > $1.addedAt }
     }
 
+    /// The same listing, narrowed to the entries the user's Library Filter keeps.
+    func entries(matching filter: LibraryFilter) -> [LibraryEntry] {
+        entries.filter(filter.matches)
+    }
+
     init(container: ModelContainer, now: @escaping @MainActor () -> Date = Date.init) {
         self.container = container
         self.now = now
@@ -47,15 +52,7 @@ final class Library {
         streamingService: String? = nil,
         nextEpisodeDate: Date? = nil
     ) throws -> TrackedSeries {
-        let title = title.trimmed
-        guard !title.isEmpty else { throw LibraryError.seriesTitleIsBlank }
-        guard !seasons.isEmpty else { throw LibraryError.seriesHasNoSeasons }
-        if let season = seasons.firstSeasonWithoutEpisodes {
-            throw LibraryError.seasonHasNoEpisodes(season: season)
-        }
-        if let position, !seasons.contains(position) {
-            throw LibraryError.positionOutOfRange(position)
-        }
+        let title = try validatedSeriesTitle(title, seasons: seasons, position: position)
 
         let series = TrackedSeries(
             title: title,
@@ -71,6 +68,27 @@ final class Library {
         try context.save()
         reload()
         return series
+    }
+
+    /// Checks everything a Tracked Series has to satisfy, whether it is being added or
+    /// edited, and hands back the title as it should be stored.
+    ///
+    /// - Throws: `LibraryError` describing the first thing wrong.
+    private func validatedSeriesTitle(
+        _ title: String,
+        seasons: Seasons,
+        position: Position?
+    ) throws -> String {
+        let title = title.trimmed
+        guard !title.isEmpty else { throw LibraryError.seriesTitleIsBlank }
+        guard !seasons.isEmpty else { throw LibraryError.seriesHasNoSeasons }
+        if let season = seasons.firstSeasonWithoutEpisodes {
+            throw LibraryError.seasonHasNoEpisodes(season: season)
+        }
+        if let position, !seasons.contains(position) {
+            throw LibraryError.positionOutOfRange(position)
+        }
+        return title
     }
 
     // MARK: - Tracking a movie
@@ -106,6 +124,72 @@ final class Library {
         movie.isWatched = watched
         if watched {
             movie.watchedAt = now()
+        }
+        save()
+    }
+
+    // MARK: - Editing and deleting what is already tracked
+
+    /// Rewrites a Tracked Series with what the user edited it to. An edit answers to every
+    /// rule a new series does — including a season the original entry didn't have, which
+    /// is the only way a returning series grows one — and a refused edit changes nothing.
+    /// What the app stamps rather than the user types, `addedAt` and `lastWatchedAt`, is
+    /// left alone: renaming a series is not watching it.
+    ///
+    /// - Throws: `LibraryError` if any field is unusable; the series is untouched then.
+    func updateTrackedSeries(
+        _ series: TrackedSeries,
+        title: String,
+        summary: String = "",
+        seasons: Seasons,
+        status: WatchStatus,
+        position: Position? = nil,
+        streamingService: String? = nil,
+        nextEpisodeDate: Date? = nil
+    ) throws {
+        let title = try validatedSeriesTitle(title, seasons: seasons, position: position)
+
+        series.title = title
+        series.summary = summary.trimmed
+        series.seasons = seasons
+        series.status = status
+        series.position = position
+        series.streamingService = streamingService?.trimmed.nilIfEmpty
+        series.nextEpisodeDate = nextEpisodeDate
+        save()
+    }
+
+    /// Rewrites a Tracked Movie with what the user edited it to.
+    ///
+    /// - Parameter isWatched: the watched state to leave the movie in, or nil to leave it
+    ///   as it is. Changing it stamps the date exactly as `setWatched(_:on:)` does, so an
+    ///   edit that only renames the movie never counts as watching it again.
+    /// - Throws: `LibraryError.movieTitleIsBlank` if there is no title; nothing changes then.
+    func updateTrackedMovie(
+        _ movie: TrackedMovie,
+        title: String,
+        summary: String = "",
+        streamingService: String? = nil,
+        isWatched: Bool? = nil
+    ) throws {
+        let title = title.trimmed
+        guard !title.isEmpty else { throw LibraryError.movieTitleIsBlank }
+
+        movie.title = title
+        movie.summary = summary.trimmed
+        movie.streamingService = streamingService?.trimmed.nilIfEmpty
+        if let isWatched, isWatched != movie.isWatched {
+            setWatched(isWatched, on: movie)
+        }
+        save()
+    }
+
+    /// Removes a Library Entry for good. There is no undo and nothing is kept: the user
+    /// asked for it to be gone.
+    func delete(_ entry: LibraryEntry) {
+        switch entry {
+        case .series(let series): context.delete(series)
+        case .movie(let movie): context.delete(movie)
         }
         save()
     }

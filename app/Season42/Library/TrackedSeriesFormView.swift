@@ -1,22 +1,39 @@
 import SwiftUI
 
-/// Hand-enters a Tracked Series. The form only gathers values; every rule about them
-/// lives in `Library`, and whatever it refuses is shown back to the user verbatim.
-struct AddTrackedSeriesView: View {
+/// Hand-enters a Tracked Series, or edits one already tracked — the fields and the rules
+/// are the same either way, so it is one form. It only gathers values; every rule about
+/// them lives in `Library`, and whatever it refuses is shown back to the user verbatim.
+struct TrackedSeriesFormView: View {
     let library: Library
+    /// The series being edited, or nil when the user is entering a new one.
+    let editing: TrackedSeries?
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var title = ""
-    @State private var summary = ""
-    @State private var seasons: Seasons = [10]
-    @State private var status = WatchStatus.planned
-    @State private var hasPosition = false
-    @State private var position = Position(season: 1, episode: 1)
-    @State private var streamingService = ""
-    @State private var hasNextEpisodeDate = false
-    @State private var nextEpisodeDate = Date()
+    @State private var title: String
+    @State private var summary: String
+    @State private var seasons: Seasons
+    @State private var status: WatchStatus
+    @State private var hasPosition: Bool
+    @State private var position: Position
+    @State private var streamingService: String
+    @State private var hasNextEpisodeDate: Bool
+    @State private var nextEpisodeDate: Date
     @State private var failureMessage: String?
+
+    init(library: Library, editing series: TrackedSeries? = nil) {
+        self.library = library
+        self.editing = series
+        _title = State(initialValue: series?.title ?? "")
+        _summary = State(initialValue: series?.summary ?? "")
+        _seasons = State(initialValue: series?.seasons ?? [10])
+        _status = State(initialValue: series?.status ?? .planned)
+        _hasPosition = State(initialValue: series?.position != nil)
+        _position = State(initialValue: series?.position ?? Position(season: 1, episode: 1))
+        _streamingService = State(initialValue: series?.streamingService ?? "")
+        _hasNextEpisodeDate = State(initialValue: series?.nextEpisodeDate != nil)
+        _nextEpisodeDate = State(initialValue: series?.nextEpisodeDate ?? Date())
+    }
 
     var body: some View {
         NavigationStack {
@@ -74,18 +91,18 @@ struct AddTrackedSeriesView: View {
                     }
                 }
             }
-            .navigationTitle("Track a Series")
+            .navigationTitle(isEditing ? "Edit Series" : "Track a Series")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add", action: add)
+                    Button(isEditing ? "Save" : "Add", action: submit)
                 }
             }
             .alert(
-                "Couldn't add the series",
+                isEditing ? "Couldn't save the series" : "Couldn't add the series",
                 isPresented: .init(
                     get: { failureMessage != nil },
                     set: { if !$0 { failureMessage = nil } }
@@ -102,6 +119,8 @@ struct AddTrackedSeriesView: View {
         }
     }
 
+    private var isEditing: Bool { editing != nil }
+
     private var seasonCount: Binding<Int> {
         Binding(get: { seasons.count }, set: { seasons.setCount($0) })
     }
@@ -112,17 +131,30 @@ struct AddTrackedSeriesView: View {
         max(1, seasons.episodeCount(inSeason: position.season) ?? 1)
     }
 
-    private func add() {
+    private func submit() {
         do {
-            try library.addTrackedSeries(
-                title: title,
-                summary: summary,
-                seasons: seasons,
-                status: status,
-                position: hasPosition ? position : nil,
-                streamingService: streamingService,
-                nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil
-            )
+            if let editing {
+                try library.updateTrackedSeries(
+                    editing,
+                    title: title,
+                    summary: summary,
+                    seasons: seasons,
+                    status: status,
+                    position: hasPosition ? position : nil,
+                    streamingService: streamingService,
+                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil
+                )
+            } else {
+                try library.addTrackedSeries(
+                    title: title,
+                    summary: summary,
+                    seasons: seasons,
+                    status: status,
+                    position: hasPosition ? position : nil,
+                    streamingService: streamingService,
+                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil
+                )
+            }
             dismiss()
         } catch {
             failureMessage = error.localizedDescription
@@ -131,5 +163,5 @@ struct AddTrackedSeriesView: View {
 }
 
 #Preview {
-    AddTrackedSeriesView(library: try! Library.inMemory())
+    TrackedSeriesFormView(library: try! Library.inMemory())
 }

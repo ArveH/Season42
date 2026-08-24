@@ -19,6 +19,10 @@ _Avoid_: user data, my shows, collection
 One thing in the Library, whichever kind it is — a Tracked Series or a Tracked Movie. What the Library tab lists; nothing else in the app treats the two as one.
 _Avoid_: item, record
 
+**Library Filter**:
+How the user has narrowed the Library listing: a search text matched against titles, a Status, and a kind of Library Entry (series or movies). The parts combine, and an untouched filter narrows nothing. Because only a Tracked Series has a Status, filtering by one leaves no movies in the listing.
+_Avoid_: query, search criteria
+
 **Tracked Series**:
 A series the user has added to their own data — hand-entered or copied from the Catalog — including seasons, episode counts, and their watch position.
 _Avoid_: show, subscription, my series
