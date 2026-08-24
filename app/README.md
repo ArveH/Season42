@@ -4,6 +4,8 @@ SwiftUI iPhone app (bundle id `com.season42.app`). Targets: `Season42` (app) and
 
 Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed.
 
+The one exception is the Catalog snapshot: the app bundles `../catalog/catalog.json`, the very file the API serves, through an explicit file reference in the app target's Resources build phase (ADR-0003). Moving or renaming `catalog/` means editing `project.pbxproj`.
+
 ## Build and test from the CLI
 
 Requires an Xcode that is recent enough to open the project *and* has a usable iOS simulator runtime. Point `DEVELOPER_DIR` at one that does — e.g. `/Applications/Xcode.app/Contents/Developer` — when the `xcode-select`ed Xcode reports either:

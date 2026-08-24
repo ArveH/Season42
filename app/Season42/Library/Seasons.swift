@@ -15,6 +15,13 @@ struct Seasons: Codable, Hashable, Sendable, ExpressibleByArrayLiteral {
     var count: Int { episodeCounts.count }
     var isEmpty: Bool { episodeCounts.isEmpty }
 
+    /// Every season number there is, in order and numbered from 1 — what to walk when
+    /// something has to say a word about each season.
+    var seasonNumbers: [Int] { episodeCounts.indices.map { $0 + 1 } }
+
+    /// How many episodes there are across every season.
+    var totalEpisodes: Int { episodeCounts.reduce(0, +) }
+
     /// The episode count of `season`, or nil if there is no such season.
     func episodeCount(inSeason season: Int) -> Int? {
         episodeCounts.indices.contains(season - 1) ? episodeCounts[season - 1] : nil

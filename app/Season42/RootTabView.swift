@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
     let library: Library
+    let catalog: Catalog
 
     var body: some View {
         TabView {
@@ -10,7 +11,7 @@ struct RootTabView: View {
                     switch tab {
                     case .watching: WatchingView(library: library)
                     case .library: LibraryView(library: library)
-                    case .catalog: PlaceholderView(tab: tab)
+                    case .catalog: CatalogView(catalog: catalog)
                     }
                 }
             }
@@ -18,19 +19,6 @@ struct RootTabView: View {
     }
 }
 
-/// Empty placeholder shown until each tab's real screen exists.
-private struct PlaceholderView: View {
-    let tab: AppTab
-
-    var body: some View {
-        NavigationStack {
-            Text(tab.title)
-                .foregroundStyle(.secondary)
-                .navigationTitle(tab.title)
-        }
-    }
-}
-
 #Preview {
-    RootTabView(library: try! Library.inMemory())
+    RootTabView(library: try! Library.inMemory(), catalog: try! Catalog.inMemory())
 }

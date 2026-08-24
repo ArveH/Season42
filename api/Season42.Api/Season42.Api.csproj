@@ -7,9 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Canonical Catalog test data; the iOS app will bundle this same file as its
-         first-launch snapshot, keeping the app/API contract byte-identical. -->
-    <Content Update="Data\catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The canonical Catalog snapshot lives at the repo root, outside both projects,
+         because the iOS app bundles the very same file as its first-launch snapshot.
+         One file, two consumers: the app/API contract cannot drift (ADR-0003). -->
+    <Content Include="..\..\catalog\catalog.json" Link="Data\catalog.json"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
