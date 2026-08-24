@@ -15,6 +15,10 @@ A template entry in the Catalog. Tracking one copies it into the user's data; th
 The whole Catalog as one served document — what `GET /catalog` returns, and the very same file the app bundles to fill its cache from on a first launch (ADR-0003). A snapshot is decoded and cached, never stored as-is; filling from one replaces everything cached.
 _Avoid_: catalog dump, seed data, fixture
 
+**Already Tracked**:
+A Catalog Series or Catalog Movie the Library already holds one of, which the Catalog tab marks so the same thing isn't tracked twice by accident. A copy keeps no reference back to the entry it came from (ADR-0002), so title and kind are the whole of the test: a hand-entered entry marks the Catalog entry it duplicates, and a copy the user renamed no longer does.
+_Avoid_: linked, imported, owned
+
 **Library**:
 The user's own collection of Tracked Series and Tracked Movies. Lives only on the device; does not include the cached Catalog.
 _Avoid_: user data, my shows, collection

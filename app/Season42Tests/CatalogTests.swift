@@ -172,30 +172,3 @@ struct CatalogTests {
         #expect(!catalog.series.isEmpty)
     }
 }
-
-private extension CatalogSnapshot {
-    /// A snapshot of a single series, movie and service — enough to tell one filling of
-    /// the cache from another without leaning on what the bundled snapshot happens to say.
-    static let justTheBear = CatalogSnapshot(
-        streamingServices: [
-            CatalogStreamingServiceSnapshot(externalId: "netflix", name: "Netflix")
-        ],
-        series: [
-            CatalogSeriesSnapshot(
-                externalId: "136315",
-                title: "The Bear",
-                summary: "Carmy, a young fine-dining chef, comes home to Chicago.",
-                posterUrl: "https://image.tmdb.org/t/p/w500/eKfVzzEazSIjJMrw9ADa2x8ksLz.jpg",
-                seasons: [8, 10]
-            )
-        ],
-        movies: [
-            CatalogMovieSnapshot(
-                externalId: "666277",
-                title: "Past Lives",
-                summary: "Childhood friends reunited in New York decades later.",
-                posterUrl: nil
-            )
-        ]
-    )
-}

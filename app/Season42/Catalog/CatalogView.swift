@@ -2,9 +2,12 @@ import SwiftUI
 
 /// The Catalog tab: what the shared Catalog offers, browsable with no network at all —
 /// the app ships the snapshot it is filled from. Nothing here is the user's own data and
-/// nothing here can be edited; tracking an entry arrives in a later ticket.
+/// nothing here can be edited; the one thing the user can do with an entry is copy it
+/// into their Library, which is what tapping through to it is for.
 struct CatalogView: View {
     let catalog: Catalog
+    /// Where a copied entry lands, and what knows whether an entry is already tracked.
+    let library: Library
 
     var body: some View {
         NavigationStack {
@@ -28,12 +31,13 @@ struct CatalogView: View {
             Section("Series") {
                 ForEach(catalog.series) { series in
                     NavigationLink {
-                        CatalogSeriesView(series: series)
+                        CatalogSeriesView(series: series, library: library)
                     } label: {
                         CatalogRow(
                             title: series.title,
                             subtitle: series.seasonsSummary,
-                            summary: series.summary
+                            summary: series.summary,
+                            isTracked: library.isTracked(series)
                         )
                     }
                 }
@@ -41,9 +45,14 @@ struct CatalogView: View {
             Section("Popular movies") {
                 ForEach(catalog.movies) { movie in
                     NavigationLink {
-                        CatalogMovieView(movie: movie)
+                        CatalogMovieView(movie: movie, library: library)
                     } label: {
-                        CatalogRow(title: movie.title, subtitle: "Movie", summary: movie.summary)
+                        CatalogRow(
+                            title: movie.title,
+                            subtitle: "Movie",
+                            summary: movie.summary,
+                            isTracked: library.isTracked(movie)
+                        )
                     }
                 }
             }
@@ -60,16 +69,23 @@ struct CatalogView: View {
 
 /// One thing the Catalog offers: what it is called, how much of it there is, and the
 /// opening of what it is about — enough to browse by, with the whole description a tap
-/// away.
+/// away. A row the user already tracks says so, so the same series isn't started twice.
 private struct CatalogRow: View {
     let title: String
     let subtitle: String
     let summary: String
+    let isTracked: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.headline)
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.headline)
+                if isTracked {
+                    Spacer(minLength: 8)
+                    AlreadyTrackedMark()
+                }
+            }
             Text(subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -82,10 +98,25 @@ private struct CatalogRow: View {
     }
 }
 
-/// A Catalog Series in full: what it is about, and how long each season is — the two
-/// things someone deciding whether to track it wants.
+/// How the Catalog says an entry is already in the user's Library.
+private struct AlreadyTrackedMark: View {
+    var body: some View {
+        Label("In your Library", systemImage: "checkmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.tint)
+            .labelStyle(.titleAndIcon)
+    }
+}
+
+/// A Catalog Series in full: what it is about, how long each season is, and the one
+/// action the Catalog offers — copying it into the Library under a Status the user picks.
 private struct CatalogSeriesView: View {
     let series: CatalogSeries
+    let library: Library
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var status: WatchStatus = .planned
+    @State private var failureMessage: String?
 
     var body: some View {
         List {
@@ -97,23 +128,109 @@ private struct CatalogSeriesView: View {
                     LabeledContent("Season \(season)", value: episodePhrase(series.seasons[season]))
                 }
             }
+            Section {
+                if library.isTracked(series) {
+                    AlreadyTrackedMark()
+                }
+                Picker("Status", selection: $status) {
+                    ForEach(WatchStatus.allCases, id: \.self) { status in
+                        Text(status.title).tag(status)
+                    }
+                }
+                Button("Track this series", action: track)
+            } header: {
+                Text("Track")
+            } footer: {
+                trackingFootnote(
+                    isTracked: library.isTracked(series),
+                    otherwise: "Copies the series into your Library, with nothing watched yet."
+                )
+            }
         }
         .navigationTitle(series.title)
         .navigationBarTitleDisplayMode(.inline)
+        .trackingFailure($failureMessage)
+    }
+
+    private func track() {
+        do {
+            try library.track(series, status: status)
+            dismiss()
+        } catch {
+            failureMessage = error.localizedDescription
+        }
     }
 }
 
+/// A Catalog Movie in full. There is no Status to pick: a copied movie starts unwatched,
+/// which is to say on the user's watchlist.
 private struct CatalogMovieView: View {
     let movie: CatalogMovie
+    let library: Library
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var failureMessage: String?
 
     var body: some View {
         List {
             Section {
                 Text(movie.summary)
             }
+            Section {
+                if library.isTracked(movie) {
+                    AlreadyTrackedMark()
+                }
+                Button("Track this movie", action: track)
+            } footer: {
+                trackingFootnote(
+                    isTracked: library.isTracked(movie),
+                    otherwise: "Copies the movie into your Library, unwatched."
+                )
+            }
         }
         .navigationTitle(movie.title)
         .navigationBarTitleDisplayMode(.inline)
+        .trackingFailure($failureMessage)
+    }
+
+    private func track() {
+        do {
+            try library.track(movie)
+            dismiss()
+        } catch {
+            failureMessage = error.localizedDescription
+        }
+    }
+}
+
+/// What the Track section says under its button: what tracking this entry would do, or
+/// that the Library already holds one of it. The copy is the user's own from the moment
+/// it exists (ADR-0002), so a second one is theirs to want — the mark is a warning, not
+/// a refusal.
+private func trackingFootnote(isTracked: Bool, otherwise whatItDoes: String) -> Text {
+    Text(
+        isTracked
+            ? "Already in your Library. Tracking it again adds a second copy."
+            : whatItDoes
+    )
+}
+
+private extension View {
+    /// Shows whatever the Library refused a copy for, verbatim — the same bargain the
+    /// hand-entry forms strike with it.
+    func trackingFailure(_ message: Binding<String?>) -> some View {
+        alert(
+            "Couldn't track this",
+            isPresented: .init(
+                get: { message.wrappedValue != nil },
+                set: { if !$0 { message.wrappedValue = nil } }
+            ),
+            presenting: message.wrappedValue
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { text in
+            Text(text)
+        }
     }
 }
 
@@ -135,5 +252,5 @@ private func episodePhrase(_ count: Int) -> String {
 #Preview {
     let catalog = try! Catalog.inMemory()
     try? catalog.fillFromBundledSnapshotIfEmpty()
-    return CatalogView(catalog: catalog)
+    return CatalogView(catalog: catalog, library: try! Library.inMemory())
 }
