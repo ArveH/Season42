@@ -248,6 +248,20 @@ struct SeasonsTests {
         #expect(seasons.episodeCount(inSeason: 0) == nil)
     }
 
+    @Test func everySeasonNumberIsHandedOutInOrderAndTheEpisodesAdded() {
+        let seasons: Seasons = [9, 10]
+
+        #expect(seasons.seasonNumbers == [1, 2])
+        #expect(seasons.totalEpisodes == 19)
+    }
+
+    @Test func aSeriesWithNoSeasonsHasNoSeasonNumbersAndNoEpisodes() {
+        let seasons = Seasons(episodeCounts: [])
+
+        #expect(seasons.seasonNumbers.isEmpty)
+        #expect(seasons.totalEpisodes == 0)
+    }
+
     @Test func onlyPositionsTheSeriesActuallyHasAreContained() {
         let seasons: Seasons = [9, 10]
 

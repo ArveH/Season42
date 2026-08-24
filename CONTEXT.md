@@ -11,6 +11,10 @@ _Avoid_: system data, common data
 **Catalog Series / Catalog Movie**:
 A template entry in the Catalog. Tracking one copies it into the user's data; the copy is thereafter independent.
 
+**Catalog Snapshot**:
+The whole Catalog as one served document — what `GET /catalog` returns, and the very same file the app bundles to fill its cache from on a first launch (ADR-0003). A snapshot is decoded and cached, never stored as-is; filling from one replaces everything cached.
+_Avoid_: catalog dump, seed data, fixture
+
 **Library**:
 The user's own collection of Tracked Series and Tracked Movies. Lives only on the device; does not include the cached Catalog.
 _Avoid_: user data, my shows, collection
