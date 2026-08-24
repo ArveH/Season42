@@ -3,15 +3,18 @@ import Foundation
 /// Why the Library refused to store something. Every case is a user-fixable mistake,
 /// so each carries a message the UI can show as-is.
 enum LibraryError: Error, Equatable, LocalizedError {
-    case titleIsBlank
+    case seriesTitleIsBlank
+    case movieTitleIsBlank
     case seriesHasNoSeasons
     case seasonHasNoEpisodes(season: Int)
     case positionOutOfRange(Position)
 
     var errorDescription: String? {
         switch self {
-        case .titleIsBlank:
+        case .seriesTitleIsBlank:
             "Give the series a title."
+        case .movieTitleIsBlank:
+            "Give the movie a title."
         case .seriesHasNoSeasons:
             "A series needs at least one season."
         case .seasonHasNoEpisodes(let season):
