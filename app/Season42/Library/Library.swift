@@ -110,6 +110,28 @@ final class Library {
         save()
     }
 
+    // MARK: - Waiting
+
+    /// What the Watching tab lists below `watching`: series with status Waiting, soonest
+    /// Next Episode Date first. Ones without a date come last rather than disappearing,
+    /// and series the dates can't separate come most recently added first.
+    var waiting: [TrackedSeries] {
+        trackedSeries
+            .filter { $0.status == .waiting }
+            .sorted { series, other in
+                switch (series.nextEpisodeDate, other.nextEpisodeDate) {
+                case let (date?, otherDate?) where date != otherDate:
+                    date < otherDate
+                case (.some, nil):
+                    true
+                case (nil, .some):
+                    false
+                default:
+                    series.addedAt > other.addedAt
+                }
+            }
+    }
+
     // MARK: - Loading
 
     /// Persists an edit to a series already in the store. Unlike a rejected new series,

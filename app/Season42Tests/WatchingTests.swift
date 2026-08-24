@@ -304,7 +304,10 @@ struct WatchingTests {
 /// ordering never depends on how fast two calls happen to run.
 @MainActor
 final class TestClock {
-    private(set) var date = Date(timeIntervalSince1970: 1_700_000_000)
+    /// Where every test's clock starts, and the fixed point any other test date hangs off.
+    nonisolated static let epoch = Date(timeIntervalSince1970: 1_700_000_000)
+
+    private(set) var date = TestClock.epoch
 
     /// Passed to `Library` as its source of "now".
     var now: @MainActor () -> Date { { self.date } }
