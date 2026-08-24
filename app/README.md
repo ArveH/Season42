@@ -6,7 +6,10 @@ Both targets use filesystem-synchronized groups — files added under `Season42/
 
 ## Build and test from the CLI
 
-Requires an Xcode with a usable iOS simulator runtime. If the `xcode-select`ed Xcode has none (symptom: `xcodebuild` reports no eligible simulator destinations), point `DEVELOPER_DIR` at one that does, e.g. `/Applications/Xcode.app/Contents/Developer`.
+Requires an Xcode that is recent enough to open the project *and* has a usable iOS simulator runtime. Point `DEVELOPER_DIR` at one that does — e.g. `/Applications/Xcode.app/Contents/Developer` — when the `xcode-select`ed Xcode reports either:
+
+- `cannot be opened because it is in a future Xcode project file format` — that Xcode is older than the one the project was last saved with, or
+- no eligible simulator destinations.
 
 ```sh
 xcodebuild -project Season42.xcodeproj -scheme Season42 \

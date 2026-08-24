@@ -22,6 +22,14 @@ _Avoid_: show, subscription, my series
 **Tracked Movie**:
 A movie in the user's data. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie).
 
+**Description**:
+The user's own free-text note on what a Tracked Series or Tracked Movie is about. Carried in code as `summary`, because SwiftData reserves the name `description`.
+_Avoid_: synopsis, blurb, notes
+
+**Status**:
+Where a Tracked Series stands, as one of exactly five values the user sets by hand — Planned, Watching, Waiting, Finished, Dropped. Never derived from Position, dates, or the Catalog.
+_Avoid_: state, watch state
+
 **Position**:
 The season and episode of a Tracked Series the user has most recently watched.
 _Avoid_: progress, bookmark

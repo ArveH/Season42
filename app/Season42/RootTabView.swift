@@ -1,11 +1,16 @@
 import SwiftUI
 
 struct RootTabView: View {
+    let library: Library
+
     var body: some View {
         TabView {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Tab(tab.title, systemImage: tab.systemImage) {
-                    PlaceholderView(tab: tab)
+                    switch tab {
+                    case .library: LibraryView(library: library)
+                    case .watching, .catalog: PlaceholderView(tab: tab)
+                    }
                 }
             }
         }
@@ -26,5 +31,5 @@ private struct PlaceholderView: View {
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(library: try! Library.inMemory())
 }
