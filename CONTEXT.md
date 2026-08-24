@@ -11,6 +11,10 @@ _Avoid_: system data, common data
 **Catalog Series / Catalog Movie**:
 A template entry in the Catalog. Tracking one copies it into the user's data; the copy is thereafter independent.
 
+**Library**:
+The user's own collection of Tracked Series and Tracked Movies. Lives only on the device; does not include the cached Catalog.
+_Avoid_: user data, my shows, collection
+
 **Tracked Series**:
 A series the user has added to their own data — hand-entered or copied from the Catalog — including seasons, episode counts, and their watch position.
 _Avoid_: show, subscription, my series
