@@ -18,8 +18,10 @@ struct StreamingServicesView: View {
                         "No streaming services yet",
                         systemImage: "tv",
                         description: Text(
-                            "Register the services you watch on, and you can pick one for "
-                                + "every series and movie you track."
+                            """
+                            Register the services you watch on, and you can pick one for \
+                            every series and movie you track.
+                            """
                         )
                     )
                 } else {
@@ -60,7 +62,7 @@ struct StreamingServicesView: View {
                     library.deleteStreamingService(service)
                 }
             } message: { service in
-                Text(deletionWarning(for: service))
+                deletionWarning(for: service)
             }
             .alert(
                 "Couldn't save the streaming service",
@@ -94,11 +96,18 @@ struct StreamingServicesView: View {
 
     /// What deleting costs. A service nothing names goes quietly; one that entries name
     /// takes their service with it, and they are counted before the user commits.
-    private func deletionWarning(for service: StreamingService) -> String {
+    ///
+    /// Returns a `Text` rather than a `String` so the count stays in a string literal:
+    /// joining one together first would leave the inflection markup to be read as text.
+    private func deletionWarning(for service: StreamingService) -> Text {
         let count = service.entryCount
-        guard count > 0 else { return "This can't be undone." }
-        return "^[\(count) entry](inflect: true) will be left with no streaming service. "
-            + "Nothing you track is deleted."
+        guard count > 0 else { return Text("This can't be undone.") }
+        return Text(
+            """
+            ^[\(count) entry](inflect: true) will be left with no streaming service. \
+            Nothing you track is deleted.
+            """
+        )
     }
 }
 
