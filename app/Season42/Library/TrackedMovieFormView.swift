@@ -13,7 +13,7 @@ struct TrackedMovieFormView: View {
 
     @State private var title: String
     @State private var summary: String
-    @State private var streamingService: String
+    @State private var streamingService: StreamingService?
     @State private var isWatched: Bool
     @State private var failureMessage: String?
 
@@ -22,7 +22,7 @@ struct TrackedMovieFormView: View {
         self.editing = movie
         _title = State(initialValue: movie?.title ?? "")
         _summary = State(initialValue: movie?.summary ?? "")
-        _streamingService = State(initialValue: movie?.streamingService ?? "")
+        _streamingService = State(initialValue: movie?.streamingService)
         _isWatched = State(initialValue: movie?.isWatched ?? false)
     }
 
@@ -36,7 +36,7 @@ struct TrackedMovieFormView: View {
                 }
 
                 Section("Where") {
-                    TextField("Streaming service", text: $streamingService)
+                    StreamingServicePicker(library: library, selection: $streamingService)
                 }
 
                 if isEditing {

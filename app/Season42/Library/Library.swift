@@ -18,6 +18,10 @@ final class Library {
     /// Every movie the user tracks, most recently added first.
     private(set) var trackedMovies: [TrackedMovie] = []
 
+    /// Every Streaming Service the user has registered, alphabetically — a list read by
+    /// name rather than scanned like a feed, so unlike the two above it is not by date.
+    private(set) var streamingServices: [StreamingService] = []
+
     /// What the Library tab lists: everything the user tracks, series and movies
     /// interleaved, most recently added first.
     var entries: [LibraryEntry] {
@@ -34,6 +38,7 @@ final class Library {
         self.container = container
         self.now = now
         reload()
+        adoptLegacyStreamingServiceNames()
     }
 
     // MARK: - Tracking a series by hand
@@ -49,7 +54,7 @@ final class Library {
         seasons: Seasons,
         status: WatchStatus,
         position: Position? = nil,
-        streamingService: String? = nil,
+        streamingService: StreamingService? = nil,
         nextEpisodeDate: Date? = nil
     ) throws -> TrackedSeries {
         let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
@@ -61,7 +66,7 @@ final class Library {
             seasons: seasons,
             status: status,
             position: position,
-            streamingService: streamingService?.trimmed.nilIfEmpty,
+            streamingService: streamingService,
             nextEpisodeDate: nextEpisodeDate,
             addedAt: now()
         )
@@ -104,14 +109,14 @@ final class Library {
     func addTrackedMovie(
         title: String,
         summary: String = "",
-        streamingService: String? = nil
+        streamingService: StreamingService? = nil
     ) throws -> TrackedMovie {
         let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
 
         let movie = TrackedMovie(
             title: title,
             summary: summary.trimmed,
-            streamingService: streamingService?.trimmed.nilIfEmpty,
+            streamingService: streamingService,
             addedAt: now()
         )
         context.insert(movie)
@@ -129,6 +134,60 @@ final class Library {
             movie.watchedAt = now()
         }
         save()
+    }
+
+    // MARK: - Registering the services the user watches on
+
+    /// Registers a Streaming Service the user can then name on their entries.
+    ///
+    /// - Throws: `LibraryError` if the name is blank or already registered; nothing is
+    ///   stored in that case.
+    @discardableResult
+    func addStreamingService(name: String) throws -> StreamingService {
+        let name = try validatedServiceName(name, keeping: nil)
+
+        let service = StreamingService(name: name)
+        context.insert(service)
+        try context.save()
+        reload()
+        return service
+    }
+
+    /// Renames a Streaming Service. Because entries name the service itself rather than a
+    /// copy of its name, every entry on it reads the new name at once.
+    ///
+    /// - Throws: `LibraryError` if the name is blank or belongs to another service; the
+    ///   service is untouched then. Restyling a service's own name — "netflix" to
+    ///   "Netflix" — is not a clash with itself.
+    func renameStreamingService(_ service: StreamingService, to name: String) throws {
+        service.name = try validatedServiceName(name, keeping: service)
+        save()
+    }
+
+    /// Removes a Streaming Service. Entries that named it are left naming none rather
+    /// than deleted: cancelling a subscription says nothing about what the user tracks
+    /// (ADR-0006). The UI is what tells them how many first — `entryCount` counts them.
+    func deleteStreamingService(_ service: StreamingService) {
+        context.delete(service)
+        save()
+    }
+
+    /// The name as it should be stored.
+    ///
+    /// - Parameter keeping: the service being renamed, which is not a clash with itself,
+    ///   or nil when a new one is being registered.
+    /// - Throws: `LibraryError` describing what is wrong with the name.
+    private func validatedServiceName(
+        _ name: String,
+        keeping service: StreamingService?
+    ) throws -> String {
+        let name = name.trimmed
+        guard !name.isEmpty else { throw LibraryError.streamingServiceNameIsBlank }
+        let clash = streamingServices.contains {
+            $0 !== service && $0.name.caseInsensitiveCompare(name) == .orderedSame
+        }
+        guard !clash else { throw LibraryError.streamingServiceAlreadyExists(name: name) }
+        return name
     }
 
     // MARK: - Editing and deleting what is already tracked
@@ -150,7 +209,7 @@ final class Library {
         seasons: Seasons,
         status: WatchStatus,
         position: Position?,
-        streamingService: String?,
+        streamingService: StreamingService?,
         nextEpisodeDate: Date?
     ) throws {
         let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
@@ -161,7 +220,7 @@ final class Library {
         series.seasons = seasons
         series.status = status
         series.position = position
-        series.streamingService = streamingService?.trimmed.nilIfEmpty
+        series.streamingService = streamingService
         series.nextEpisodeDate = nextEpisodeDate
         save()
     }
@@ -177,14 +236,14 @@ final class Library {
         _ movie: TrackedMovie,
         title: String,
         summary: String,
-        streamingService: String?,
+        streamingService: StreamingService?,
         isWatched: Bool
     ) throws {
         let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
 
         movie.title = title
         movie.summary = summary.trimmed
-        movie.streamingService = streamingService?.trimmed.nilIfEmpty
+        movie.streamingService = streamingService
         if isWatched != movie.isWatched {
             setWatched(isWatched, on: movie)
         }
@@ -272,6 +331,56 @@ final class Library {
 
     // MARK: - Loading
 
+    /// Adopts the hand-typed Streaming Service names left in a store written before
+    /// services were registered: each entry that still holds one is pointed at a
+    /// registered service of that name, one being registered if this is the first entry
+    /// to name it (ADR-0006).
+    ///
+    /// Runs on every open and does nothing once no entry holds a name, so it needs
+    /// nothing remembered about whether it has run before. Names that differ only in
+    /// case are one service, spelled the way the most recently added entry spelled it —
+    /// which is why this walks `entries`, newest first.
+    ///
+    /// Delete along with the two `legacyStreamingServiceName` properties.
+    private func adoptLegacyStreamingServiceNames() {
+        var registered = Dictionary(
+            streamingServices.map { ($0.name.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var adoptedAny = false
+
+        for entry in entries {
+            let legacyName: String? = switch entry {
+            case .series(let series): series.legacyStreamingServiceName
+            case .movie(let movie): movie.legacyStreamingServiceName
+            }
+            guard let legacyName else { continue }
+            adoptedAny = true
+
+            // A name of nothing but whitespace meant "no service" when it was typed, and
+            // still does: the entry is left naming none rather than registering a blank.
+            let service = legacyName.trimmed.nilIfEmpty.map { name in
+                registered[name.lowercased()] ?? {
+                    let service = StreamingService(name: name)
+                    context.insert(service)
+                    registered[name.lowercased()] = service
+                    return service
+                }()
+            }
+
+            switch entry {
+            case .series(let series):
+                series.streamingService = service
+                series.legacyStreamingServiceName = nil
+            case .movie(let movie):
+                movie.streamingService = service
+                movie.legacyStreamingServiceName = nil
+            }
+        }
+
+        if adoptedAny { save() }
+    }
+
     /// Persists an edit to something already in the store. Unlike a rejected new entry,
     /// there is nothing here for the user to fix and no useful degraded mode, so a failing
     /// save leaves the in-memory Library as the user sees it and is not surfaced.
@@ -289,6 +398,11 @@ final class Library {
         )
         trackedSeries = (try? context.fetch(newestSeriesFirst)) ?? []
         trackedMovies = (try? context.fetch(newestMoviesFirst)) ?? []
+        // Sorted here rather than by the fetch: a name is ordered the way the reader's
+        // language orders it, which is what `localizedStandardCompare` knows and a
+        // `SortDescriptor` on the store does not.
+        streamingServices = ((try? context.fetch(FetchDescriptor<StreamingService>())) ?? [])
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 }
 
@@ -297,7 +411,7 @@ final class Library {
 extension Library {
     /// The schema of everything the user owns — which, since ADR-0005, is everything
     /// the app stores.
-    static let schema = Schema([TrackedSeries.self, TrackedMovie.self])
+    static let schema = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
 
     /// The on-device store the app runs against.
     static func onDisk() throws -> Library {

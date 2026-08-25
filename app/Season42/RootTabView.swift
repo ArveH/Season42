@@ -10,6 +10,7 @@ struct RootTabView: View {
                     switch tab {
                     case .watching: WatchingView(library: library)
                     case .library: LibraryView(library: library)
+                    case .streamingServices: StreamingServicesView(library: library)
                     }
                 }
             }

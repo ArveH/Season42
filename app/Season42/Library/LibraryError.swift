@@ -8,6 +8,8 @@ enum LibraryError: Error, Equatable, LocalizedError {
     case seriesHasNoSeasons
     case seasonHasNoEpisodes(season: Int)
     case positionOutOfRange(Position)
+    case streamingServiceNameIsBlank
+    case streamingServiceAlreadyExists(name: String)
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +23,10 @@ enum LibraryError: Error, Equatable, LocalizedError {
             "Season \(season) needs at least one episode."
         case .positionOutOfRange(let position):
             "\(position.shorthand) is outside the seasons and episodes entered for this series."
+        case .streamingServiceNameIsBlank:
+            "Give the streaming service a name."
+        case .streamingServiceAlreadyExists(let name):
+            "There is already a streaming service called \(name)."
         }
     }
 }

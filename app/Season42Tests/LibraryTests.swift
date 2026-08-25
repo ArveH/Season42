@@ -33,7 +33,7 @@ struct LibraryTests {
             seasons: [9, 10],
             status: .waiting,
             position: Position(season: 2, episode: 3),
-            streamingService: "Apple TV+",
+            streamingService: try library.service("Apple TV+"),
             nextEpisodeDate: airDate
         )
 
@@ -43,7 +43,7 @@ struct LibraryTests {
         #expect(series.seasons.count == 2)
         #expect(series.status == .waiting)
         #expect(series.position == Position(season: 2, episode: 3))
-        #expect(series.streamingService == "Apple TV+")
+        #expect(series.streamingService?.name == "Apple TV+")
         #expect(series.nextEpisodeDate == airDate)
     }
 
@@ -92,15 +92,10 @@ struct LibraryTests {
 
     // MARK: - Optional fields
 
-    @Test func aBlankStreamingServiceIsStoredAsNoService() throws {
+    @Test func aSeriesCanBeTrackedWithNoStreamingService() throws {
         let library = try Library.inMemory()
 
-        let series = try library.addTrackedSeries(
-            title: "Dark",
-            seasons: [10],
-            status: .finished,
-            streamingService: "   "
-        )
+        let series = try library.addTrackedSeries(title: "Dark", seasons: [10], status: .finished)
 
         #expect(series.streamingService == nil)
     }

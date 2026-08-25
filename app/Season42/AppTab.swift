@@ -2,11 +2,13 @@
 enum AppTab: CaseIterable {
     case watching
     case library
+    case streamingServices
 
     var title: String {
         switch self {
         case .watching: "Watching"
         case .library: "Library"
+        case .streamingServices: "Streaming Services"
         }
     }
 
@@ -14,6 +16,7 @@ enum AppTab: CaseIterable {
         switch self {
         case .watching: "play.circle"
         case .library: "books.vertical"
+        case .streamingServices: "tv"
         }
     }
 }

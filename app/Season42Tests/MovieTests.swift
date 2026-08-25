@@ -22,12 +22,12 @@ struct MovieTests {
         let movie = try library.addTrackedMovie(
             title: "Arrival",
             summary: "Linguistics, non-linearly.",
-            streamingService: "Netflix"
+            streamingService: try library.service("Netflix")
         )
 
         #expect(movie.title == "Arrival")
         #expect(movie.summary == "Linguistics, non-linearly.")
-        #expect(movie.streamingService == "Netflix")
+        #expect(movie.streamingService?.name == "Netflix")
     }
 
     @Test func surroundingWhitespaceIsTrimmedFromTheTitle() throws {
@@ -38,10 +38,10 @@ struct MovieTests {
         #expect(movie.title == "Dune")
     }
 
-    @Test func aBlankStreamingServiceIsStoredAsNoService() throws {
+    @Test func aMovieCanBeTrackedWithNoStreamingService() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Dune", streamingService: "   ")
+        let movie = try library.addTrackedMovie(title: "Dune")
 
         #expect(movie.streamingService == nil)
     }
@@ -180,13 +180,16 @@ struct MovieTests {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
 
         let library = Library(container: try Library.container(at: storeURL), now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival", streamingService: "Netflix")
+        let movie = try library.addTrackedMovie(
+            title: "Arrival",
+            streamingService: try library.service("Netflix")
+        )
         library.setWatched(true, on: movie)
 
         let relaunched = Library(container: try Library.container(at: storeURL))
 
         #expect(relaunched.trackedMovies.map(\.title) == ["Arrival"])
-        #expect(relaunched.trackedMovies.first?.streamingService == "Netflix")
+        #expect(relaunched.trackedMovies.first?.streamingService?.name == "Netflix")
         #expect(relaunched.trackedMovies.first?.isWatched == true)
         #expect(relaunched.trackedMovies.first?.watchedAt == watchedAt)
     }

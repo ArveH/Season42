@@ -16,7 +16,7 @@ struct TrackedSeriesFormView: View {
     @State private var status: WatchStatus
     @State private var hasPosition: Bool
     @State private var position: Position
-    @State private var streamingService: String
+    @State private var streamingService: StreamingService?
     @State private var hasNextEpisodeDate: Bool
     @State private var nextEpisodeDate: Date
     @State private var failureMessage: String?
@@ -30,7 +30,7 @@ struct TrackedSeriesFormView: View {
         _status = State(initialValue: series?.status ?? .planned)
         _hasPosition = State(initialValue: series?.position != nil)
         _position = State(initialValue: series?.position ?? Position(season: 1, episode: 1))
-        _streamingService = State(initialValue: series?.streamingService ?? "")
+        _streamingService = State(initialValue: series?.streamingService)
         _hasNextEpisodeDate = State(initialValue: series?.nextEpisodeDate != nil)
         _nextEpisodeDate = State(initialValue: series?.nextEpisodeDate ?? Date())
     }
@@ -80,7 +80,7 @@ struct TrackedSeriesFormView: View {
                 }
 
                 Section("Where and when") {
-                    TextField("Streaming service", text: $streamingService)
+                    StreamingServicePicker(library: library, selection: $streamingService)
                     Toggle("Next episode date", isOn: $hasNextEpisodeDate)
                     if hasNextEpisodeDate {
                         DatePicker(

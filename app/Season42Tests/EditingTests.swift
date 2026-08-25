@@ -21,7 +21,7 @@ struct EditingTests {
             seasons: [9, 10],
             status: .waiting,
             position: Position(season: 2, episode: 3),
-            streamingService: "Apple TV+",
+            streamingService: try library.service("Apple TV+"),
             nextEpisodeDate: airDate
         )
 
@@ -30,7 +30,7 @@ struct EditingTests {
         #expect(series.seasons == [9, 10])
         #expect(series.status == .waiting)
         #expect(series.position == Position(season: 2, episode: 3))
-        #expect(series.streamingService == "Apple TV+")
+        #expect(series.streamingService?.name == "Apple TV+")
         #expect(series.nextEpisodeDate == airDate)
     }
 
@@ -66,7 +66,7 @@ struct EditingTests {
             seasons: [9],
             status: .watching,
             position: Position(season: 1, episode: 2),
-            streamingService: "Apple TV+",
+            streamingService: try library.service("Apple TV+"),
             nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000)
         )
 
@@ -93,20 +93,13 @@ struct EditingTests {
         #expect(series.lastWatchedAt == lastWatchedAt)
     }
 
-    @Test func anEditedTitleIsTrimmedAndABlankServiceBecomesNoService() throws {
+    @Test func anEditedTitleIsTrimmed() throws {
         let library = try Library.inMemory()
         let series = try library.addTrackedSeries(title: "Silo", seasons: [10], status: .watching)
 
-        try library.edit(
-            series,
-            title: "  Silo  ",
-            seasons: [10],
-            status: .watching,
-            streamingService: "   "
-        )
+        try library.edit(series, title: "  Silo  ", seasons: [10], status: .watching)
 
         #expect(series.title == "Silo")
-        #expect(series.streamingService == nil)
     }
 
     // MARK: - An edit answers to the same rules a new series does
@@ -186,13 +179,13 @@ struct EditingTests {
             movie,
             title: "Arrival",
             summary: "Linguistics, non-linearly.",
-            streamingService: "Netflix",
+            streamingService: try library.service("Netflix"),
             isWatched: true
         )
 
         #expect(movie.title == "Arrival")
         #expect(movie.summary == "Linguistics, non-linearly.")
-        #expect(movie.streamingService == "Netflix")
+        #expect(movie.streamingService?.name == "Netflix")
         #expect(movie.isWatched)
     }
 
@@ -245,14 +238,16 @@ struct EditingTests {
         #expect(movie.title == "Arrival")
     }
 
-    @Test func anEditedMovieTitleIsTrimmedAndABlankServiceBecomesNoService() throws {
+    @Test func anEditedMovieTitleIsTrimmed() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Dune", streamingService: "Netflix")
+        let movie = try library.addTrackedMovie(
+            title: "Dune",
+            streamingService: try library.service("Netflix")
+        )
 
-        try library.edit(movie, title: "  Dune  ", streamingService: "   ")
+        try library.edit(movie, title: "  Dune  ", streamingService: movie.streamingService)
 
         #expect(movie.title == "Dune")
-        #expect(movie.streamingService == nil)
     }
 
     // MARK: - Deleting
@@ -319,7 +314,7 @@ private extension Library {
         seasons: Seasons,
         status: WatchStatus,
         position: Position? = nil,
-        streamingService: String? = nil,
+        streamingService: StreamingService? = nil,
         nextEpisodeDate: Date? = nil
     ) throws {
         try updateTrackedSeries(
@@ -338,7 +333,7 @@ private extension Library {
         _ movie: TrackedMovie,
         title: String,
         summary: String = "",
-        streamingService: String? = nil,
+        streamingService: StreamingService? = nil,
         isWatched: Bool = false
     ) throws {
         try updateTrackedMovie(

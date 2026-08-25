@@ -187,7 +187,7 @@ private struct TrackedSeriesRow: View {
     private var subtitle: String {
         var parts = [series.status.title, series.position?.shorthand ?? "Not started"]
         if let streamingService = series.streamingService {
-            parts.append(streamingService)
+            parts.append(streamingService.name)
         }
         return parts.joined(separator: " · ")
     }
@@ -230,7 +230,7 @@ private struct TrackedMovieRow: View {
     private var subtitle: String {
         var parts = ["Movie"] + movie.watchedState
         if let streamingService = movie.streamingService {
-            parts.append(streamingService)
+            parts.append(streamingService.name)
         }
         return parts.joined(separator: " · ")
     }
