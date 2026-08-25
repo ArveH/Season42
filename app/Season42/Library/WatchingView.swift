@@ -117,7 +117,7 @@ private extension TrackedSeries {
     var positionAndService: String {
         var parts = [position?.shorthand ?? "Not started"]
         if let streamingService {
-            parts.append(streamingService)
+            parts.append(streamingService.name)
         }
         return parts.joined(separator: " · ")
     }

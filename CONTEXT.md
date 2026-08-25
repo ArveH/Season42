@@ -43,5 +43,9 @@ _Avoid_: last seen, watch history
 A user-entered, optional date on a Tracked Series recording when the next episode becomes available.
 
 **Streaming Service**:
-A label on a Tracked Series or Tracked Movie recording where the user watches it. Says nothing about global availability.
-_Avoid_: channel, platform, provider
+One of the services the user has registered, kept as a list they add to, rename and delete
+themselves. A Tracked Series or Tracked Movie names at most one of them as where the user
+watches it, and names the service itself rather than a copy of its name, so renaming one
+renames it everywhere it is named. An entry may name none. Says nothing about global
+availability: it is where this user watches, not where the thing can be watched.
+_Avoid_: channel, platform, provider, label

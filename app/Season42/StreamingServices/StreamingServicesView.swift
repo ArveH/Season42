@@ -1,0 +1,200 @@
+import SwiftUI
+
+/// The Streaming Services tab: the list of services the user watches on, and the one
+/// place they are registered, renamed and removed. Every rule about a name lives in
+/// `Library`, and whatever it refuses is shown back to the user verbatim.
+struct StreamingServicesView: View {
+    let library: Library
+
+    @State private var naming: ServiceNaming?
+    @State private var deleting: StreamingService?
+    @State private var failureMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if library.streamingServices.isEmpty {
+                    ContentUnavailableView(
+                        "No streaming services yet",
+                        systemImage: "tv",
+                        description: Text(
+                            "Register the services you watch on, and you can pick one for "
+                                + "every series and movie you track."
+                        )
+                    )
+                } else {
+                    List(library.streamingServices) { service in
+                        row(for: service)
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete", systemImage: "trash", role: .destructive) {
+                                    deleting = service
+                                }
+                                Button("Rename", systemImage: "pencil") {
+                                    naming = .renaming(service)
+                                }
+                                .tint(.accentColor)
+                            }
+                    }
+                }
+            }
+            .navigationTitle("Streaming Services")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add", systemImage: "plus") { naming = .adding }
+                }
+            }
+            .streamingServiceNamingAlert(
+                naming: $naming,
+                library: library,
+                onFailure: { failureMessage = $0 }
+            )
+            .confirmationDialog(
+                "Delete this streaming service?",
+                isPresented: .init(
+                    get: { deleting != nil },
+                    set: { if !$0 { deleting = nil } }
+                ),
+                presenting: deleting
+            ) { service in
+                Button("Delete \(service.name)", role: .destructive) {
+                    library.deleteStreamingService(service)
+                }
+            } message: { service in
+                Text(deletionWarning(for: service))
+            }
+            .alert(
+                "Couldn't save the streaming service",
+                isPresented: .init(
+                    get: { failureMessage != nil },
+                    set: { if !$0 { failureMessage = nil } }
+                ),
+                presenting: failureMessage
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { message in
+                Text(message)
+            }
+        }
+    }
+
+    /// A row, tappable on its text to rename what it names, showing how many entries name
+    /// this service — which is what makes the delete warning below unsurprising.
+    private func row(for service: StreamingService) -> some View {
+        HStack {
+            Text(service.name)
+            Spacer()
+            Text("^[\(service.entryCount) entry](inflect: true)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .contentShape(.rect)
+        .onTapGesture { naming = .renaming(service) }
+        .padding(.vertical, 2)
+    }
+
+    /// What deleting costs. A service nothing names goes quietly; one that entries name
+    /// takes their service with it, and they are counted before the user commits.
+    private func deletionWarning(for service: StreamingService) -> String {
+        let count = service.entryCount
+        guard count > 0 else { return "This can't be undone." }
+        return "^[\(count) entry](inflect: true) will be left with no streaming service. "
+            + "Nothing you track is deleted."
+    }
+}
+
+/// Whether the user is registering a service or renaming one they have. Both take a
+/// single name, so both are the same alert.
+enum ServiceNaming: Identifiable {
+    case adding
+    case renaming(StreamingService)
+
+    var id: String {
+        switch self {
+        case .adding: "adding"
+        case .renaming(let service): "\(service.persistentModelID)"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .adding: "New streaming service"
+        case .renaming: "Rename streaming service"
+        }
+    }
+
+    /// What the text field starts out holding: nothing for a new service, the current
+    /// name for one being renamed.
+    var currentName: String {
+        switch self {
+        case .adding: ""
+        case .renaming(let service): service.name
+        }
+    }
+}
+
+extension View {
+    /// The one alert that names a service, wherever the user reached it from — the tab,
+    /// or the picker in an entry form. Reports what `Library` refuses rather than showing
+    /// it, because the two callers surface a failure in their own alert.
+    func streamingServiceNamingAlert(
+        naming: Binding<ServiceNaming?>,
+        library: Library,
+        onFailure: @escaping (String) -> Void,
+        onNamed: @escaping (StreamingService) -> Void = { _ in }
+    ) -> some View {
+        modifier(
+            StreamingServiceNamingAlert(
+                naming: naming,
+                library: library,
+                onFailure: onFailure,
+                onNamed: onNamed
+            )
+        )
+    }
+}
+
+private struct StreamingServiceNamingAlert: ViewModifier {
+    @Binding var naming: ServiceNaming?
+    let library: Library
+    let onFailure: (String) -> Void
+    let onNamed: (StreamingService) -> Void
+
+    @State private var name = ""
+
+    func body(content: Content) -> some View {
+        content
+            .alert(
+                naming?.title ?? "",
+                isPresented: .init(
+                    get: { naming != nil },
+                    set: { if !$0 { naming = nil } }
+                ),
+                presenting: naming
+            ) { naming in
+                TextField("Name", text: $name)
+                Button("Cancel", role: .cancel) {}
+                Button("Save") { submit(naming) }
+            }
+            // The text field is not there to fill until the alert is on its way up, so
+            // its starting value is set as the alert is asked for, not as it is built.
+            .onChange(of: naming?.id) { _, _ in name = naming?.currentName ?? "" }
+    }
+
+    private func submit(_ naming: ServiceNaming) {
+        do {
+            switch naming {
+            case .adding:
+                onNamed(try library.addStreamingService(name: name))
+            case .renaming(let service):
+                try library.renameStreamingService(service, to: name)
+                onNamed(service)
+            }
+        } catch {
+            onFailure(error.localizedDescription)
+        }
+    }
+}
+
+#Preview {
+    StreamingServicesView(library: try! Library.inMemory())
+}
