@@ -2,8 +2,8 @@ import Testing
 @testable import Season42
 
 struct AppTabTests {
-    @Test func tabsAreWatchingLibraryCatalogInOrder() {
-        #expect(AppTab.allCases == [.watching, .library, .catalog])
+    @Test func tabsAreWatchingThenLibraryInOrder() {
+        #expect(AppTab.allCases == [.watching, .library])
     }
 
     @Test func watchingIsTheHomeTab() {

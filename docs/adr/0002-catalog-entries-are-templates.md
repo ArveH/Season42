@@ -1,5 +1,7 @@
 # Catalog entries are templates, not linked records
 
+**Status: superseded by [ADR-0005](0005-the-library-is-the-only-store.md).** Kept because it records a road taken and backed out of; the reasoning still bears on how TMDB data is handled.
+
 When the user starts tracking a Catalog Series or Catalog Movie, the app copies it into their data; the copy is thereafter independent, and Sync only ever replaces the cached Catalog — it never touches user data.
 
 ## Considered Options
