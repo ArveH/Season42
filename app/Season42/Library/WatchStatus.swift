@@ -1,5 +1,5 @@
 /// The five explicit, user-set states of a Tracked Series. Nothing here is derived —
-/// the app never infers a status from Position, dates, or the Catalog.
+/// the app never infers a status from Position or dates.
 enum WatchStatus: String, Codable, CaseIterable, Sendable {
     case planned
     case watching

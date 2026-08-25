@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="Season42.Api.Tests/Season42.Api.Tests.csproj" />
-  <Project Path="Season42.Api/Season42.Api.csproj" />
-</Solution>

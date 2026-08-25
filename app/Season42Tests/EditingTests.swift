@@ -34,8 +34,8 @@ struct EditingTests {
         #expect(series.nextEpisodeDate == airDate)
     }
 
-    /// The Catalog never grows an existing Tracked Series a season (ADR-0002), so adding
-    /// one by hand is the only way a returning series gets its new episodes.
+    /// Adding a season by hand is the only way a returning series gets its new episodes:
+    /// the Library is where a series is entered and the only place it is stored (ADR-0005).
     @Test func aSeasonCanBeAddedToASeriesThatDidNotHaveIt() throws {
         let library = try Library.inMemory()
         let series = try library.addTrackedSeries(

@@ -1,5 +1,7 @@
 # One canonical Catalog snapshot file, referenced by both projects
 
+**Status: superseded by [ADR-0005](0005-the-library-is-the-only-store.md).** Kept because it records a road taken and backed out of; the reasoning still bears on how TMDB data is handled.
+
 `catalog/catalog.json` at the repo root is the Catalog. The API serves that file verbatim
 from `GET /catalog`, and the iOS app bundles the same file as the snapshot it fills its
 Catalog cache from on a first launch. Neither project owns a copy: the API's csproj
