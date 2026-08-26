@@ -169,7 +169,7 @@ private struct TrackedSeriesRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(series.title)
                 .font(.headline)
-            (Text(subtitle) + StreamingServiceSegment(service: series.streamingService).text)
+            StreamingServiceSegment(subtitle: subtitle, service: series.streamingService)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if let nextEpisodeDate = series.nextEpisodeDate {
@@ -202,7 +202,7 @@ private struct TrackedMovieRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(movie.title)
                     .font(.headline)
-                (Text(subtitle) + StreamingServiceSegment(service: movie.streamingService).text)
+                StreamingServiceSegment(subtitle: subtitle, service: movie.streamingService)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

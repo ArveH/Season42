@@ -48,7 +48,7 @@ private struct WatchingRow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(series.title)
                 .font(.headline)
-            (Text(series.positionSoFar) + StreamingServiceSegment(service: series.streamingService).text)
+            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -99,7 +99,7 @@ private struct WaitingRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(series.title)
                 .font(.headline)
-            (Text(series.positionSoFar) + StreamingServiceSegment(service: series.streamingService).text)
+            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if let nextEpisodeDate = series.nextEpisodeDate {
