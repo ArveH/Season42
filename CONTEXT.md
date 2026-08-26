@@ -49,3 +49,10 @@ watches it, and names the service itself rather than a copy of its name, so rena
 renames it everywhere it is named. An entry may name none. Says nothing about global
 availability: it is where this user watches, not where the thing can be watched.
 _Avoid_: channel, platform, provider, label
+
+**Watch Provider**:
+A service TMDB knows of, with a name and a logo. Lives in the BFF only, in a daily snapshot of one
+region's providers, and is never stored by the app: it is what a search offers, not a thing the
+user owns. A Streaming Service is what the user registers; a Watch Provider is where the picture on
+it may have come from, and the two part company the moment the user renames one (ADR-0007).
+_Avoid_: streaming service, provider logo, TMDB service

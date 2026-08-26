@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="bff/Season42.Bff.Tests/Season42.Bff.Tests.csproj" />
+  <Project Path="bff/Season42.Bff/Season42.Bff.csproj" />
+</Solution>
