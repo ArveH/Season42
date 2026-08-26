@@ -48,7 +48,7 @@ struct StreamingServicesView: View {
                     Button("Add", systemImage: "plus") { naming = .adding }
                 }
             }
-            .streamingServiceNamingAlert(
+            .streamingServiceNamingSheet(
                 naming: $naming,
                 library: library,
                 onFailure: { failureMessage = $0 }
@@ -118,99 +118,6 @@ struct StreamingServicesView: View {
             Nothing you track is deleted.
             """
         )
-    }
-}
-
-/// Whether the user is registering a service or renaming one they have. Both take a
-/// single name, so both are the same alert.
-enum ServiceNaming: Identifiable {
-    case adding
-    case renaming(StreamingService)
-
-    var id: String {
-        switch self {
-        case .adding: "adding"
-        case .renaming(let service): "\(service.persistentModelID)"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .adding: "New streaming service"
-        case .renaming: "Rename streaming service"
-        }
-    }
-
-    /// What the text field starts out holding: nothing for a new service, the current
-    /// name for one being renamed.
-    var currentName: String {
-        switch self {
-        case .adding: ""
-        case .renaming(let service): service.name
-        }
-    }
-}
-
-extension View {
-    /// The one alert that names a service, wherever the user reached it from — the tab,
-    /// or the picker in an entry form. Reports what `Library` refuses rather than showing
-    /// it, because the two callers surface a failure in their own alert.
-    func streamingServiceNamingAlert(
-        naming: Binding<ServiceNaming?>,
-        library: Library,
-        onFailure: @escaping (String) -> Void,
-        onNamed: @escaping (StreamingService) -> Void = { _ in }
-    ) -> some View {
-        modifier(
-            StreamingServiceNamingAlert(
-                naming: naming,
-                library: library,
-                onFailure: onFailure,
-                onNamed: onNamed
-            )
-        )
-    }
-}
-
-private struct StreamingServiceNamingAlert: ViewModifier {
-    @Binding var naming: ServiceNaming?
-    let library: Library
-    let onFailure: (String) -> Void
-    let onNamed: (StreamingService) -> Void
-
-    @State private var name = ""
-
-    func body(content: Content) -> some View {
-        content
-            .alert(
-                naming?.title ?? "",
-                isPresented: .init(
-                    get: { naming != nil },
-                    set: { if !$0 { naming = nil } }
-                ),
-                presenting: naming
-            ) { naming in
-                TextField("Name", text: $name)
-                Button("Cancel", role: .cancel) {}
-                Button("Save") { submit(naming) }
-            }
-            // The text field is not there to fill until the alert is on its way up, so
-            // its starting value is set as the alert is asked for, not as it is built.
-            .onChange(of: naming?.id) { _, _ in name = naming?.currentName ?? "" }
-    }
-
-    private func submit(_ naming: ServiceNaming) {
-        do {
-            switch naming {
-            case .adding:
-                onNamed(try library.addStreamingService(name: name))
-            case .renaming(let service):
-                try library.renameStreamingService(service, to: name)
-                onNamed(service)
-            }
-        } catch {
-            onFailure(error.localizedDescription)
-        }
     }
 }
 
