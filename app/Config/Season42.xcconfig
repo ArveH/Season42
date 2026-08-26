@@ -1,0 +1,6 @@
+// The project's base configuration: one file per concern, and the developer's
+// own overrides last so they win.
+
+#include "Signing.xcconfig"
+#include "Bff.xcconfig"
+#include? "Local.xcconfig"

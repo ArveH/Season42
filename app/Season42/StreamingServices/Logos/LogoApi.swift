@@ -6,11 +6,25 @@ import Foundation
 /// why it is kept to fetching and decoding, and why every rule about what a search then
 /// does lives in `LogoSearch`, where it is tested.
 struct LogoApi: LogoSearching {
-    /// Where the BFF is served from — the one place the app is told that. The default is
-    /// the BFF's local development address (the `http` profile in
-    /// `bff/Season42.Bff/Properties/launchSettings.json`), which is what a simulator
-    /// reaches on the machine running it.
-    static let defaultBaseUrl = URL(string: "http://localhost:5265")!
+    /// Where the BFF is served from — the one place the app is told that. The build tells
+    /// it, through the `BFFBaseURL` key of `Info.plist`: `Config/Bff.xcconfig` commits the
+    /// deployed address as the default, and `Config/Local.xcconfig` overrides it for a
+    /// build pointed somewhere else, such as a BFF on the developer's own machine.
+    ///
+    /// The default is committed, so no build is ever asked to supply one and this cannot
+    /// fail in a checkout that is intact. What it guards is a broken build — a deleted line
+    /// in `Bff.xcconfig` or `Info.plist` — and it says which, because the alternative is an
+    /// app whose every search fails for a reason nothing on screen can explain.
+    static let defaultBaseUrl: URL = {
+        let told = Bundle.main.object(forInfoDictionaryKey: "BFFBaseURL") as? String
+        guard let address = told, let url = URL(string: address), url.host() != nil else {
+            preconditionFailure(
+                "Info.plist carries no usable BFFBaseURL: \(told ?? "the key is missing"). "
+                    + "Check BFF_BASE_URL in Config/Bff.xcconfig."
+            )
+        }
+        return url
+    }()
 
     private let baseUrl: URL
 
