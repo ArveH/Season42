@@ -214,12 +214,13 @@ The push trigger is path-filtered to `bff/**`, `infra/**`, `Season42.slnx` and `
 commit touching only `app/` deploys nothing. Pull requests are not filtered — the tests take
 seconds, and a filter there only buys the chance of merging something untested.
 
-It reads exactly what `scripts/azure-setup.sh` wrote — the secrets `AZURE_CLIENT_ID`,
-`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `TMDB_ACCESS_TOKEN`, and the variables
-`AZURE_RESOURCE_GROUP` and `AZURE_CONTAINERAPP_ENV`. (`AZURE_LOCATION` is the wizard's; the
-template defaults to the resource group's own region, which is the same thing.) A fresh clone is
+It reads exactly what `scripts/azure-setup.sh` wrote and nothing else — the secrets
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `TMDB_ACCESS_TOKEN`, and the
+variables `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` and `AZURE_CONTAINERAPP_ENV`. A fresh clone is
 wired up by running that script; the table under [One-time Azure setup](#one-time-azure-setup) is
-the whole list.
+the whole list. Two names it does *not* ask for: the registry is found in the resource group,
+which holds exactly one, and the app is the template's default `season42-bff`, which also names
+the image repository.
 
 **Authentication is an OIDC federated credential**, so no client secret exists in GitHub. Two
 things follow, and both are load-bearing:
@@ -236,18 +237,19 @@ work: every Container Apps revision points at an image traceable to a commit, so
 means something and a rollback is a redeploy of an older tag. `latest` is convenience; nothing
 depends on it.
 
-The deployment template creates the registry, which means the very first run has nowhere to push
-yet. It handles that itself: with no registry in the resource group it deploys once with the
-template's placeholder image to bring one into being, then builds, pushes and deploys as every
-later run does. Every deploy passes the image it just pushed, because leaving that parameter at
-its default puts the placeholder back.
+**The registry has to exist before CI's first run**, because the deployment template is what
+creates it and the workflow does not run that template until it has an image to pass. So the
+first deployment is the hand-run under [The deployment](#the-deployment); every run after it is
+CI's. A workflow that provisioned the substrate it deploys onto would be a much scarier thing
+than one that finds it already there, so it refuses with that instruction rather than creating
+anything. Every deploy passes the image it just pushed, because leaving that parameter at its
+default puts the placeholder back.
 
 A run ends by asking the deployed BFF for `/providers?search=net` over HTTPS. That request is
 given ten tries at fifteen-second spacing, because the app scales to zero and the first request
 after a deploy is waiting on a cold start and the awaited first TMDB fetch — the edge has been
 seen to answer `504` before the container was ready. A run is green when the address in
-[The deployed address](#the-deployed-address) has answered with real providers.
-
+[The deployed address](#the-deployed-address) has answered with real Watch Providers.
 
 ## The app talking to it
 
