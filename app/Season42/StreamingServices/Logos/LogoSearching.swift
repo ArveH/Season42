@@ -3,7 +3,7 @@ import Foundation
 /// Where a search for a Logo gets its answers from. Two asks and no rules: which text to
 /// search for, what an empty answer means, and what happens to the bytes are all
 /// `LogoSearch`'s decisions — which is what lets every one of them be tested against a
-/// stub and leaves only `LogoApi` needing a network.
+/// stub and leaves only `BffClient` needing a network.
 ///
 /// `Library` knows nothing of this. A search touches no store: the Library is the user's
 /// own and a Watch Provider is someone else's data, so the two only ever meet when the

@@ -31,15 +31,15 @@ var app = builder.Build();
 // turn a degraded service — one answering an honest 503 from /providers — into a dead one.
 app.MapGet("/health", () => Results.Ok());
 
-app.MapGet("/providers", (string? search, WatchProviderStore store) =>
+app.MapGet("/providers", (string? query, WatchProviderStore store) =>
 {
-    if (string.IsNullOrWhiteSpace(search))
+    if (string.IsNullOrWhiteSpace(query))
     {
         return Results.Problem(
-            "Give a search text: /providers?search=net.", statusCode: StatusCodes.Status400BadRequest);
+            "Give a search text: /providers?query=net.", statusCode: StatusCodes.Status400BadRequest);
     }
 
-    var matches = store.Search(search);
+    var matches = store.Search(query);
     if (matches is null)
     {
         return Results.Problem(

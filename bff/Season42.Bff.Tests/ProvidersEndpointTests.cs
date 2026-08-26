@@ -44,7 +44,7 @@ public class ProvidersEndpointTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/providers?search=nosuchservice");
+        var response = await client.GetAsync("/providers?query=nosuchservice");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Empty(await ReadAsync(response));
@@ -56,8 +56,19 @@ public class ProvidersEndpointTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/providers?search=")).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/providers?search=%20%20")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/providers?query=")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/providers?query=%20%20")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Search_UnderTheOldSearchParameter_IsABadRequestLikeAnyOtherBlankQuery()
+    {
+        using var factory = new BffFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/providers?search=net");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -79,7 +90,7 @@ public class ProvidersEndpointTests
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/providers?search=net");
+        var response = await client.GetAsync("/providers?query=net");
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
@@ -126,9 +137,9 @@ public class ProvidersEndpointTests
         return JsonSerializer.Serialize(new { results });
     }
 
-    internal static async Task<IReadOnlyList<ProviderResult>> SearchAsync(HttpClient client, string search)
+    internal static async Task<IReadOnlyList<ProviderResult>> SearchAsync(HttpClient client, string query)
     {
-        var response = await client.GetAsync($"/providers?search={Uri.EscapeDataString(search)}");
+        var response = await client.GetAsync($"/providers?query={Uri.EscapeDataString(query)}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await ReadAsync(response);
     }

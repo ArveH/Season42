@@ -52,7 +52,7 @@ extension View {
     func streamingServiceNamingSheet(
         naming: Binding<ServiceNaming?>,
         library: Library,
-        logos: any LogoSearching = LogoApi(),
+        logos: any LogoSearching = BffClient(),
         onFailure: @escaping (String) -> Void,
         onNamed: @escaping (StreamingService) -> Void = { _ in }
     ) -> some View {

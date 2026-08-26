@@ -148,7 +148,7 @@ jobs:
           BASE_URL: ${{ steps.deployment.outputs.fqdn }}
         run: |
           set -euo pipefail
-          url="$BASE_URL/providers?search=net"
+          url="$BASE_URL/providers?query=net"
           for attempt in $(seq 1 10); do
             # curl writes the status to stdout either way; the fallback is for the exit code,
             # which set -e would otherwise take the whole step down with.

@@ -25,7 +25,7 @@ public class HealthEndpointTests
         var client = factory.CreateClient();
 
         var health = await client.GetAsync("/health");
-        var providers = await client.GetAsync("/providers?search=net");
+        var providers = await client.GetAsync("/providers?query=net");
 
         Assert.Equal(HttpStatusCode.OK, health.StatusCode);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, providers.StatusCode);

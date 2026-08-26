@@ -4,7 +4,7 @@ import Testing
 
 /// Tests the search seam: what a search for a Logo does with what the BFF answers, and
 /// what adopting and removing one leaves behind. Everything here runs against a stub —
-/// only `LogoApi` needs a network, and it holds no rules for a test to check.
+/// only `BffClient` needs a network, and it holds no rules for a test to check.
 @MainActor
 struct LogoSearchTests {
     // MARK: - Running a search
