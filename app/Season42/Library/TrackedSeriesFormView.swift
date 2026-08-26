@@ -26,6 +26,11 @@ struct TrackedSeriesFormView: View {
     @State private var failureMessage: String?
     @State private var isSearching = false
 
+    /// Where a copy moved the Position, once one has. The detail screen said it would before
+    /// Copy was tapped; this is the form saying it did, because the sheet the user read it on
+    /// is gone by the time it happens. Nil until a copy moves one.
+    @State private var positionMovedTo: Position?
+
     init(
         library: Library,
         editing tracked: TrackedSeries? = nil,
@@ -80,7 +85,7 @@ struct TrackedSeriesFormView: View {
                     }
                 }
 
-                Section("Position") {
+                Section {
                     Toggle("Already watched some", isOn: $hasPosition)
                     if hasPosition {
                         Picker("Season", selection: $position.season) {
@@ -93,6 +98,12 @@ struct TrackedSeriesFormView: View {
                                 Text("Episode \(episode)").tag(episode)
                             }
                         }
+                    }
+                } header: {
+                    Text("Position")
+                } footer: {
+                    if let positionMovedTo {
+                        Text("Copying moved your position to \(positionMovedTo.shorthand) — the copied seasons don't reach where it was.")
                     }
                 }
 
@@ -161,12 +172,14 @@ struct TrackedSeriesFormView: View {
     ///
     /// Only the three fields TMDB's answer speaks to are written. The Status, the Streaming
     /// Service, the Next Episode Date and the watched state are untouched; the Position moves
-    /// only where the copied seasons no longer reach it, which the clamp below does and the
-    /// detail screen said it would.
+    /// only where the copied seasons no longer reach it, which the clamp on `seasons` above
+    /// does and the detail screen said it would. That move is stated here too: the screen that
+    /// warned of it is gone by the time it happens.
     private func apply(_ copied: SeriesCopy) {
         title = copied.title
         summary = copied.summary
         seasons = copied.seasons
+        positionMovedTo = hasPosition ? copied.movedPosition : nil
         isSearching = false
     }
 

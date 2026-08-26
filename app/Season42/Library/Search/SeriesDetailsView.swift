@@ -66,7 +66,7 @@ struct SeriesDetailsView: View {
         } message: { _ in
             Text(
                 "The title, the description and the seasons on the form are replaced. "
-                    + "Your status, position, streaming service and next episode date are left alone."
+                    + "Your status, streaming service, next episode date and what you have watched are left alone."
             )
         }
         .task { await search.open(match) }

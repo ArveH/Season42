@@ -33,6 +33,17 @@ struct SeriesCopy: Equatable, Sendable {
     /// Whether copying would take something the user has already put in the form, which is what
     /// makes Copy ask before it writes.
     let overwritesTheForm: Bool
+
+    /// Where the Position would land, where the copied seasons no longer reach the one the form
+    /// holds, and nil where it would not move at all. Said on the detail screen before Copy and
+    /// again on the form after it, because a Position that moved while the user was looking at
+    /// another screen is a Position they never saw move.
+    var movedPosition: Position? {
+        for note in notes {
+            if case .movesPosition(_, let to) = note { return to }
+        }
+        return nil
+    }
 }
 
 /// One thing a copy would do that the user could not have read off TMDB's answer. Each says
@@ -127,41 +138,8 @@ extension SeriesDetails {
     /// that survived — never renumber, because Position is the app's reason to exist — and fall
     /// back to a single season of one episode where nothing at all survives.
     func copy(over form: SeriesFormContents) -> SeriesCopy {
-        var notes: [SeriesCopyNote] = []
-
-        if let specials = seasons.first(where: { $0.seasonNumber == 0 }), specials.episodeCount >= 1 {
-            notes.append(.droppedSpecials(episodes: specials.episodeCount))
-        }
-        for dropped in seasons where dropped.seasonNumber >= 1 && dropped.episodeCount < 1 {
-            notes.append(.droppedSeasonWithoutEpisodes(season: dropped.seasonNumber))
-        }
-
-        let surviving = seasons
-            .filter { $0.seasonNumber >= 1 && $0.episodeCount >= 1 }
-            .sorted { $0.seasonNumber < $1.seasonNumber }
-
-        let copied: Seasons
-        if let last = surviving.last {
-            var counts: [Int] = []
-            for number in 1...last.seasonNumber {
-                if let listed = surviving.first(where: { $0.seasonNumber == number }) {
-                    counts.append(listed.episodeCount)
-                } else if let next = surviving.first(where: { $0.seasonNumber > number }) {
-                    counts.append(next.episodeCount)
-                    notes.append(
-                        .filledSeason(
-                            season: number,
-                            episodes: next.episodeCount,
-                            borrowedFrom: next.seasonNumber
-                        )
-                    )
-                }
-            }
-            copied = Seasons(episodeCounts: counts)
-        } else {
-            copied = .oneSeasonOfOneEpisode
-            notes.append(.noSeasonsAired)
-        }
+        let (copied, flattening) = flattenedSeasons()
+        var notes = flattening
 
         if let position = form.position, !copied.contains(position) {
             notes.append(.movesPosition(from: position, to: copied.clamping(position)))
@@ -174,5 +152,47 @@ extension SeriesDetails {
             notes: notes,
             overwritesTheForm: form.isTypedInto
         )
+    }
+
+    /// The flatten itself, and what it owes the user for having done it. What survives is
+    /// decided once and everything else is read off it: what was dropped is what did not
+    /// survive, and what was filled is a number no survivor claims.
+    private func flattenedSeasons() -> (Seasons, [SeriesCopyNote]) {
+        let surviving = seasons
+            .filter { $0.seasonNumber >= 1 && $0.episodeCount >= 1 }
+            .sorted { $0.seasonNumber < $1.seasonNumber }
+        let dropped = seasons
+            .filter { !surviving.contains($0) }
+            .sorted { $0.seasonNumber < $1.seasonNumber }
+
+        var notes: [SeriesCopyNote] = dropped.compactMap { season in
+            if season.seasonNumber == 0 {
+                // Specials TMDB lists nothing in are nothing to tell the user about.
+                season.episodeCount >= 1 ? .droppedSpecials(episodes: season.episodeCount) : nil
+            } else {
+                .droppedSeasonWithoutEpisodes(season: season.seasonNumber)
+            }
+        }
+
+        guard let last = surviving.last else {
+            return (.oneSeasonOfOneEpisode, notes + [.noSeasonsAired])
+        }
+
+        var counts: [Int] = []
+        for number in 1...last.seasonNumber {
+            if let listed = surviving.first(where: { $0.seasonNumber == number }) {
+                counts.append(listed.episodeCount)
+            } else if let next = surviving.first(where: { $0.seasonNumber > number }) {
+                counts.append(next.episodeCount)
+                notes.append(
+                    .filledSeason(
+                        season: number,
+                        episodes: next.episodeCount,
+                        borrowedFrom: next.seasonNumber
+                    )
+                )
+            }
+        }
+        return (Seasons(episodeCounts: counts), notes)
     }
 }

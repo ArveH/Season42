@@ -219,6 +219,55 @@ struct SeriesCopyTests {
         #expect(copy.notes.isEmpty)
     }
 
+    /// What the form says after the sheet has closed, so a Position that moved out of sight is
+    /// still said somewhere the user is looking.
+    @Test func aCopyCarriesWhereThePositionWouldLand() {
+        let details = series(seasons: [(1, 10), (2, 8)])
+        let form = SeriesFormContents(
+            title: "",
+            summary: "",
+            seasons: .newSeriesPlaceholder,
+            position: Position(season: 4, episode: 20)
+        )
+
+        let copy = details.copy(over: form)
+
+        #expect(copy.movedPosition == Position(season: 2, episode: 8))
+    }
+
+    @Test func aCopyThatMovesNothingCarriesNoPosition() {
+        let details = series(seasons: [(1, 10), (2, 8)])
+
+        #expect(details.copy(over: .new).movedPosition == nil)
+    }
+
+    /// The wording is the promise ADR-0011 makes, so it is pinned rather than merely present.
+    @Test func aFilledSeasonSaysInWordsWhatItBorrowedAndFromWhere() {
+        let text = SeriesCopyNote.filledSeason(season: 2, episodes: 6, borrowedFrom: 3).text
+
+        #expect(text.contains("no Season 2"))
+        #expect(text.contains("6 episodes"))
+        #expect(text.contains("borrowed from Season 3"))
+    }
+
+    @Test func oneBorrowedEpisodeIsNotSaidAsOneEpisodes() {
+        let text = SeriesCopyNote.filledSeason(season: 2, episodes: 1, borrowedFrom: 3).text
+
+        #expect(text.contains("as 1 episode borrowed"))
+    }
+
+    /// A moved Position says both ends of the move: where it was is what makes the sentence
+    /// mean anything.
+    @Test func aMovedPositionSaysWhereItCameFromAndWhereItGoes() {
+        let text = SeriesCopyNote.movesPosition(
+            from: Position(season: 4, episode: 20),
+            to: Position(season: 2, episode: 8)
+        ).text
+
+        #expect(text.contains("S4E20"))
+        #expect(text.contains("S2E8"))
+    }
+
     // MARK: - Asking before it overwrites
 
     @Test func copyingIntoAFreshFormAsksNothing() {

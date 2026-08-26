@@ -27,7 +27,7 @@ A movie the user has entered into the Library. Carries only a watched/unwatched 
 What a Tracked Series or Tracked Movie is about, typed by the user or copied in from a search
 and theirs to edit from there. Carried in code as `summary`, because SwiftData reserves the name
 `description`.
-_Avoid_: synopsis, blurb, notes
+_Avoid_: synopsis, blurb, note (as a name for this text — a Copy Note is a different thing)
 
 **Status**:
 Where a Tracked Series stands, as one of exactly five values the user sets by hand — Planned, Watching, Waiting, Finished, Dropped. Never derived from Position or dates.
@@ -107,5 +107,14 @@ the watched state are the user's alone, and TMDB's answer says nothing about the
 it lands, everything copied is the user's own, as editable as if they had typed it and saved no
 sooner: the Library holds what was copied, never a link back to where it came from (ADR-0002).
 Because the flatten invents episode counts, every invention is stated on the detail screen before
-Copy is tapped.
+Copy is tapped, as a Copy Note.
 _Avoid_: import, sync, add from TMDB
+
+**Copy Note**:
+One thing a Copy would do that the user could not have read off TMDB's answer: a season dropped, a
+season invented and whose count it borrowed, that no aired season was listed at all, or a Position
+the copied seasons would move. Every one of them is on the detail screen before Copy is tapped, and
+a moved Position is said again on the form afterwards — the screen that warned of it is gone by
+then. Each carries its own wording, because the words are the promise ADR-0011 makes rather than a
+matter of layout.
+_Avoid_: warning, caveat, disclaimer

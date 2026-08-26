@@ -9,7 +9,9 @@ flatten is three rules and a fallback:
 - **Drop any season with no episodes.** There is nothing in it to watch, and the form cannot hold a
   season of none.
 - **Fill whatever gap that leaves with the episode count of the next season that survived**, so the
-  seasons the user ends up with are numbered exactly as TMDB numbers them.
+  seasons the user ends up with are numbered exactly as TMDB numbers them. A gap before the first
+  surviving season is filled on the same argument: a series whose season 1 TMDB does not list would
+  otherwise have its season 2 renumbered to 1, which is the very thing this avoids.
 - Where nothing survives, produce a single season of one episode — the least a Tracked Series can
   be.
 
@@ -58,10 +60,12 @@ decision makes.
 The notes include a Position that copying would move, which is not something the flatten does: the
 form clamps the Position to the seasons it holds, as it already does while the user edits seasons by
 hand. The copy predicts that clamp so that the move is stated before it happens rather than noticed
-after.
+after — and the form restates it once it has, under the Position, because the screen that warned of
+it is gone by then.
 
 A copy writes the Title, the Description and the seasons, and nothing else. Status, Position,
 Streaming Service, Next Episode Date and the watched state are untouched, because nothing in TMDB's
 answer speaks to any of them. Copying over a form the user has already typed a Title, a Description
-or seasons other than the placeholder into asks first; copying into a fresh form just happens. Either
+or seasons other than the placeholder into asks first — the whole of the seasons are compared, not
+merely how many there are, because a corrected episode count is the user's own typing too; copying into a fresh form just happens. Either
 way nothing is saved: Cancel abandons a copied form as completely as a typed one.
