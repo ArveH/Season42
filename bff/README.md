@@ -118,6 +118,86 @@ The registry, the storage account and its file share are **not** created here. T
 deployed app's own dependencies, they change when the app changes, and the deployment template
 owns them.
 
+## The deployment
+
+`infra/main.bicep` is everything the BFF needs in Azure that the setup above did not create: a
+container registry, a storage account with a file share for the Logo Store, and the Container App
+itself. It is **parameterised on the resource group and the Container Apps environment**, and owns
+neither — those are the substrate, and a template that owns the ground it stands on is a much
+scarier thing to re-run than one that does not.
+
+| Parameter | Default | What it is |
+| --- | --- | --- |
+| `containerAppEnvironmentName` | *(required)* | The environment to deploy into — the `AZURE_CONTAINERAPP_ENV` variable |
+| `tmdbAccessToken` | *(required, secure)* | Becomes the ACA secret behind `Tmdb__AccessToken` |
+| `location` | the resource group's region | Where the registry, storage account and app are created. Has to be the environment's region, and the default is right whenever the environment sits in its own resource group's region — which is how `scripts/azure-setup.sh` creates it |
+| `appName` | `season42-bff` | Names the Container App, its identity, and the image repository |
+| `image` | the Container Apps placeholder | The image the app runs |
+
+```sh
+set -a && . ./.env && set +a          # the values scripts/azure-setup.sh wrote
+
+az deployment group create \
+  -g "$AZURE_RESOURCE_GROUP" -f infra/main.bicep \
+  -p containerAppEnvironmentName="$AZURE_CONTAINERAPP_ENV" \
+  -p tmdbAccessToken="$TMDB_ACCESS_TOKEN" \
+  -p image="$REGISTRY_LOGIN_SERVER/season42-bff:$TAG"
+```
+
+**The `image` default is a bootstrap, not a value to leave alone.** The registry does not exist
+until this template has created it, so the first deployment has nothing of ours to pull and runs
+the placeholder image Container Apps ships. Every deployment after that passes the image it just
+pushed — which is what the deploy workflow does — and a deployment that leaves the parameter at
+its default puts the placeholder back.
+
+The template outputs `fqdn`, `registryLoginServer`, `registryName` and `containerAppName`. The
+registry and storage account names are derived from a hash of the resource group rather than asked
+for, because both have to be globally unique; read them from the outputs rather than guessing.
+
+What it creates, and why it looks the way it does:
+
+- **The registry** has its admin user off, and no credential for it exists anywhere. The Container
+  App pulls with a user-assigned managed identity holding `AcrPull` on the registry. The identity
+  is user-assigned rather than system-assigned so that it exists — and holds the role — before the
+  app that pulls with it is created.
+- **The file share** is mounted at `/store`, and `Tmdb__LogoStorePath` points at it, so fetched
+  logos and the snapshot survive a revision restart. It is the smallest share Azure Files sells,
+  which is already far more than one region's logos need. Mounting Azure Files needs a storage
+  account key — the one credential here with no managed-identity form — and the template reads it
+  at deploy time rather than storing it anywhere.
+- **Ingress is external on port 8080 with `allowInsecure: false`**. TLS terminates at the edge and
+  the container is handed plain HTTP (ADR-0010). What that setting does is answer an `http://`
+  request with a `301` to the `https://` address — it does not refuse the connection, and Container
+  Apps offers nothing that does. So the guarantee is not "cleartext is refused" but "nothing is
+  ever *served* over cleartext": the only thing that crosses an `http://` connection is a bodyless
+  redirect. Turning the setting on would let plain HTTP reach the container, which is the thing
+  being prevented.
+- **`/health` is wired as a liveness probe** and nothing is wired as a readiness probe, for the
+  reason ADR-0010 gives.
+- **Scale is min 0, max 1.** Zero means a cold start pays the awaited first TMDB fetch, which is
+  the accepted trade. One is load-bearing rather than a cost decision, and the Bicep says so where
+  someone about to raise it will read it: the snapshot-write path assumes a single writer.
+
+### The deployed address
+
+```
+https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io
+```
+
+That is the generated `*.azurecontainerapps.io` hostname, and it is what the app compiles in as its
+default base URL. The generated segment belongs to the Container Apps environment and is stable for
+its life; it changes only if the environment is recreated.
+
+**The first request after an idle period can time out.** Nothing is running at min 0, so that
+request waits for a container to start *and* for the TMDB fetch that start awaits — long enough
+that the edge has been seen to answer `504` before the container was ready. The next request is
+served normally. That is the cost of scaling to zero, and a search is the only thing it is charged
+against.
+
+```sh
+curl 'https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io/providers?search=net'
+```
+
 ## The app talking to it
 
 This describes a BFF running on the developer's machine. A deployed one is addressed over HTTPS,
