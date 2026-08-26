@@ -31,6 +31,12 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// <summary>Where one logo's bytes land.</summary>
     public string LogoPathOf(string file) => Path.Combine(LogoDirectory, file);
 
+    /// <summary>Where the poster bytes land inside <see cref="StorePath"/>.</summary>
+    public string PosterDirectory => Path.Combine(StorePath, PosterStore.DirectoryName);
+
+    /// <summary>Where one series' poster lands — under its id, never under TMDB's path.</summary>
+    public string PosterPathOf(int id) => Path.Combine(PosterDirectory, PosterStore.FileNameOf(id));
+
     /// <summary>Runs a refresh on demand — what the daily timer would otherwise have to wait for.</summary>
     public Task RefreshAsync() =>
         Services.GetRequiredService<WatchProviderRefresh>().RefreshAsync(CancellationToken.None);
@@ -54,7 +60,7 @@ public sealed class BffFactory : WebApplicationFactory<Program>
             // and the image host has its own.
             services.AddHttpClient<TmdbApi>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
-            services.AddHttpClient<TmdbLogoImages>()
+            services.AddHttpClient<TmdbImages>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
         });
     }

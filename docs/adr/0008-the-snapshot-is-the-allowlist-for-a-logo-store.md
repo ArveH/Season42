@@ -75,3 +75,13 @@ that becomes unavailable is adopting that logo anew.
 
 The app-side half — searching, adopting a logo onto a Streaming Service, and storing the bytes on
 the device — is deliberately not part of this decision.
+
+## Note: this governs the logo route, not every store behind an image
+
+The snapshot-as-allowlist argument above is about `/logos/{file}` and holds for it unchanged. It
+is not the general rule for this server's images, and it is not what makes
+`/series/{id:int}/poster` safe: there is no snapshot of posters for it to be consulted against.
+That route is safe because a poster is asked for by id and never by a path, so there is nothing
+caller-supplied for the allowlist to have to catch — see
+[ADR-0012](0012-a-poster-is-asked-for-by-id-and-the-store-keys-on-it.md), which also takes the
+opposite key for its store and says why the two differ.

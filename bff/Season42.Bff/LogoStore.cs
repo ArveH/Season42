@@ -54,12 +54,12 @@ public sealed class LogoStore
             // Whoever held the gate may have been fetching this very logo.
             if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
 
-            // Resolved per fetch rather than held: TmdbLogoImages is a typed HttpClient, and a
+            // Resolved per fetch rather than held: TmdbImages is a typed HttpClient, and a
             // singleton holding one would pin a single handler for the life of the server.
             using var scope = _services.CreateScope();
-            var tmdb = scope.ServiceProvider.GetRequiredService<TmdbLogoImages>();
+            var tmdb = scope.ServiceProvider.GetRequiredService<TmdbImages>();
 
-            var bytes = await tmdb.FetchAsync(file, cancellationToken);
+            var bytes = await tmdb.FetchAsync(TmdbImages.LogoSize, file, cancellationToken);
             await WriteAsync(path, bytes, cancellationToken);
             return bytes;
         }

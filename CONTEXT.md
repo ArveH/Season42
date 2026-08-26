@@ -80,6 +80,16 @@ route's path validation (ADR-0008). Like the snapshot beside it, it holds nothin
 deleting it costs fetches.
 _Avoid_: logo cache, image proxy
 
+**Poster Store**:
+Where the BFF keeps the poster images it has fetched, one file per series under the series' id —
+deliberately not under the path TMDB published it at, as the Logo Store is (ADR-0012). It fills
+itself the way the Logo Store does and nothing in it expires either; what differs is the key, and
+what it costs. A hit is answered without asking TMDB anything at all, and only a miss pays a
+details call to find the poster and then the image itself. Nothing is remembered about a series
+TMDB has no poster for. Like the stores beside it, it holds nothing the user owns: deleting it
+costs fetches.
+_Avoid_: poster cache, image proxy
+
 **Series Match**:
 A series a search matched: an id and a name, and nothing else. What a search lists, so the user
 can tell which of several similar titles is theirs. Someone else's data, never stored — the id is
@@ -91,9 +101,11 @@ _Avoid_: search result, TMDB series, candidate
 
 **Series Details**:
 What the user reads about the one series they opened from a search: its name, its original name,
-what it is about, and every season TMDB lists with its episode count — season 0, the specials,
-among them, because the BFF translates TMDB's shape and leaves the app's product decisions to
-the app. This is what a Series Match's id is asked the next question with, and the only question
+what it is about, whether there is a poster to be had, and every season TMDB lists with its
+episode count — season 0, the specials, among them, because the BFF translates TMDB's shape and
+leaves the app's product decisions to the app. Whether there is a poster is a yes or a no and
+never TMDB's path to it: the poster is asked for by the same id, which is what makes that ask
+safe without an allowlist to check it against (ADR-0012). This is what a Series Match's id is asked the next question with, and the only question
 there is to ask with it. Someone else's data like the Series Match it was opened from, never
 stored: it is read, and what reaches the Library is what the user copied out of it by hand
 (ADR-0002).

@@ -27,7 +27,8 @@ builder.Services.AddTransient<TmdbSeriesSearch>();
 builder.Services.AddTransient<TmdbSeriesDetails>();
 builder.Services.AddSingleton<WatchProviderRefresh>();
 builder.Services.AddSingleton<LogoStore>();
-builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
+builder.Services.AddSingleton<PosterStore>();
+builder.Services.AddHttpClient<TmdbImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
 
 var app = builder.Build();
@@ -103,6 +104,34 @@ app.MapGet("/series/{id:int}", async (
         app.Logger.LogWarning(exception, "TMDB could not be asked about the series {Id}.", id);
         return Results.Problem(
             "TMDB could not be asked for series.", statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+// One series' poster, by the same id its details were read with — never by a path, because the
+// app has none to send. That is the whole of this route's validation: the route reads an int, so
+// nothing a caller says ever becomes part of a filesystem path. The logo route beside it is safe
+// by a different mechanism, the snapshot as an allowlist, and there is no snapshot of posters for
+// that mechanism to reach here (ADR-0012).
+app.MapGet("/series/{id:int}/poster", async (
+    int id, PosterStore posters, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var bytes = await posters.ReadOrFetchAsync(id, cancellationToken);
+
+        // TMDB listing no poster and TMDB never having heard of the id are one answer here: there
+        // is no poster to be had. The details the app already read say which of the two it is,
+        // and say it before the app asks at all.
+        return bytes is null
+            ? Results.Problem(
+                "TMDB has no poster for that series.", statusCode: StatusCodes.Status404NotFound)
+            : Results.File(bytes, PosterStore.ContentType);
+    }
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not serve the poster of the series {Id}.", id);
+        return Results.Problem(
+            "TMDB could not be asked for that poster.", statusCode: StatusCodes.Status502BadGateway);
     }
 });
 
