@@ -38,7 +38,6 @@ final class Library {
         self.container = container
         self.now = now
         reload()
-        adoptLegacyStreamingServiceNames()
     }
 
     // MARK: - Tracking a series by hand
@@ -340,56 +339,6 @@ final class Library {
 
     // MARK: - Loading
 
-    /// Adopts the hand-typed Streaming Service names left in a store written before
-    /// services were registered: each entry that still holds one is pointed at a
-    /// registered service of that name, one being registered if this is the first entry
-    /// to name it (ADR-0006).
-    ///
-    /// Runs on every open and does nothing once no entry holds a name, so it needs
-    /// nothing remembered about whether it has run before. Names that differ only in
-    /// case are one service, spelled the way the most recently added entry spelled it —
-    /// which is why this walks `entries`, newest first.
-    ///
-    /// Delete along with the two `legacyStreamingServiceName` properties.
-    private func adoptLegacyStreamingServiceNames() {
-        var registered = Dictionary(
-            streamingServices.map { ($0.name.lowercased(), $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        var adoptedAny = false
-
-        for entry in entries {
-            let legacyName: String? = switch entry {
-            case .series(let series): series.legacyStreamingServiceName
-            case .movie(let movie): movie.legacyStreamingServiceName
-            }
-            guard let legacyName else { continue }
-            adoptedAny = true
-
-            // A name of nothing but whitespace meant "no service" when it was typed, and
-            // still does: the entry is left naming none rather than registering a blank.
-            let service = legacyName.trimmed.nilIfEmpty.map { name in
-                registered[name.lowercased()] ?? {
-                    let service = StreamingService(name: name)
-                    context.insert(service)
-                    registered[name.lowercased()] = service
-                    return service
-                }()
-            }
-
-            switch entry {
-            case .series(let series):
-                series.streamingService = service
-                series.legacyStreamingServiceName = nil
-            case .movie(let movie):
-                movie.streamingService = service
-                movie.legacyStreamingServiceName = nil
-            }
-        }
-
-        if adoptedAny { save() }
-    }
-
     /// Persists an edit to something already in the store. Unlike a rejected new entry,
     /// there is nothing here for the user to fix and no useful degraded mode, so a failing
     /// save leaves the in-memory Library as the user sees it and is not surfaced.
@@ -444,12 +393,65 @@ extension Library {
         try container(configuration: ModelConfiguration(schema: schema, url: url))
     }
 
+    /// Opens a store, and where the schema in the app can't open the one on disk, throws
+    /// that store away and writes a fresh one in its place (ADR-0009). A store the app
+    /// can't read holds nothing it can hand the user, so the only question is whether the
+    /// app opens at all.
     private static func container(configuration: ModelConfiguration) throws -> ModelContainer {
-        try ModelContainer(for: schema, configurations: configuration)
+        do {
+            return try ModelContainer(for: schema, configurations: configuration)
+        } catch {
+            guard !configuration.isStoredInMemoryOnly else { throw error }
+            discardStore(at: configuration.url)
+            do {
+                return try ModelContainer(for: schema, configurations: configuration)
+            } catch let secondError {
+                // Both errors, because the first one says why the store had to go and is
+                // the only one worth reading — the second says only that a fresh store
+                // couldn't be written either.
+                throw LibraryStoreError(opening: error, andAfterDiscarding: secondError)
+            }
+        }
+    }
+
+    /// Deletes everything the store is kept in: the SQLite file, the write-ahead log,
+    /// shared-memory and journal files SQLite keeps beside it, and the support directory
+    /// SwiftData puts large values in. Leaving any of them behind is leaving the store
+    /// half there, which is what the fresh open would then fail on.
+    private static func discardStore(at url: URL) {
+        let directory = url.deletingLastPathComponent()
+        let store = url.lastPathComponent
+        // `default.store` is kept company by `default.store-wal` and `.default_SUPPORT`,
+        // so both the file's own name and its name without the extension are prefixes to
+        // look for — and a leading dot is not part of either.
+        let base = url.deletingPathExtension().lastPathComponent
+        let beside = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for file in beside {
+            let name = file.lastPathComponent
+            guard name == store
+                || name.hasPrefix(store + "-")
+                || name.drop(while: { $0 == "." }).hasPrefix(base + "_")
+            else { continue }
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+}
+
+/// What a Library can fail to open with once it has already thrown the store away: the
+/// failure that condemned the store, and the one that stopped a fresh one taking its place.
+struct LibraryStoreError: Error, CustomStringConvertible {
+    let opening: any Error
+    let andAfterDiscarding: any Error
+
+    var description: String {
+        "opening the store failed (\(opening)), and so did writing a fresh one "
+            + "in its place (\(andAfterDiscarding))"
     }
 }
 
 private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
