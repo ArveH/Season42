@@ -76,7 +76,7 @@ The first ask for a logo fetches it from TMDB's image host at size `w154` — th
 sharp where rows draw logos at 16–24pt — and writes it into `logos/` under the store path. Every
 ask after that is served from there, restarts included: TMDB is asked at most once per logo. The
 store never expires and needs no invalidation, because a logo TMDB has published does not change
-under its own path.
+under its own path (ADR-0008).
 
 The current snapshot is the allowlist. A `{file}` no Watch Provider in it names is refused before
 anything touches the filesystem, which is what keeps this route from being a way to read arbitrary
