@@ -408,35 +408,60 @@ pause "Press Enter to continue"
 
 # ── 7 ─────────────────────────────────────────────────────────────────────
 stage "Azure — let that identity deploy"
-say "The identity exists but can do nothing yet. This grants it Contributor on"
-say "the resource group only — it can manage what is inside '$AZURE_RESOURCE_GROUP'"
+say "The identity exists but can do nothing yet. This grants it two roles on the"
+say "resource group only — it can manage what is inside '$AZURE_RESOURCE_GROUP'"
 say "and nothing anywhere else in the subscription."
 say ""
+say "Contributor covers the deployment itself. The second role exists because the"
+say "template gives the container app's identity AcrPull on the registry, and"
+say "writing a role assignment is not something Contributor may do. It is granted"
+say "under a condition that allows AcrPull and no other role, so CI cannot widen"
+say "its own access with it."
+say ""
+# The AcrPull role's fixed definition id, the same one infra/main.bicep assigns.
+ACR_PULL_ROLE_ID="7f951dda-4ed3-4680-a7ca-43fe172d538d"
+# Reads as: any write must be AcrPull, and any delete must be of an AcrPull assignment. Every
+# other action the role carries is untouched by the condition.
+ACR_PULL_ONLY_CONDITION="((!(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})) OR (@Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals{$ACR_PULL_ROLE_ID})) AND ((!(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})) OR (@Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals{$ACR_PULL_ROLE_ID}))"
 if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
   warn "no identity was created in the previous stage — nothing to grant."
-  SKIPPED+=("Contributor role assignment on $AZURE_RESOURCE_GROUP")
+  SKIPPED+=("Contributor and RBAC Administrator role assignments on $AZURE_RESOURCE_GROUP")
 else
   SCOPE="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP"
-  EXISTING=$(az role assignment list --assignee "$AZURE_CLIENT_ID" --scope "$SCOPE" \
-    --query "[?roleDefinitionName=='Contributor'] | length(@)" -o tsv 2>/dev/null || echo "0")
-  if [[ "$EXISTING" != "0" ]]; then
-    say "Already granted — leaving it alone."
-  elif confirm "Grant Contributor on '$AZURE_RESOURCE_GROUP' to the deploy identity?"; then
-    if az role assignment create --assignee "$AZURE_CLIENT_ID" --role Contributor --scope "$SCOPE" -o none 2>/dev/null; then
-      say "Granted."
-    else
-      warn "could not create the role assignment."
-      say "Granting a role needs Owner or User Access Administrator on the resource"
-      say "group. Ask someone who has it to run:"
-      say ""
-      say "  az role assignment create --assignee $AZURE_CLIENT_ID \\"
-      say "    --role Contributor --scope $SCOPE"
-      SKIPPED+=("Contributor role assignment on $AZURE_RESOURCE_GROUP")
+  for ROLE in "Contributor" "Role Based Access Control Administrator"; do
+    EXISTING=$(az role assignment list --assignee "$AZURE_CLIENT_ID" --scope "$SCOPE" \
+      --query "[?roleDefinitionName=='$ROLE'] | length(@)" -o tsv 2>/dev/null || echo "0")
+    ROLE_ARGS=(--assignee "$AZURE_CLIENT_ID" --role "$ROLE" --scope "$SCOPE")
+    CONDITION_HINT=""
+    if [[ "$ROLE" != "Contributor" ]]; then
+      ROLE_ARGS+=(--condition "$ACR_PULL_ONLY_CONDITION" --condition-version "2.0")
+      CONDITION_HINT=" (AcrPull only)"
     fi
-  else
-    say "Skipped. CI cannot deploy until this is granted."
-    SKIPPED+=("Contributor role assignment on $AZURE_RESOURCE_GROUP")
-  fi
+    say ""
+    if [[ "$EXISTING" != "0" ]]; then
+      say "'$ROLE'$CONDITION_HINT already granted — leaving it alone."
+    elif confirm "Grant '$ROLE'$CONDITION_HINT on '$AZURE_RESOURCE_GROUP' to the deploy identity?"; then
+      if az role assignment create "${ROLE_ARGS[@]}" -o none 2>/dev/null; then
+        say "Granted."
+      else
+        warn "could not create the '$ROLE' role assignment."
+        say "Granting a role needs Owner or User Access Administrator on the resource"
+        say "group. Ask someone who has it to run:"
+        say ""
+        say "  az role assignment create --assignee $AZURE_CLIENT_ID \\"
+        if [[ "$ROLE" == "Contributor" ]]; then
+          say "    --role \"$ROLE\" --scope $SCOPE"
+        else
+          say "    --role \"$ROLE\" --scope $SCOPE \\"
+          say "    --condition-version 2.0 --condition \"$ACR_PULL_ONLY_CONDITION\""
+        fi
+        SKIPPED+=("$ROLE role assignment on $AZURE_RESOURCE_GROUP")
+      fi
+    else
+      say "Skipped. CI cannot deploy until this is granted."
+      SKIPPED+=("$ROLE role assignment on $AZURE_RESOURCE_GROUP")
+    fi
+  done
 fi
 pause "Press Enter to continue"
 

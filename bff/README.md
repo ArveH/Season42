@@ -89,8 +89,13 @@ An interactive wizard, safe to re-run: every stage checks for what it is about t
 leaves it alone if it is already there. It walks eight stages — confirming the subscription,
 registering the Azure resource providers, creating the resource group and the Container Apps
 environment, capturing the TMDB access token, registering an Entra identity with a federated
-credential scoped to this repository's `main` branch, granting that identity Contributor on the
+credential scoped to this repository's `main` branch, granting that identity its two roles on the
 resource group, and handing the values to GitHub.
+
+The two roles are Contributor, which covers the deployment, and Role Based Access Control
+Administrator, which exists only because the template hands the container app's identity AcrPull
+on the registry — a role assignment, which Contributor may not write. It is granted under a
+condition allowing AcrPull and nothing else, so CI cannot use it to widen its own access.
 
 It captures nothing you have to edit into it beforehand, and it stores no credential in the repo:
 values land in `.env` (gitignored) and in GitHub Actions secrets and variables.
