@@ -16,7 +16,7 @@ targetScope = 'resourceGroup'
 @description('The Container Apps environment to deploy into. Created by scripts/azure-setup.sh; not owned by this template.')
 param containerAppEnvironmentName string
 
-@description('Where to create the registry, the storage account and the app. Defaults to the resource group\'s own region.')
+@description('Where the registry, the storage account and the app are created. This has to be the Container Apps environment\'s own region — a Container App cannot be created anywhere else — and the default is right whenever the environment is in its own resource group\'s region, which is how scripts/azure-setup.sh creates it. It cannot be read off the environment instead: ARM needs every location resolved before the deployment starts, and an existing resource\'s properties are not known that early.')
 param location string = resourceGroup().location
 
 @description('Names the Container App, the managed identity, and the image repository in the registry.')
@@ -33,14 +33,15 @@ param tmdbAccessToken string
 // pointed at. Absolute, so it does not depend on the image's working directory.
 var logoStorePath = '/store'
 
-// Registry and storage account names are globally unique and alphanumeric-only, so they are
-// derived rather than asked for. 'season42bff' + a 13-character hash is exactly the 24 characters
-// a storage account name is allowed.
-var registryName = 'season42bff${uniqueString(resourceGroup().id)}'
-var storageAccountName = 'season42bff${uniqueString(resourceGroup().id)}'
-var fileShareName = 'logostore'
-var storageName = 'logostore'
-var volumeName = 'logostore'
+// The registry and the storage account both need a globally unique, lowercase, alphanumeric-only
+// name, so both are derived from the resource group rather than asked for. They can share the one
+// name because they are in different namespaces. Its length is set by the tighter of the two
+// limits: a storage account name may be 24 characters, which 'season42bff' plus a 13-character
+// hash is exactly.
+var resourceName = 'season42bff${uniqueString(resourceGroup().id)}'
+// One name, used three times over: the file share, the environment storage that mounts it, and the
+// volume the container mounts. They are three views of the same thing, so they are not three names.
+var logoStoreName = 'logostore'
 
 var acrPullRoleDefinitionId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
@@ -62,8 +63,8 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
 
 // ACR rather than GHCR so the app pulls with that managed identity. Admin user off: with it on,
 // the registry has a password, and a password that exists is a password that can leak.
-resource registry 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
-  name: registryName
+resource registry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
+  name: resourceName
   location: location
   sku: {
     name: 'Basic'
@@ -88,7 +89,7 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 // The Logo Store's disk. It holds a cache and nothing the user owns (ADR-0008) — losing it costs
 // fetches — so there is nothing here to back up, and no redundancy beyond the cheapest.
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
+  name: resourceName
   location: location
   sku: {
     name: 'Standard_LRS'
@@ -107,7 +108,7 @@ resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01'
 
 resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
   parent: fileService
-  name: fileShareName
+  name: logoStoreName
   properties: {
     // The smallest share Azure Files sells. A logo is a few kilobytes and there is one region's
     // worth of them, so this is already orders of magnitude more than the store will ever use.
@@ -120,12 +121,12 @@ resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-0
 // time and never written down: nothing in the repository or in GitHub holds it.
 resource logoStoreStorage 'Microsoft.App/managedEnvironments/storages@2025-01-01' = {
   parent: containerAppEnvironment
-  name: storageName
+  name: logoStoreName
   properties: {
     azureFile: {
       accountName: storageAccount.name
       accountKey: storageAccount.listKeys().keys[0].value
-      shareName: fileShareName
+      shareName: logoStoreName
       accessMode: 'ReadWrite'
     }
   }
@@ -156,7 +157,6 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
         external: true
         targetPort: 8080
         allowInsecure: false
-        transport: 'auto'
       }
       registries: [
         {
@@ -192,7 +192,7 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
           ]
           volumeMounts: [
             {
-              volumeName: volumeName
+              volumeName: logoStoreName
               mountPath: logoStorePath
             }
           ]
@@ -215,7 +215,7 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
       ]
       volumes: [
         {
-          name: volumeName
+          name: logoStoreName
           storageType: 'AzureFile'
           storageName: logoStoreStorage.name
         }
@@ -233,12 +233,14 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
       }
     }
   }
+  // The one dependency ARM cannot infer, and it is load-bearing: the app pulls its image as it is
+  // created, so the grant that lets it pull has to have landed first.
   dependsOn: [
     acrPull
   ]
 }
 
-@description('The HTTPS address the app and #43 use. https:// only — the ingress refuses cleartext.')
+@description('The HTTPS address the app compiles in as its default base URL. Address it as https:// and nothing else: an http:// request gets a redirect and no content.')
 output fqdn string = containerApp.properties.configuration.ingress.fqdn
 
 @description('The registry CI pushes to, e.g. season42bffabc123.azurecr.io.')

@@ -130,7 +130,7 @@ scarier thing to re-run than one that does not.
 | --- | --- | --- |
 | `containerAppEnvironmentName` | *(required)* | The environment to deploy into — the `AZURE_CONTAINERAPP_ENV` variable |
 | `tmdbAccessToken` | *(required, secure)* | Becomes the ACA secret behind `Tmdb__AccessToken` |
-| `location` | the resource group's region | Where the registry, storage account and app are created |
+| `location` | the resource group's region | Where the registry, storage account and app are created. Has to be the environment's region, and the default is right whenever the environment sits in its own resource group's region — which is how `scripts/azure-setup.sh` creates it |
 | `appName` | `season42-bff` | Names the Container App, its identity, and the image repository |
 | `image` | the Container Apps placeholder | The image the app runs |
 
