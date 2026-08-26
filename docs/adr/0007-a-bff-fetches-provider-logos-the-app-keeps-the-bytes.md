@@ -62,4 +62,5 @@ faked at the composition root. Nothing in the test suite reaches the network, so
 rate-limiting, or changing its data is never a red build.
 
 Serving the logo bytes themselves is a second endpoint filling the same store the snapshot sits in,
-and is deliberately not part of this decision.
+and is deliberately not part of this decision. It is taken in
+[ADR-0008](0008-the-snapshot-is-the-allowlist-for-a-logo-store.md).

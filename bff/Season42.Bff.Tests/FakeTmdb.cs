@@ -1,11 +1,13 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Season42.Bff.Tests;
 
 /// <summary>
-/// Stands in for TMDB at the composition root. Every test runs against this: nothing in this
-/// test project reaches the network.
+/// Stands in for TMDB at the composition root — both the API it answers searches from and the
+/// image host it serves logos from. Every test runs against this: nothing in this test project
+/// reaches the network.
 /// </summary>
 public sealed class FakeTmdb : HttpMessageHandler
 {
@@ -16,6 +18,10 @@ public sealed class FakeTmdb : HttpMessageHandler
         get { lock (_requests) return _requests.ToList(); }
     }
 
+    /// <summary>Only the requests to TMDB's image host — what a logo fetch costs.</summary>
+    public IReadOnlyList<HttpRequestMessage> ImageRequests =>
+        Requests.Where(IsImageRequest).ToList();
+
     /// <summary>What the next fetch gets back. Replace to change the answer mid-test.</summary>
     public Func<HttpResponseMessage> Respond { get; set; } = () => Json(DefaultPayload);
 
@@ -23,12 +29,30 @@ public sealed class FakeTmdb : HttpMessageHandler
 
     public void Fail() => Respond = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
 
+    /// <summary>What the next logo fetch gets back.</summary>
+    public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
+
+    public void FailImages() => RespondToImages = () => new HttpResponseMessage(HttpStatusCode.NotFound);
+
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         lock (_requests) _requests.Add(request);
-        return Task.FromResult(Respond());
+        return Task.FromResult(IsImageRequest(request) ? RespondToImages() : Respond());
     }
+
+    private static bool IsImageRequest(HttpRequestMessage request) =>
+        request.RequestUri?.Host == "image.tmdb.org";
+
+    private static HttpResponseMessage Image(byte[] bytes)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        return response;
+    }
+
+    /// <summary>A JPEG's first bytes and nothing more: the tests care that they come back whole.</summary>
+    public static readonly byte[] ImageBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, (byte)'J', (byte)'F'];
 
     private static HttpResponseMessage Json(string body) => new(HttpStatusCode.OK)
     {

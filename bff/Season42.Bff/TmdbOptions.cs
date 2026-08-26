@@ -26,4 +26,11 @@ public sealed class TmdbOptions
     /// costs a fetch (ADR-0007).
     /// </summary>
     public string LogoStorePath { get; set; } = "store";
+
+    /// <summary>
+    /// Where the store actually sits, once a relative <see cref="LogoStorePath"/> has been read
+    /// against the content root. Both stores rooted here ask this rather than resolving it again.
+    /// </summary>
+    public string StoreRootFrom(IHostEnvironment environment) =>
+        Path.GetFullPath(LogoStorePath, environment.ContentRootPath);
 }

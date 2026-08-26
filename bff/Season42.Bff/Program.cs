@@ -20,6 +20,8 @@ var tmdbTimeout = TimeSpan.FromSeconds(15);
 // TMDB that accepts the connection and then says nothing would hold the port shut for 100 seconds.
 builder.Services.AddHttpClient<TmdbWatchProviders>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<WatchProviderRefresh>();
+builder.Services.AddSingleton<LogoStore>();
+builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
 
 var app = builder.Build();
@@ -41,6 +43,38 @@ app.MapGet("/providers", (string? search, WatchProviderStore store) =>
     }
 
     return Results.Ok(matches.Select(provider => new WatchProviderResult(provider.Name, provider.LogoPath)));
+});
+
+app.MapGet("/logos/{file}", async (
+    string file, WatchProviderStore providers, LogoStore logos, CancellationToken cancellationToken) =>
+{
+    // The snapshot is the allowlist, and it is consulted before anything touches the filesystem:
+    // a path no Watch Provider publishes is not a path this server serves. Path traversal is
+    // refused right here, by this same check, rather than by a rule of its own — there is nothing
+    // to escape from when the only names that get through are ones TMDB gave us.
+    switch (providers.Publishes(file))
+    {
+        case null:
+            return Results.Problem(
+                "No watch providers have been fetched from TMDB yet.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        case false:
+            return Results.Problem(
+                "No watch provider in the current snapshot has that logo.",
+                statusCode: StatusCodes.Status404NotFound);
+    }
+
+    try
+    {
+        var bytes = await logos.ReadOrFetchAsync(file, cancellationToken);
+        return Results.File(bytes, LogoStore.ContentTypeOf(file));
+    }
+    catch (HttpRequestException exception)
+    {
+        app.Logger.LogWarning(exception, "TMDB could not serve the logo {File}.", file);
+        return Results.Problem(
+            "TMDB could not be asked for that logo.", statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 app.Run();
