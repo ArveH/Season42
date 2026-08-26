@@ -56,3 +56,13 @@ region's providers, and is never stored by the app: it is what a search offers, 
 user owns. A Streaming Service is what the user registers; a Watch Provider is where the picture on
 it may have come from, and the two part company the moment the user renames one (ADR-0007).
 _Avoid_: streaming service, provider logo, TMDB service
+
+**Logo Store**:
+Where the BFF keeps the logo images it has fetched, one file per Watch Provider logo under the
+path TMDB published it at. It fills itself: the first ask for a logo fetches it from TMDB, every
+ask after that is served from the store, and nothing in it expires, because a logo TMDB has
+published does not change under its own path. The current snapshot is what it will serve — a path
+no Watch Provider names is refused before the store is touched at all, which is the whole of the
+route's path validation (ADR-0008). Like the snapshot beside it, it holds nothing the user owns:
+deleting it costs fetches.
+_Avoid_: logo cache, image proxy
