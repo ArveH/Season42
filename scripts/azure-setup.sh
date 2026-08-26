@@ -361,17 +361,37 @@ else
     az ad sp show --id "$AZURE_CLIENT_ID" >/dev/null 2>&1 || \
       az ad sp create --id "$AZURE_CLIENT_ID" -o none
 
-    CRED_NAME="github-main"
-    if az ad app federated-credential show --id "$AZURE_CLIENT_ID" --federated-credential-id "$CRED_NAME" >/dev/null 2>&1; then
-      say "Federated credential '$CRED_NAME' already exists — leaving it alone."
-    else
-      say "Adding a federated credential for $GITHUB_REPO on the main branch..."
+    # Two credentials, one branch. GitHub is moving the `sub` claim from names to immutable
+    # numeric ids — `repo:owner@<owner id>/repo@<repo id>:ref:...` — and which form a run presents
+    # is GitHub's call, not ours. A credential matching only the name form fails the day the
+    # rollout reaches this repository, with an error that reads like a misconfigured subject. So
+    # both forms are registered; a token matches exactly one of them and the other sits unused.
+    CRED_SUBJECTS=("github-main|repo:$GITHUB_REPO:ref:refs/heads/main")
+    if command -v gh >/dev/null 2>&1; then
+      # The ids come from the repository itself; there is no way to derive them from the name.
+      REPO_IDS=$(gh api "repos/$GITHUB_REPO" --jq '"\(.owner.login)@\(.owner.id)/\(.name)@\(.id)"' 2>/dev/null || echo "")
+      if [[ -n "$REPO_IDS" ]]; then
+        CRED_SUBJECTS+=("github-main-immutable|repo:$REPO_IDS:ref:refs/heads/main")
+      else
+        warn "could not read $GITHUB_REPO's numeric ids from GitHub — registering only the"
+        warn "name-form subject. If a deploy later fails with 'No matching federated identity"
+        warn "record', add a credential for the subject the error reports."
+      fi
+    fi
+    for CRED in "${CRED_SUBJECTS[@]}"; do
+      CRED_NAME=${CRED%%|*}
+      CRED_SUBJECT=${CRED#*|}
+      if az ad app federated-credential show --id "$AZURE_CLIENT_ID" --federated-credential-id "$CRED_NAME" >/dev/null 2>&1; then
+        say "Federated credential '$CRED_NAME' already exists — leaving it alone."
+        continue
+      fi
+      say "Adding federated credential '$CRED_NAME' for $CRED_SUBJECT..."
       CRED_FILE=$(mktemp)
       cat > "$CRED_FILE" <<CREDENTIAL
 {
   "name": "$CRED_NAME",
   "issuer": "https://token.actions.githubusercontent.com",
-  "subject": "repo:$GITHUB_REPO:ref:refs/heads/main",
+  "subject": "$CRED_SUBJECT",
   "description": "Deploys the Season42 BFF from the main branch",
   "audiences": ["api://AzureADTokenExchange"]
 }
@@ -379,7 +399,7 @@ CREDENTIAL
       az ad app federated-credential create --id "$AZURE_CLIENT_ID" --parameters "@$CRED_FILE" -o none
       rm -f "$CRED_FILE"
       say "Added."
-    fi
+    done
     note "Only pushes to main can use this identity. Pull requests run the tests"
     note "and never touch Azure, so they need no credential at all."
   fi
