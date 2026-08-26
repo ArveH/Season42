@@ -45,6 +45,50 @@ dotnet test Season42.slnx      # from the repo root
 
 No test reaches the network: the TMDB HTTP handler is faked at the composition root.
 
+## One-time Azure setup
+
+Before anything can be deployed, a subscription needs a resource group and a Container Apps
+environment to deploy *into*, and CI needs an identity to deploy *with*. Those are provisioned
+once and are not owned by the deployment template — re-running a template that owns the substrate
+it deploys onto is a much riskier operation than re-running one that does not.
+
+```sh
+./scripts/azure-setup.sh
+```
+
+An interactive wizard, safe to re-run: every stage checks for what it is about to create and
+leaves it alone if it is already there. It walks eight stages — confirming the subscription,
+registering the Azure resource providers, creating the resource group and the Container Apps
+environment, capturing the TMDB access token, registering an Entra identity with a federated
+credential scoped to this repository's `main` branch, granting that identity Contributor on the
+resource group, and handing the values to GitHub.
+
+It captures nothing you have to edit into it beforehand, and it stores no credential in the repo:
+values land in `.env` (gitignored) and in GitHub Actions secrets and variables.
+
+| Where | Name | What it is |
+| --- | --- | --- |
+| Secret | `AZURE_CLIENT_ID` | The Entra app registration CI authenticates as |
+| Secret | `AZURE_TENANT_ID` | The directory that app lives in |
+| Secret | `AZURE_SUBSCRIPTION_ID` | The subscription everything is created in |
+| Secret | `TMDB_ACCESS_TOKEN` | Reaches the container as an ACA secret at deploy time |
+| Variable | `AZURE_RESOURCE_GROUP` | Where the deployment template puts everything |
+| Variable | `AZURE_LOCATION` | The region, `norwayeast` by default |
+| Variable | `AZURE_CONTAINERAPP_ENV` | The environment the app runs in |
+
+**No long-lived credential exists anywhere.** CI authenticates by OIDC federated credential, which
+is why there is no client secret in GitHub; the deployed app pulls its image with a managed
+identity, which is why there is no registry password in Azure. The federated credential is scoped
+to `main`, so a pull request cannot use it — pull requests run the tests and never reach Azure.
+
+Two stages can fail on permissions rather than on anything being wrong: registering an Entra
+application, and granting a role. The wizard says so plainly when it happens and prints the exact
+command for someone with the rights to run, rather than failing with a raw CLI error.
+
+The registry, the storage account and its file share are **not** created here. They are the
+deployed app's own dependencies, they change when the app changes, and the deployment template
+owns them.
+
 ## The app talking to it
 
 `LogoApi` in the iOS app is the only thing that calls these endpoints, and
