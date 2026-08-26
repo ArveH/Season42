@@ -3,10 +3,9 @@
 // The committed default is the deployed address (bff/README.md, ADR-0010). The
 // generated segment belongs to the Container Apps environment and is stable for
 // its life, so it is safe to commit; it changes only if that environment is
-// recreated. Point a build somewhere else — a BFF on your own machine, say — from
-// Local.xcconfig (gitignored) next to this file:
-//
-//     BFF_BASE_URL = http:$(SLASH)$(SLASH)localhost:5265
+// recreated. To point a build somewhere else — a BFF on your own machine, say —
+// override this in Local.xcconfig (gitignored); Local.xcconfig.example carries
+// the line to copy.
 //
 // The value reaches the app as the BFFBaseURL key of its Info.plist —
 // Info.plist next to this file substitutes it — which is where LogoApi reads it.

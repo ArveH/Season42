@@ -187,8 +187,8 @@ https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io
 That is the generated `*.azurecontainerapps.io` hostname, and it is the app's default base URL —
 committed in `app/Config/Bff.xcconfig`, which the build hands to the app through its `Info.plist`.
 The generated segment belongs to the Container Apps environment and is stable for its life; it
-changes only if the environment is recreated. Recreating the environment is therefore a one-line
-change to that file.
+changes only if the environment is recreated — at which point this section and `Bff.xcconfig` are
+the two places that name it.
 
 **The first request after an idle period can time out.** Nothing is running at min 0, so that
 request waits for a container to start *and* for the TMDB fetch that start awaits — long enough
@@ -272,15 +272,21 @@ BFF_BASE_URL = http:$(SLASH)$(SLASH)localhost:5265
 appears, so a scheme cannot be written literally. `SLASH` is defined in `Bff.xcconfig`.
 
 `http://localhost:5265` is the address `dotnet run` prints, which a simulator on the same machine
-reaches as its own loopback. A device does not: use the machine's LAN address instead, or pass one
-through `LogoApi(baseUrl:)`.
+reaches as its own loopback.
 
-**App Transport Security does not block this override.** The deployed default needs no help — it
-is a real certificate on a real domain — so the only cleartext left is this one, and ATS lets a
-request to `localhost` from the simulator through as it is; this project carries no exception and
-needs none. Should that ever change, the fix is `NSAllowsLocalNetworking` in the app's `Info.plist`,
-which permits loopback and link-local addresses only; `NSAllowsArbitraryLoads` would turn cleartext
-on for every host the app ever talks to and is not the answer.
+**App Transport Security does not block this override.** The deployed default needs no help — it is
+a real certificate on a real domain — so loopback is the only cleartext left, and ATS lets a request
+to `localhost` from the simulator through as it is; this project carries no exception and needs
+none. Should that ever change, the fix is `NSAllowsLocalNetworking` in the app's `Info.plist`, which
+permits loopback and link-local addresses only; `NSAllowsArbitraryLoads` would turn cleartext on for
+every host the app ever talks to and is not the answer.
+
+**A device is not covered by any of this.** It does not share the machine's loopback, so it needs
+the LAN address — which is cleartext to a host that is not loopback, and ATS refuses it. That is
+the third case ADR-0010 says does not exist, and it does not exist because nothing has needed it:
+searching from a device works against the deployed BFF like everything else. Wanting one anyway
+means `NSAllowsLocalNetworking`, and that is a decision to take deliberately rather than a line to
+add here.
 
 Nothing the app adopts depends on the server afterwards: the logo bytes are stored on the device
 (ADR-0007), so a search is the only thing a stopped BFF costs.

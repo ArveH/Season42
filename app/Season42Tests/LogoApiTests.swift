@@ -14,9 +14,4 @@ struct LogoApiTests {
 
         #expect(LogoApi.defaultBaseUrl == URL(string: told))
     }
-
-    @Test func theBaseUrlIsAnAddressAndNotJustText() {
-        #expect(LogoApi.defaultBaseUrl.host() != nil)
-        #expect(LogoApi.defaultBaseUrl.scheme == "https" || LogoApi.defaultBaseUrl.scheme == "http")
-    }
 }

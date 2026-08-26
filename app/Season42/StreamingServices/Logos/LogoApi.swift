@@ -11,13 +11,16 @@ struct LogoApi: LogoSearching {
     /// deployed address as the default, and `Config/Local.xcconfig` overrides it for a
     /// build pointed somewhere else, such as a BFF on the developer's own machine.
     ///
-    /// A build that carries no address at all is a broken build rather than a running app
-    /// with a quiet fault, so it stops here.
+    /// The default is committed, so no build is ever asked to supply one and this cannot
+    /// fail in a checkout that is intact. What it guards is a broken build — a deleted line
+    /// in `Bff.xcconfig` or `Info.plist` — and it says which, because the alternative is an
+    /// app whose every search fails for a reason nothing on screen can explain.
     static let defaultBaseUrl: URL = {
-        guard let told = Bundle.main.object(forInfoDictionaryKey: "BFFBaseURL") as? String,
-              let url = URL(string: told), url.host() != nil else {
+        let told = Bundle.main.object(forInfoDictionaryKey: "BFFBaseURL") as? String
+        guard let address = told, let url = URL(string: address), url.host() != nil else {
             preconditionFailure(
-                "Info.plist carries no usable BFFBaseURL — check Config/Bff.xcconfig."
+                "Info.plist carries no usable BFFBaseURL: \(told ?? "the key is missing"). "
+                    + "Check BFF_BASE_URL in Config/Bff.xcconfig."
             )
         }
         return url
