@@ -26,6 +26,11 @@ builder.Services.AddHostedService(services => services.GetRequiredService<WatchP
 
 var app = builder.Build();
 
+// A liveness probe and nothing more: it answers for the host, never for the snapshot. A replica
+// with no snapshot is the only replica during a TMDB outage, and marking it unready there would
+// turn a degraded service — one answering an honest 503 from /providers — into a dead one.
+app.MapGet("/health", () => Results.Ok());
+
 app.MapGet("/providers", (string? search, WatchProviderStore store) =>
 {
     if (string.IsNullOrWhiteSpace(search))

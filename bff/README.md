@@ -37,6 +37,35 @@ dotnet run                     # http://localhost:5265
 
 Without a token it stops immediately, saying which setting is missing.
 
+### As a container
+
+`bff/Dockerfile` builds the server on the .NET SDK image and publishes it onto the chiseled ASP.NET
+runtime, which ships no shell and runs as a non-root user. Build from `bff/`, where the build
+context is:
+
+```sh
+cd bff
+docker build -t season42-bff .
+docker run --rm -p 8080:8080 -e Tmdb__AccessToken="<your TMDB API Read Access Token>" season42-bff
+```
+
+**The token has to be an environment variable here.** User-secrets are a file in the developer's
+home directory and there is none inside the container, so a container started without
+`-e Tmdb__AccessToken=...` stops at startup with the same message as anywhere else — which names
+user-secrets, and is advice that does not apply where you are reading it. Any setting can be
+overridden this way: `Tmdb:WatchRegion` becomes `-e Tmdb__WatchRegion=SE`, the colon written as a
+double underscore.
+
+The container listens on plain HTTP on `:8080` and holds no certificate. That is deliberate: TLS
+terminates at the Container Apps edge, which hands the container plain HTTP on the internal network
+(ADR-0010). A `docker run` on a public host would be publishing cleartext.
+
+It starts with an empty Logo Store and fills it — the container mounts nothing, so the store lives
+inside it and goes when it goes. Durable storage arrives with the deployment.
+
+There is no shell in the image, so `docker exec` gets you nothing. `docker logs` and the endpoints
+are the way in.
+
 ## Test
 
 ```sh
@@ -91,6 +120,9 @@ owns them.
 
 ## The app talking to it
 
+This describes a BFF running on the developer's machine. A deployed one is addressed over HTTPS,
+and the cleartext below is the one exception ADR-0010 keeps.
+
 `LogoApi` in the iOS app is the only thing that calls these endpoints, and
 `http://localhost:5265` is its default base URL — the address `dotnet run` prints, which a
 simulator on the same machine reaches as its own loopback. A device does not: point the base URL
@@ -108,8 +140,17 @@ Nothing the app adopts depends on the server afterwards: the logo bytes are stor
 
 ## The endpoints
 
-`GET /providers?search=<text>` — Watch Providers whose names contain the text, case-insensitively,
-ordered as TMDB would order them and capped at 20.
+### `GET /health`
+
+`200` once the host has started, with nothing in the body. It is a liveness probe — the deployment
+wires it as one — and it deliberately says nothing about whether a snapshot has been taken: a
+replica that has never reached TMDB still answers searches honestly with `503`, and calling it
+unhealthy would turn a degraded service into a dead one (ADR-0010).
+
+### `GET /providers?search=<text>`
+
+Watch Providers whose names contain the text, case-insensitively, ordered as TMDB would order
+them and capped at 20.
 
 ```sh
 curl 'http://localhost:5265/providers?search=net'
