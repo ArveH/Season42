@@ -25,6 +25,12 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// <summary>The snapshot file inside <see cref="StorePath"/>.</summary>
     public string SnapshotPath => Path.Combine(StorePath, TmdbOptions.SnapshotFileName);
 
+    /// <summary>Where the logo bytes land inside <see cref="StorePath"/>.</summary>
+    public string LogoDirectory => Path.Combine(StorePath, LogoStore.DirectoryName);
+
+    /// <summary>Where one logo's bytes land.</summary>
+    public string LogoPathOf(string file) => Path.Combine(LogoDirectory, file);
+
     /// <summary>Runs a refresh on demand — what the daily timer would otherwise have to wait for.</summary>
     public Task RefreshAsync() =>
         Services.GetRequiredService<WatchProviderRefresh>().RefreshAsync(CancellationToken.None);
@@ -45,6 +51,8 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddHttpClient<TmdbWatchProviders>()
+                .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
+            services.AddHttpClient<TmdbLogoImages>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
         });
     }

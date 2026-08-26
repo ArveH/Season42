@@ -50,6 +50,21 @@ public sealed class WatchProviderStore
             .ToList();
     }
 
+    /// <summary>
+    /// Whether the current snapshot names <paramref name="logoFile"/> as some Watch Provider's
+    /// logo. This is the allowlist the logo route serves from: a path that is not in it is not a
+    /// path this server has ever published, whatever it looks like.
+    /// </summary>
+    public bool Knows(string logoFile)
+    {
+        var providers = _providers;
+        if (providers is null) return false;
+
+        // TMDB's logo paths carry a leading slash; the route's are what follows it.
+        return providers.Any(provider =>
+            string.Equals(provider.LogoPath, $"/{logoFile}", StringComparison.Ordinal));
+    }
+
     /// <summary>Takes a fresh snapshot, in memory and on disk. Only a successful fetch gets here.</summary>
     public async Task UpdateAsync(IReadOnlyList<WatchProvider> providers, CancellationToken cancellationToken)
     {

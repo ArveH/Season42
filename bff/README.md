@@ -15,7 +15,7 @@ through `WebApplicationFactory`). The solution file is `Season42.slnx` at the re
 | --- | --- | --- |
 | `Tmdb:AccessToken` | *(empty)* | A TMDB API Read Access Token. Empty is a startup failure. |
 | `Tmdb:WatchRegion` | `NO` | The country whose TV watch providers are fetched. |
-| `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`) and, later, logo bytes. Relative to the content root. |
+| `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`) and the logo bytes (`logos/`). Relative to the content root. |
 
 The token never belongs in `appsettings.json`. Set it with user-secrets:
 
@@ -45,7 +45,7 @@ dotnet test Season42.slnx      # from the repo root
 
 No test reaches the network: the TMDB HTTP handler is faked at the composition root.
 
-## The endpoint
+## The endpoints
 
 `GET /providers?search=<text>` — Watch Providers whose names contain the text, case-insensitively,
 ordered as TMDB would order them and capped at 20.
@@ -63,3 +63,27 @@ this server serves.
 | A blank or missing `search` | `400` |
 | Nothing matched | `200` with `[]` |
 | No snapshot has ever been taken | `503` |
+
+### `GET /logos/{file}`
+
+The logo image itself, `{file}` being a `logoPath` from `/providers` without its leading slash.
+
+```sh
+curl -o netflix.jpg 'http://localhost:5265/logos/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg'
+```
+
+The first ask for a logo fetches it from TMDB's image host at size `w154` — the size that stays
+sharp where rows draw logos at 16–24pt — and writes it into `logos/` under the store path. Every
+ask after that is served from there, restarts included: TMDB is asked at most once per logo. The
+store never expires and needs no invalidation, because a logo TMDB has published does not change
+under its own path.
+
+The current snapshot is the allowlist. A `{file}` no Watch Provider in it names is refused before
+anything touches the filesystem, which is what keeps this route from being a way to read arbitrary
+files off the server; path traversal is refused by that same check rather than by a rule of its
+own.
+
+| Situation | Answer |
+| --- | --- |
+| The snapshot does not name the logo (traversal attempts included) | `404` |
+| TMDB could not serve the logo | `502` |
