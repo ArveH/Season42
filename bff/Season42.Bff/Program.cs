@@ -20,6 +20,7 @@ var tmdbTimeout = TimeSpan.FromSeconds(15);
 // TMDB that accepts the connection and then says nothing would hold the port shut for 100 seconds.
 builder.Services.AddHttpClient<TmdbWatchProviders>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<WatchProviderRefresh>();
+builder.Services.AddHttpClient<TmdbSeriesSearch>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<LogoStore>();
 builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
@@ -48,6 +49,30 @@ app.MapGet("/providers", (string? query, WatchProviderStore store) =>
     }
 
     return Results.Ok(matches.Select(provider => new WatchProviderResult(provider.Name, provider.LogoPath)));
+});
+
+app.MapGet("/series", async (
+    string? query, TmdbSeriesSearch tmdb, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(query))
+    {
+        return Results.Problem(
+            "Give a search text: /series?query=severance.", statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    // Nothing is kept and nothing is consulted: unlike /providers, which answers from a snapshot
+    // the server took hours ago, this asks TMDB every time. A search is one cheap call, and the
+    // thing a user searches for is often the thing they only just heard of.
+    try
+    {
+        return Results.Ok(await tmdb.SearchAsync(query, cancellationToken));
+    }
+    catch (HttpRequestException exception)
+    {
+        app.Logger.LogWarning(exception, "TMDB could not be asked for series matching {Query}.", query);
+        return Results.Problem(
+            "TMDB could not be asked for series.", statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 app.MapGet("/logos/{file}", async (

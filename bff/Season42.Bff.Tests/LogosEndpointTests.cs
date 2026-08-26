@@ -4,7 +4,7 @@ namespace Season42.Bff.Tests;
 
 public class LogosEndpointTests
 {
-    /// <summary>The logo file of the Netflix row in <see cref="FakeTmdb.DefaultPayload"/>.</summary>
+    /// <summary>The logo file of the Netflix row in <see cref="FakeTmdb.DefaultProviders"/>.</summary>
     private const string KnownLogo = "pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg";
 
     [Fact]
@@ -98,7 +98,7 @@ public class LogosEndpointTests
     public async Task Logo_BeforeAnySnapshotExists_IsUnavailableRatherThanNotFound()
     {
         var tmdb = new FakeTmdb();
-        tmdb.Fail();
+        tmdb.FailProviders();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
@@ -113,7 +113,7 @@ public class LogosEndpointTests
     public async Task Logo_PublishedAsAPng_IsServedAsOne()
     {
         var tmdb = new FakeTmdb();
-        tmdb.RespondWith("""
+        tmdb.RespondToProvidersWith("""
             {
               "results": [
                 { "display_priority": 1, "logo_path": "/viaplay.png", "provider_name": "Viaplay" }

@@ -77,3 +77,12 @@ no Watch Provider names is refused before the store is touched at all, which is 
 route's path validation (ADR-0008). Like the snapshot beside it, it holds nothing the user owns:
 deleting it costs fetches.
 _Avoid_: logo cache, image proxy
+
+**Series Match**:
+A series a search matched: an id and a name, and nothing else. What a search lists, so the user
+can tell which of several similar titles is theirs. Someone else's data, never stored — the id is
+TMDB's and only ever the thing the next question is asked with, and the Library holds what the
+user copied rather than a link back to someone else's record (ADR-0002). A Series Match is to a
+Tracked Series what a Watch Provider is to a Streaming Service: what a search offers, not a thing
+the user owns.
+_Avoid_: search result, TMDB series, candidate

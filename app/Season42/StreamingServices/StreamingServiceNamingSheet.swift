@@ -298,7 +298,7 @@ private struct PreviewLogos: LogoSearching {
     var fails = false
 
     func providers(matching text: String) async throws -> [WatchProvider] {
-        if fails { throw LogoError.notServed(status: 503) }
+        if fails { throw BffError.notServed(status: 503) }
         return matches
     }
 

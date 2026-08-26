@@ -20,7 +20,7 @@ public class HealthEndpointTests
     public async Task Health_IsOkWithNoSnapshot_WhileProvidersSaysSoHonestly()
     {
         var unreachable = new FakeTmdb();
-        unreachable.Fail();
+        unreachable.FailProviders();
         using var factory = new BffFactory(unreachable);
         var client = factory.CreateClient();
 

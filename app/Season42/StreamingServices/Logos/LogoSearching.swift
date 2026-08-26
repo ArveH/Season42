@@ -22,21 +22,3 @@ protocol LogoSearching: Sendable {
     ///   be fetched is still a result, so this failing costs a picture and nothing else.
     func logo(at path: String) async throws -> Data
 }
-
-/// Why the logo service had nothing to give. Never the user's mistake to fix — they typed
-/// a name, and a server they can't reach is not a name they got wrong — so nothing here
-/// is shown verbatim: the sheet says one thing about a search it couldn't run, and that
-/// saving without a Logo is still open.
-enum LogoError: Error, Equatable {
-    /// No HTTP answer came back at all — the address wouldn't build, or what did come
-    /// back isn't an HTTP response.
-    case notReached
-
-    /// The server was reached but answered with something other than success. The status
-    /// is carried for whoever is reading a log, not for the user: nothing they can do
-    /// about a `503` differs from what they can do about a `502`.
-    case notServed(status: Int)
-
-    /// The server answered, but what came back isn't a list of Watch Providers.
-    case notProviders
-}

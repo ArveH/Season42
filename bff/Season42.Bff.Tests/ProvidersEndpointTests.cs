@@ -86,7 +86,7 @@ public class ProvidersEndpointTests
     public async Task Search_BeforeAnySuccessfulFetch_IsUnavailable()
     {
         var tmdb = new FakeTmdb();
-        tmdb.Fail();
+        tmdb.FailProviders();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
@@ -99,7 +99,7 @@ public class ProvidersEndpointTests
     public async Task Search_CapsResultsAtTwenty()
     {
         var tmdb = new FakeTmdb();
-        tmdb.RespondWith(PayloadOf(Enumerable.Range(1, 25)
+        tmdb.RespondToProvidersWith(PayloadOf(Enumerable.Range(1, 25)
             .Select(index => ($"Service {index:00}", index))));
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
@@ -115,7 +115,7 @@ public class ProvidersEndpointTests
     public async Task Search_OrdersMatchesByDisplayPriority()
     {
         var tmdb = new FakeTmdb();
-        tmdb.RespondWith(PayloadOf([("Zeta", 1), ("Alpha", 9), ("Mandalay", 5)]));
+        tmdb.RespondToProvidersWith(PayloadOf([("Zeta", 1), ("Alpha", 9), ("Mandalay", 5)]));
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 

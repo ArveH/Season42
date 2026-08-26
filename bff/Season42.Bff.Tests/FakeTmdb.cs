@@ -9,8 +9,20 @@ namespace Season42.Bff.Tests;
 /// image host it serves logos from. Every test runs against this: nothing in this test project
 /// reaches the network.
 /// </summary>
+/// <remarks>
+/// It answers by path, not by host. The watch provider list and the series search are two
+/// different asks on one API host, so the host alone no longer says which answer is wanted; a
+/// path this double has not been taught is a 404, so a route asking for something unexpected
+/// fails as a wrong answer rather than quietly taking another route's.
+/// </remarks>
 public sealed class FakeTmdb : HttpMessageHandler
 {
+    /// <summary>The region's TV watch providers — what the daily snapshot is fetched from.</summary>
+    public const string WatchProvidersPath = "/3/watch/providers/tv";
+
+    /// <summary>Series by name.</summary>
+    public const string SeriesSearchPath = "/3/search/tv";
+
     private readonly List<HttpRequestMessage> _requests = new();
 
     public IReadOnlyList<HttpRequestMessage> Requests
@@ -22,12 +34,25 @@ public sealed class FakeTmdb : HttpMessageHandler
     public IReadOnlyList<HttpRequestMessage> ImageRequests =>
         Requests.Where(IsImageRequest).ToList();
 
-    /// <summary>What the next fetch gets back. Replace to change the answer mid-test.</summary>
-    public Func<HttpResponseMessage> Respond { get; set; } = () => Json(DefaultPayload);
+    /// <summary>Only the requests for a series search — what one search costs.</summary>
+    public IReadOnlyList<HttpRequestMessage> SeriesSearchRequests =>
+        Requests.Where(request => PathOf(request) == SeriesSearchPath).ToList();
 
-    public void RespondWith(string json) => Respond = () => Json(json);
+    /// <summary>What the next provider fetch gets back. Replace to change the answer mid-test.</summary>
+    public Func<HttpResponseMessage> RespondToProviders { get; set; } = () => Json(DefaultProviders);
 
-    public void Fail() => Respond = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+    public void RespondToProvidersWith(string json) => RespondToProviders = () => Json(json);
+
+    public void FailProviders() =>
+        RespondToProviders = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+    /// <summary>What the next series search gets back.</summary>
+    public Func<HttpResponseMessage> RespondToSeries { get; set; } = () => Json(DefaultSeries);
+
+    public void RespondToSeriesWith(string json) => RespondToSeries = () => Json(json);
+
+    public void FailSeries() =>
+        RespondToSeries = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
 
     /// <summary>What the next logo fetch gets back.</summary>
     public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
@@ -38,8 +63,22 @@ public sealed class FakeTmdb : HttpMessageHandler
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         lock (_requests) _requests.Add(request);
-        return Task.FromResult(IsImageRequest(request) ? RespondToImages() : Respond());
+        return Task.FromResult(AnswerTo(request)());
     }
+
+    private Func<HttpResponseMessage> AnswerTo(HttpRequestMessage request)
+    {
+        if (IsImageRequest(request)) return RespondToImages;
+
+        return PathOf(request) switch
+        {
+            WatchProvidersPath => RespondToProviders,
+            SeriesSearchPath => RespondToSeries,
+            _ => () => new HttpResponseMessage(HttpStatusCode.NotFound),
+        };
+    }
+
+    private static string? PathOf(HttpRequestMessage request) => request.RequestUri?.AbsolutePath;
 
     private static bool IsImageRequest(HttpRequestMessage request) =>
         request.RequestUri?.Host == "image.tmdb.org";
@@ -63,7 +102,7 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// Shaped like TMDB's own answer, per-country priority map and provider ids included, so the
     /// tests can prove what the BFF keeps and what it throws away.
     /// </summary>
-    public const string DefaultPayload = """
+    public const string DefaultProviders = """
         {
           "results": [
             {
@@ -95,6 +134,47 @@ public sealed class FakeTmdb : HttpMessageHandler
               "display_priorities": { "NO": 30 }
             }
           ]
+        }
+        """;
+
+    /// <summary>
+    /// Shaped like TMDB's own search answer, overviews, posters and paging included, so the tests
+    /// can prove that a search answers with the id and the name and nothing else.
+    /// </summary>
+    public const string DefaultSeries = """
+        {
+          "page": 1,
+          "results": [
+            {
+              "id": 95396,
+              "name": "Severance",
+              "original_name": "Severance",
+              "original_language": "en",
+              "overview": "Mark leads a team of office workers whose memories have been surgically divided.",
+              "poster_path": "/lFf6LLrQjYldcZItzOkGmMMigP7.jpg",
+              "backdrop_path": "/8NClAsRlpjUcOZoQPvomjTqhOhO.jpg",
+              "first_air_date": "2022-02-17",
+              "genre_ids": [18, 9648, 878],
+              "origin_country": ["US"],
+              "popularity": 226.7,
+              "vote_average": 8.4,
+              "vote_count": 3106,
+              "adult": false
+            },
+            {
+              "id": 1399,
+              "name": "Game of Thrones",
+              "original_name": "Game of Thrones",
+              "original_language": "en",
+              "overview": "Seven noble families fight for control of the mythical land of Westeros.",
+              "poster_path": "/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg",
+              "first_air_date": "2011-04-17",
+              "vote_average": 8.4,
+              "adult": false
+            }
+          ],
+          "total_pages": 1,
+          "total_results": 2
         }
         """;
 }
