@@ -40,7 +40,7 @@ public sealed class WatchProviderRefresh(
     {
         try
         {
-            // Resolved per refresh rather than held: TmdbWatchProviders is a typed HttpClient, and a
+            // Resolved per refresh rather than held: the ask is built on a typed HttpClient, and a
             // singleton holding one would pin a single handler for the life of the server.
             using var scope = services.CreateScope();
             var tmdb = scope.ServiceProvider.GetRequiredService<TmdbWatchProviders>();
