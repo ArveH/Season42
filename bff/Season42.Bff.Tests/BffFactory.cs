@@ -50,13 +50,11 @@ public sealed class BffFactory : WebApplicationFactory<Program>
 
         builder.ConfigureTestServices(services =>
         {
-            services.AddHttpClient<TmdbWatchProviders>()
+            // Two clients to swap, not one per ask: everything on TMDB's API shares TmdbApi's,
+            // and the image host has its own.
+            services.AddHttpClient<TmdbApi>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
             services.AddHttpClient<TmdbLogoImages>()
-                .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
-            services.AddHttpClient<TmdbSeriesSearch>()
-                .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
-            services.AddHttpClient<TmdbSeriesDetails>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
         });
     }

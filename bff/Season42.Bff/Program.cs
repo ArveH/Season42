@@ -19,10 +19,13 @@ builder.Services.AddSingleton<WatchProviderStore>();
 var tmdbTimeout = TimeSpan.FromSeconds(15);
 // A bounded timeout, because the first fetch is awaited as the server starts: without one, a
 // TMDB that accepts the connection and then says nothing would hold the port shut for 100 seconds.
-builder.Services.AddHttpClient<TmdbWatchProviders>(client => client.Timeout = tmdbTimeout);
+// One client for the whole API, because one ask of it is what every one of these is built on;
+// the image host keeps its own, being a different host that takes no token.
+builder.Services.AddHttpClient<TmdbApi>(client => client.Timeout = tmdbTimeout);
+builder.Services.AddTransient<TmdbWatchProviders>();
+builder.Services.AddTransient<TmdbSeriesSearch>();
+builder.Services.AddTransient<TmdbSeriesDetails>();
 builder.Services.AddSingleton<WatchProviderRefresh>();
-builder.Services.AddHttpClient<TmdbSeriesSearch>(client => client.Timeout = tmdbTimeout);
-builder.Services.AddHttpClient<TmdbSeriesDetails>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<LogoStore>();
 builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
