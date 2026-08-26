@@ -42,7 +42,7 @@ private struct StreamingServiceList: View {
         }
         .navigationTitle("Streaming service")
         .navigationBarTitleDisplayMode(.inline)
-        .streamingServiceNamingAlert(
+        .streamingServiceNamingSheet(
             naming: $naming,
             library: library,
             onFailure: { failureMessage = $0 },
