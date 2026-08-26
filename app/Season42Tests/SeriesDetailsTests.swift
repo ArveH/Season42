@@ -147,6 +147,7 @@ struct SeriesDetailsTests {
             name: "Severance",
             originalName: "Severance",
             overview: "Mark leads a team of office workers whose memories have been surgically divided.",
+            hasPoster: false,
             seasons: [
                 SeriesSeason(seasonNumber: 0, episodeCount: 3),
                 SeriesSeason(seasonNumber: 1, episodeCount: 9),
@@ -160,6 +161,7 @@ struct SeriesDetailsTests {
             name: "Game of Thrones",
             originalName: "Game of Thrones",
             overview: "Seven noble families fight for control of the mythical land of Westeros.",
+            hasPoster: false,
             seasons: [SeriesSeason(seasonNumber: 1, episodeCount: 10)]
         )
     }

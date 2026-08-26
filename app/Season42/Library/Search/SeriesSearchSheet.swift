@@ -170,6 +170,7 @@ private struct PreviewSeries: SeriesSearching {
         name: "Severance",
         originalName: "Severance",
         overview: "Mark leads a team of office workers whose memories have been surgically divided.",
+        hasPoster: true,
         seasons: [
             SeriesSeason(seasonNumber: 0, episodeCount: 3),
             SeriesSeason(seasonNumber: 1, episodeCount: 9),
@@ -185,5 +186,10 @@ private struct PreviewSeries: SeriesSearching {
     func details(for id: Int) async throws -> SeriesDetails {
         if fails { throw BffError.notServed(status: 502) }
         return details
+    }
+
+    func poster(for id: Int) async throws -> Data {
+        if fails { throw BffError.notServed(status: 502) }
+        return PreviewPoster.bytes(.systemIndigo)
     }
 }

@@ -8,6 +8,13 @@ final class TrackedSeries {
     var title: String
     /// What the series is about, as the user typed it.
     var summary: String
+
+    /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
+    /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
+    /// once copied, nothing refreshes it, and the Library and Watching tabs draw it with the
+    /// BFF stopped, unreachable or never deployed (ADR-0013).
+    var poster: Data?
+
     var seasons: Seasons
     var status: WatchStatus
     var position: Position?
@@ -21,6 +28,7 @@ final class TrackedSeries {
     init(
         title: String,
         summary: String,
+        poster: Data? = nil,
         seasons: Seasons,
         status: WatchStatus,
         position: Position?,
@@ -31,6 +39,7 @@ final class TrackedSeries {
     ) {
         self.title = title
         self.summary = summary
+        self.poster = poster
         self.seasons = seasons
         self.status = status
         self.position = position

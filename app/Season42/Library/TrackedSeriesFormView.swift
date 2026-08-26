@@ -16,6 +16,7 @@ struct TrackedSeriesFormView: View {
 
     @State private var title: String
     @State private var summary: String
+    @State private var poster: Data?
     @State private var seasons: Seasons
     @State private var status: WatchStatus
     @State private var hasPosition: Bool
@@ -25,6 +26,9 @@ struct TrackedSeriesFormView: View {
     @State private var nextEpisodeDate: Date
     @State private var failureMessage: String?
     @State private var isSearching = false
+
+    /// How tall the adopted Poster is drawn, scaled with the text beside it.
+    @ScaledMetric(relativeTo: .body) private var posterHeight = 120
 
     /// Where a copy moved the Position, once one has. The detail screen said it would before
     /// Copy was tapped; this is the form saying it did, because the sheet the user read it on
@@ -41,6 +45,7 @@ struct TrackedSeriesFormView: View {
         self.series = series
         _title = State(initialValue: tracked?.title ?? "")
         _summary = State(initialValue: tracked?.summary ?? "")
+        _poster = State(initialValue: tracked?.poster)
         _seasons = State(initialValue: tracked?.seasons ?? .newSeriesPlaceholder)
         _status = State(initialValue: tracked?.status ?? .planned)
         _hasPosition = State(initialValue: tracked?.position != nil)
@@ -64,6 +69,10 @@ struct TrackedSeriesFormView: View {
                     }
                     TextField("Description", text: $summary, axis: .vertical)
                         .lineLimit(2...5)
+                }
+
+                if poster != nil {
+                    posterSection
                 }
 
                 Section("Seasons") {
@@ -153,6 +162,22 @@ struct TrackedSeriesFormView: View {
         }
     }
 
+    /// The Poster in force, and the only way to be rid of one copied by mistake. Shown only
+    /// where there is one — there is nothing else to put in the section — and Remove takes the
+    /// Poster and nothing else with it, so a wrong copy is not a reason to lose the rest of
+    /// the form. The bytes are the entry's own, so this draws with no BFF anywhere.
+    private var posterSection: some View {
+        Section("Poster") {
+            HStack {
+                Poster(poster: poster, height: posterHeight)
+                    .accessibilityLabel(title)
+                Spacer()
+                Button("Remove", role: .destructive) { poster = nil }
+                    .buttonStyle(.borderless)
+            }
+        }
+    }
+
     private var isEditing: Bool { editing != nil }
 
     /// What the form is holding, for the search sheet to work out what a copy would land on
@@ -170,14 +195,17 @@ struct TrackedSeriesFormView: View {
     /// Takes what the user copied off a Series Details and closes the sheet. Everything copied
     /// is theirs from here — as editable as if they had typed it, and saved no sooner.
     ///
-    /// Only the three fields TMDB's answer speaks to are written. The Status, the Streaming
-    /// Service, the Next Episode Date and the watched state are untouched; the Position moves
-    /// only where the copied seasons no longer reach it, which the clamp on `seasons` above
-    /// does and the detail screen said it would. That move is stated here too: the screen that
+    /// Only the fields TMDB's answer speaks to are written — the Poster among them, as the very
+    /// bytes the detail screen drew, and as nothing where that series had none: a copy replaces
+    /// what the last one left, rather than leaving one series' picture over another's name.
+    /// The Status, the Streaming Service, the Next Episode Date and the watched state are
+    /// untouched; the Position moves only where the copied seasons no longer reach it, which
+    /// the clamp on `seasons` above does and the detail screen said it would. That move is stated here too: the screen that
     /// warned of it is gone by the time it happens.
     private func apply(_ copied: SeriesCopy) {
         title = copied.title
         summary = copied.summary
+        poster = copied.poster
         seasons = copied.seasons
         positionMovedTo = hasPosition ? copied.movedPosition : nil
         isSearching = false
@@ -200,6 +228,7 @@ struct TrackedSeriesFormView: View {
                     editing,
                     title: title,
                     summary: summary,
+                    poster: poster,
                     seasons: seasons,
                     status: status,
                     position: hasPosition ? position : nil,
@@ -210,6 +239,7 @@ struct TrackedSeriesFormView: View {
                 try library.addTrackedSeries(
                     title: title,
                     summary: summary,
+                    poster: poster,
                     seasons: seasons,
                     status: status,
                     position: hasPosition ? position : nil,

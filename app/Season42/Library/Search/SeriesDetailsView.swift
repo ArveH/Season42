@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// What tapping a match pushes: the series' name, what it is called where it was made, what it
-/// is about, the seasons it has, and the Copy that fills the form in with them. Back is the
-/// navigation bar's own, and the results are still listed underneath it, so trying a second
-/// match is one tap rather than a fresh search.
+/// What tapping a match pushes: the series' poster, its name, what it is called where it was
+/// made, what it is about, the seasons it has, and the Copy that fills the form in with them.
+/// Back is the navigation bar's own, and the results are still listed underneath it, so trying
+/// a second match is one tap rather than a fresh search.
 ///
 /// Everything Copy would write is worked out before it is tapped, as a `SeriesCopy`, and
 /// everything that copy invents is on the screen above the button — which is the whole of what
@@ -31,6 +31,9 @@ struct SeriesDetailsView: View {
     /// asked whether they meant it. Nil the rest of the time.
     @State private var pendingCopy: SeriesCopy?
 
+    /// How tall the poster is drawn, scaled with the text around it.
+    @ScaledMetric(relativeTo: .body) private var posterHeight = 180
+
     var body: some View {
         Form {
             switch search.detailsState {
@@ -38,7 +41,8 @@ struct SeriesDetailsView: View {
                 loadingSection
 
             case .loaded(let details):
-                let copy = details.copy(over: form)
+                let copy = details.copy(over: form, poster: search.poster)
+                posterSection
                 aboutSection(details)
                 seasonsSection(details.seasons)
                 notesSection(copy.notes)
@@ -65,7 +69,7 @@ struct SeriesDetailsView: View {
             Button("Keep what I typed", role: .cancel) {}
         } message: { _ in
             Text(
-                "The title, the description and the seasons on the form are replaced. "
+                "The title, the description, the seasons and the poster on the form are replaced. "
                     + "Your status, streaming service, next episode date and what you have watched are left alone."
             )
         }
@@ -92,6 +96,28 @@ struct SeriesDetailsView: View {
                 systemImage: "exclamationmark.triangle"
             )
             .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The poster, or the stand-in where there is none to draw — TMDB has none, or the bytes
+    /// would not come. A poster still on its way spins in the same frame rather than showing
+    /// the stand-in, which would say "this series has no poster" about one that has.
+    ///
+    /// The bytes drawn here are the bytes Copy keeps: the poster is fetched once, so what the
+    /// user looked at is what they end up with.
+    @ViewBuilder
+    private var posterSection: some View {
+        Section {
+            Group {
+                if search.posterState == .loading {
+                    ProgressView()
+                        .frame(width: posterHeight * 2 / 3, height: posterHeight)
+                } else {
+                    Poster(poster: search.poster, height: posterHeight)
+                        .accessibilityLabel(match.name)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -169,7 +195,7 @@ struct SeriesDetailsView: View {
             }
         } footer: {
             Text(
-                "Fills in the title, the description and the seasons, and leaves the rest to you. "
+                "Fills in the title, the description, the seasons and the poster, and leaves the rest to you. "
                     + "Nothing is saved until you save the form."
             )
         }
@@ -201,6 +227,14 @@ struct SeriesDetailsView: View {
             SeriesSeason(seasonNumber: 4, episodeCount: 0),
         ])
     )
+}
+
+#Preview("No poster") {
+    PreviewDetailScreen(series: PreviewDetails(hasPoster: false))
+}
+
+#Preview("A poster that won't fetch") {
+    PreviewDetailScreen(series: PreviewDetails(posterFails: true))
 }
 
 #Preview("No seasons") {
@@ -240,6 +274,8 @@ private struct PreviewDetails: SeriesSearching {
         SeriesSeason(seasonNumber: 2, episodeCount: 10),
     ]
     var fails = false
+    var hasPoster = true
+    var posterFails = false
 
     func series(matching text: String) async throws -> [SeriesMatch] { [] }
 
@@ -250,7 +286,13 @@ private struct PreviewDetails: SeriesSearching {
             originalName: "Severance",
             overview: "Mark leads a team of office workers whose memories have been surgically divided, "
                 + "so that what they know at work and what they know at home are two separate lives.",
+            hasPoster: hasPoster,
             seasons: seasons
         )
+    }
+
+    func poster(for id: Int) async throws -> Data {
+        if posterFails { throw BffError.notServed(status: 502) }
+        return PreviewPoster.bytes(.systemIndigo)
     }
 }

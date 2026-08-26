@@ -1,14 +1,15 @@
 import Foundation
 
-/// Where a search for a series gets its answers from. Two asks and no rules: which text to
-/// search for, what an empty answer means and what a fetch that failed shows are all decisions
-/// of `SeriesSearch` and `SeriesDetailsRequest` — which is what lets every one of them be
-/// tested against a stub and leaves only `BffClient` needing a network.
+/// Where a search for a series gets its answers from. Three asks and no rules: which text to
+/// search for, what an empty answer means, what a fetch that failed shows and what becomes of
+/// the poster bytes are all decisions of `SeriesSearch` — which is what lets every one of them
+/// be tested against a stub and leaves only `BffClient` needing a network.
 ///
-/// Two asks and not one, because opening a match is the second half of searching: the search
-/// answers with ids, and an id is only good for asking the next question with. Separate from
-/// `LogoSearching` rather than folded in with it, so that the logo stub beside it is untouched
-/// by anything that happens here.
+/// Three asks and not one, because opening a match is the second half of searching: the search
+/// answers with ids, and an id is only good for asking the next two questions with — the
+/// details, and the poster the details said was there. Separate from `LogoSearching` rather
+/// than folded in with it, so that the logo stub beside it is untouched by anything that
+/// happens here.
 ///
 /// `Library` knows nothing of this. A search touches no store: the Library is the user's own
 /// and a Series Match is someone else's data, so the two only ever meet when the user copies.
@@ -28,4 +29,12 @@ protocol SeriesSearching: Sendable {
     ///   failure: the user tapped a match that was served moments ago, so anything other than
     ///   the details is the same "couldn't ask" to them.
     func details(for id: Int) async throws -> SeriesDetails
+
+    /// The poster image bytes of the series with this id — the same id the details were read
+    /// with, because there is no path to ask with and the app never sees one (ADR-0012).
+    ///
+    /// - Throws: whatever went wrong reaching or reading them, a series TMDB has no poster for
+    ///   included. A detail screen without its poster is still a detail screen, so this failing
+    ///   costs a picture and nothing else: everything else still copies.
+    func poster(for id: Int) async throws -> Data
 }

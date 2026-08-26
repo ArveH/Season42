@@ -1,8 +1,8 @@
 import Foundation
 
-/// What Copy would write into the form, worked out before it is tapped: a Title, a Description
-/// and the seasons the app can hold, together with every note the user is owed about how they
-/// were arrived at.
+/// What Copy would write into the form, worked out before it is tapped: a Title, a Description,
+/// the seasons the app can hold and the Poster, together with every note the user is owed about
+/// how they were arrived at.
 ///
 /// A value rather than something the detail screen does, because every rule about copying lives
 /// in here — which seasons survive, which are invented, where the Position lands — and a rule in
@@ -23,6 +23,15 @@ struct SeriesCopy: Equatable, Sendable {
     /// no episodes gone, and whatever gap that leaves filled so TMDB's numbering survives
     /// (ADR-0011).
     let seasons: Seasons
+
+    /// The poster the detail screen drew, as bytes, or nil where it drew none. The very bytes
+    /// the user looked at — the poster is fetched once, so what they saw is what they keep —
+    /// and theirs from the moment they land, kept on the Tracked Series itself so the Library
+    /// draws them with the BFF stopped, unreachable or never deployed (ADR-0013).
+    ///
+    /// Nil is an ordinary outcome, not a failure: TMDB has no poster, or the bytes would not
+    /// come. Either way everything else copies.
+    let poster: Data?
 
     /// Everything this copy would do that TMDB's answer does not itself say — what was dropped,
     /// what was invented, and where the Position would end up. Said on the detail screen before
@@ -133,11 +142,14 @@ extension SeriesDetails {
     /// What copying this into `form` would write, and everything the user is owed about it
     /// before they tap Copy.
     ///
+    /// - Parameter poster: the bytes the detail screen is drawing, which are the bytes this
+    ///   copy keeps. Nil where there are none, which copies no Poster and costs nothing else.
+    ///
     /// The seasons flatten is the whole of the invention, and it is ADR-0011's: drop the
     /// specials, drop what has no episodes, fill whatever gap that leaves from the next season
     /// that survived — never renumber, because Position is the app's reason to exist — and fall
     /// back to a single season of one episode where nothing at all survives.
-    func copy(over form: SeriesFormContents) -> SeriesCopy {
+    func copy(over form: SeriesFormContents, poster: Data? = nil) -> SeriesCopy {
         let (copied, flattening) = flattenedSeasons()
         var notes = flattening
 
@@ -149,6 +161,7 @@ extension SeriesDetails {
             title: name,
             summary: overview,
             seasons: copied,
+            poster: poster,
             notes: notes,
             overwritesTheForm: form.isTypedInto
         )

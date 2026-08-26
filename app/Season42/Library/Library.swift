@@ -45,11 +45,14 @@ final class Library {
     /// Adds a hand-entered Tracked Series.
     ///
     /// - Parameter position: where the user already is, or nil if they have watched nothing yet.
+    /// - Parameter poster: the Poster bytes copied off a search, or nil for a series entered by
+    ///   hand — which is every series until a copy brings one.
     /// - Throws: `LibraryError` if any field is unusable; nothing is stored in that case.
     @discardableResult
     func addTrackedSeries(
         title: String,
         summary: String = "",
+        poster: Data? = nil,
         seasons: Seasons,
         status: WatchStatus,
         position: Position? = nil,
@@ -62,6 +65,7 @@ final class Library {
         let series = TrackedSeries(
             title: title,
             summary: summary.trimmed,
+            poster: poster,
             seasons: seasons,
             status: status,
             position: position,
@@ -214,6 +218,7 @@ final class Library {
         _ series: TrackedSeries,
         title: String,
         summary: String,
+        poster: Data?,
         seasons: Seasons,
         status: WatchStatus,
         position: Position?,
@@ -225,6 +230,7 @@ final class Library {
 
         series.title = title
         series.summary = summary.trimmed
+        series.poster = poster
         series.seasons = seasons
         series.status = status
         series.position = position

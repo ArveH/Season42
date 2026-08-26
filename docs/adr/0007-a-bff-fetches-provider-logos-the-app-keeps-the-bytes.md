@@ -64,3 +64,7 @@ rate-limiting, or changing its data is never a red build.
 Serving the logo bytes themselves is a second endpoint filling the same store the snapshot sits in,
 and is deliberately not part of this decision. It is taken in
 [ADR-0008](0008-the-snapshot-is-the-allowlist-for-a-logo-store.md).
+
+What this decided about a Logo, [ADR-0013](0013-a-poster-is-adopted-as-bytes-and-no-tmdb-id-is-kept.md)
+decides again about a Poster, on the same two arguments: bytes on the thing the user owns, and no
+TMDB identifier kept beside them.
