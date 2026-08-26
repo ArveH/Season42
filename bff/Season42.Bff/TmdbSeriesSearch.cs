@@ -27,7 +27,9 @@ public sealed class TmdbSeriesSearch(HttpClient http, IOptions<TmdbOptions> opti
     /// BFF has nothing better to replace with. One page: what a search shows is the first page of
     /// matches, and paging is not something the app offers.
     /// </summary>
-    /// <exception cref="HttpRequestException">TMDB could not be asked, or refused.</exception>
+    /// <exception cref="HttpRequestException">TMDB could not be reached, or refused.</exception>
+    /// <exception cref="TaskCanceledException">TMDB said nothing before the client's timeout.</exception>
+    /// <exception cref="JsonException">TMDB answered with something that is not a search answer.</exception>
     public async Task<IReadOnlyList<SeriesMatch>> SearchAsync(string query, CancellationToken cancellationToken)
     {
         // The token goes in the header. TMDB also accepts it as a query parameter, where it would

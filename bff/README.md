@@ -374,4 +374,4 @@ stored: the Library holds what the user copied, not a link back to someone else'
 | --- | --- |
 | A blank or missing `query` | `400`, with no TMDB call made |
 | Nothing matched | `200` with `[]` |
-| TMDB could not be asked | `502` |
+| TMDB refused, said nothing, or answered with something unreadable | `502` |

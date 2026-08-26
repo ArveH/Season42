@@ -54,6 +54,13 @@ public sealed class FakeTmdb : HttpMessageHandler
     public void FailSeries() =>
         RespondToSeries = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
 
+    /// <summary>
+    /// Makes the next series search time out — what a TMDB that accepts the connection and then
+    /// says nothing costs, without a test having to wait out the real timeout. This is the
+    /// exception <see cref="HttpClient"/> raises when its own timeout runs out.
+    /// </summary>
+    public void TimeOutOnSeries() => RespondToSeries = () => throw new TaskCanceledException();
+
     /// <summary>What the next logo fetch gets back.</summary>
     public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
 

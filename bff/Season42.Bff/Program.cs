@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Season42.Bff;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,7 +68,13 @@ app.MapGet("/series", async (
     {
         return Results.Ok(await tmdb.SearchAsync(query, cancellationToken));
     }
-    catch (HttpRequestException exception)
+    // TMDB refused, went quiet until the timeout ran out, or answered with something that is not
+    // a search answer. All three are one thing to the user — the server behind this one did not
+    // come up with an answer — and none of them is theirs to fix. A cancellation that is the
+    // caller's own going away is deliberately not caught: nobody is left to tell.
+    catch (Exception exception) when (
+        exception is HttpRequestException or JsonException
+        || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
     {
         app.Logger.LogWarning(exception, "TMDB could not be asked for series matching {Query}.", query);
         return Results.Problem(

@@ -154,6 +154,37 @@ public class SeriesEndpointTests
     }
 
     /// <summary>
+    /// A TMDB that accepts the connection and then says nothing is as unreachable as one that
+    /// refused, and the timeout that ends the wait must not read as this server's own fault.
+    /// </summary>
+    [Fact]
+    public async Task Search_WithTmdbSayingNothing_IsABadGateway()
+    {
+        var tmdb = new FakeTmdb();
+        tmdb.TimeOutOnSeries();
+        using var factory = new BffFactory(tmdb);
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/series?query=severance");
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+    }
+
+    /// <summary>An answer this server cannot read is the server behind it failing, not this one.</summary>
+    [Fact]
+    public async Task Search_WithTmdbAnsweringNonsense_IsABadGateway()
+    {
+        var tmdb = new FakeTmdb();
+        tmdb.RespondToSeriesWith("this is not JSON");
+        using var factory = new BffFactory(tmdb);
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/series?query=severance");
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+    }
+
+    /// <summary>
     /// The snapshot is the watch providers' story, not the series'. A server that has never
     /// reached TMDB for providers still searches for series perfectly well.
     /// </summary>
@@ -184,17 +215,17 @@ public class SeriesEndpointTests
         return JsonSerializer.Serialize(new { page = 1, results, total_pages = 1 });
     }
 
-    private static async Task<IReadOnlyList<SeriesResult>> SearchAsync(HttpClient client, string query)
+    private static async Task<IReadOnlyList<MatchedSeries>> SearchAsync(HttpClient client, string query)
     {
         var response = await client.GetAsync($"/series?query={Uri.EscapeDataString(query)}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return await ReadAsync(response);
     }
 
-    private static async Task<IReadOnlyList<SeriesResult>> ReadAsync(HttpResponseMessage response)
+    private static async Task<IReadOnlyList<MatchedSeries>> ReadAsync(HttpResponseMessage response)
     {
         var json = await response.Content.ReadAsStringAsync();
-        var results = JsonSerializer.Deserialize<List<SeriesResult>>(json, JsonOptions);
+        var results = JsonSerializer.Deserialize<List<MatchedSeries>>(json, JsonOptions);
         Assert.NotNull(results);
         return results;
     }
@@ -204,5 +235,5 @@ public class SeriesEndpointTests
         PropertyNameCaseInsensitive = true,
     };
 
-    private sealed record SeriesResult(int Id, string Name);
+    private sealed record MatchedSeries(int Id, string Name);
 }

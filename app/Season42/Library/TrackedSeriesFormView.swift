@@ -8,9 +8,9 @@ struct TrackedSeriesFormView: View {
     /// The series being edited, or nil when the user is entering a new one.
     let editing: TrackedSeries?
 
-    /// Where the search sheet gets its Series Matches. The default is the live BFF, so the
-    /// form gets the search without knowing there is a network.
-    let seriesMatches: any SeriesSearching
+    /// Where the search sheet gets its answers. The default is the live BFF, so the form
+    /// gets the search without knowing there is a network.
+    let series: any SeriesSearching
 
     @Environment(\.dismiss) private var dismiss
 
@@ -28,21 +28,21 @@ struct TrackedSeriesFormView: View {
 
     init(
         library: Library,
-        editing series: TrackedSeries? = nil,
-        seriesMatches: any SeriesSearching = BffClient()
+        editing tracked: TrackedSeries? = nil,
+        series: any SeriesSearching = BffClient()
     ) {
         self.library = library
-        self.editing = series
-        self.seriesMatches = seriesMatches
-        _title = State(initialValue: series?.title ?? "")
-        _summary = State(initialValue: series?.summary ?? "")
-        _seasons = State(initialValue: series?.seasons ?? [10])
-        _status = State(initialValue: series?.status ?? .planned)
-        _hasPosition = State(initialValue: series?.position != nil)
-        _position = State(initialValue: series?.position ?? Position(season: 1, episode: 1))
-        _streamingService = State(initialValue: series?.streamingService)
-        _hasNextEpisodeDate = State(initialValue: series?.nextEpisodeDate != nil)
-        _nextEpisodeDate = State(initialValue: series?.nextEpisodeDate ?? Date())
+        self.editing = tracked
+        self.series = series
+        _title = State(initialValue: tracked?.title ?? "")
+        _summary = State(initialValue: tracked?.summary ?? "")
+        _seasons = State(initialValue: tracked?.seasons ?? [10])
+        _status = State(initialValue: tracked?.status ?? .planned)
+        _hasPosition = State(initialValue: tracked?.position != nil)
+        _position = State(initialValue: tracked?.position ?? Position(season: 1, episode: 1))
+        _streamingService = State(initialValue: tracked?.streamingService)
+        _hasNextEpisodeDate = State(initialValue: tracked?.nextEpisodeDate != nil)
+        _nextEpisodeDate = State(initialValue: tracked?.nextEpisodeDate ?? Date())
     }
 
     var body: some View {
@@ -134,7 +134,7 @@ struct TrackedSeriesFormView: View {
             // nothing: what the user does in there costs them the form only when they choose
             // to take something from it.
             .sheet(isPresented: $isSearching) {
-                SeriesSearchSheet(searchingFor: title, matches: seriesMatches)
+                SeriesSearchSheet(searchingFor: title, series: series)
             }
             // Keep the Position inside the seasons and episodes entered so far.
             .onChange(of: seasons) { _, _ in position = seasons.clamping(position) }

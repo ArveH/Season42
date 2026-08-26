@@ -16,9 +16,9 @@ struct SeriesSearchSheet: View {
     /// - Parameters:
     ///   - title: what the form's Title held when Search was tapped, which is what the box
     ///     opens holding. Empty is an ordinary case: the box is simply ready to type in.
-    ///   - matches: where the search gets its answers.
-    init(searchingFor title: String, matches: any SeriesSearching) {
-        _search = State(initialValue: SeriesSearch(text: title, series: matches))
+    ///   - series: where the search gets its answers.
+    init(searchingFor title: String, series: any SeriesSearching) {
+        _search = State(initialValue: SeriesSearch(text: title, series: series))
     }
 
     var body: some View {
@@ -107,19 +107,19 @@ struct SeriesSearchSheet: View {
 }
 
 #Preview("Matches") {
-    SeriesSearchSheet(searchingFor: "sever", matches: PreviewSeries())
+    SeriesSearchSheet(searchingFor: "sever", series: PreviewSeries())
 }
 
 #Preview("From an empty title") {
-    SeriesSearchSheet(searchingFor: "", matches: PreviewSeries())
+    SeriesSearchSheet(searchingFor: "", series: PreviewSeries())
 }
 
 #Preview("Nothing matched") {
-    SeriesSearchSheet(searchingFor: "zzz", matches: PreviewSeries(matches: []))
+    SeriesSearchSheet(searchingFor: "zzz", series: PreviewSeries(matches: []))
 }
 
 #Preview("Unreachable") {
-    SeriesSearchSheet(searchingFor: "sever", matches: PreviewSeries(fails: true))
+    SeriesSearchSheet(searchingFor: "sever", series: PreviewSeries(fails: true))
 }
 
 /// A BFF for the previews above, so every state of the search can be seen without one
