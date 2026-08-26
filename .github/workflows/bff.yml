@@ -2,9 +2,12 @@
 # gate. Nothing here builds or tests the iOS app — that needs a macOS runner and the code-signing
 # setup, which is its own fight.
 #
-# Azure authentication is an OIDC federated credential on an app registration scoped to
-# `repo:<owner>/<repo>:ref:refs/heads/main`, created by scripts/azure-setup.sh. There is no client
-# secret: a pull request cannot authenticate to Azure, and does not try.
+# Azure authentication is an OIDC federated credential on an app registration scoped to the main
+# branch, created by scripts/azure-setup.sh. Two credentials are registered for that one branch:
+# GitHub is moving the token's `sub` claim from `repo:<owner>/<repo>:ref:refs/heads/main` to an
+# immutable-id form, `repo:<owner>@<id>/<repo>@<id>:ref:refs/heads/main`, and either may be
+# presented. There is no client secret: a pull request cannot authenticate to Azure, and does not
+# try.
 
 name: BFF
 
@@ -35,9 +38,9 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -66,9 +69,9 @@ jobs:
     # `${{ }}` spliced into the script: a value with a quote or a backtick in it would otherwise
     # become shell.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
