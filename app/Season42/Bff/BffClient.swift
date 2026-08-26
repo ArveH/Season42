@@ -3,8 +3,8 @@ import Foundation
 /// The BFF as the app talks to it, and the only thing that does. One place knows where the
 /// server is and one `fetch` does every `GET`, so each endpoint the app uses is a few lines
 /// on top of both: today `GET /providers?query=` for the Watch Providers a search matched,
-/// `GET /logos/{file}` for the bytes behind one, and `GET /series?query=` for the Series
-/// Matches a search matched.
+/// `GET /logos/{file}` for the bytes behind one, `GET /series?query=` for the Series Matches a
+/// search matched, and `GET /series/{id}` for the Series Details behind one.
 ///
 /// It conforms to the narrow protocols the rest of the app asks through — `LogoSearching`
 /// and `SeriesSearching` today, more as the BFF grows — so nothing outside this file depends
@@ -55,6 +55,21 @@ struct BffClient: LogoSearching, SeriesSearching {
             return try JSONDecoder().decode([SeriesMatch].self, from: json)
         } catch {
             // What came back isn't a list of Series Matches.
+            throw BffError.notUnderstood
+        }
+    }
+
+    func details(for id: Int) async throws -> SeriesDetails {
+        // Asked by the id a Series Match carried, and asked afresh every time: a series that
+        // has just gained a season is exactly the one a user is likely to be looking at.
+        let json = try await fetch(
+            baseUrl.appending(path: "series").appending(path: String(id)),
+            ignoringWhatWasCached: true
+        )
+        do {
+            return try JSONDecoder().decode(SeriesDetails.self, from: json)
+        } catch {
+            // What came back isn't a Series Details.
             throw BffError.notUnderstood
         }
     }

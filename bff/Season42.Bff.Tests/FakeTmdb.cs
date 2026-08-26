@@ -23,6 +23,9 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// <summary>Series by name.</summary>
     public const string SeriesSearchPath = "/3/search/tv";
 
+    /// <summary>One series by id — everything TMDB knows about it. The id follows this.</summary>
+    public const string SeriesDetailsPrefix = "/3/tv/";
+
     private readonly List<HttpRequestMessage> _requests = new();
 
     public IReadOnlyList<HttpRequestMessage> Requests
@@ -37,6 +40,10 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// <summary>Only the requests for a series search — what one search costs.</summary>
     public IReadOnlyList<HttpRequestMessage> SeriesSearchRequests =>
         Requests.Where(request => PathOf(request) == SeriesSearchPath).ToList();
+
+    /// <summary>Only the requests for one series' details — what opening one match costs.</summary>
+    public IReadOnlyList<HttpRequestMessage> SeriesDetailsRequests =>
+        Requests.Where(IsSeriesDetailsRequest).ToList();
 
     /// <summary>What the next provider fetch gets back. Replace to change the answer mid-test.</summary>
     public Func<HttpResponseMessage> RespondToProviders { get; set; } = () => Json(DefaultProviders);
@@ -61,6 +68,24 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// </summary>
     public void TimeOutOnSeries() => RespondToSeries = () => throw new TaskCanceledException();
 
+    /// <summary>What the next details fetch gets back.</summary>
+    public Func<HttpResponseMessage> RespondToDetails { get; set; } = () => Json(DefaultSeriesDetails);
+
+    public void RespondToDetailsWith(string json) => RespondToDetails = () => Json(json);
+
+    public void FailDetails() =>
+        RespondToDetails = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+    /// <summary>What TMDB answers for an id it has never heard of.</summary>
+    public void NotFoundOnDetails() =>
+        RespondToDetails = () => new HttpResponseMessage(HttpStatusCode.NotFound);
+
+    /// <summary>
+    /// Makes the next details fetch time out — what a TMDB that accepts the connection and then
+    /// says nothing costs, without a test having to wait out the real timeout.
+    /// </summary>
+    public void TimeOutOnDetails() => RespondToDetails = () => throw new TaskCanceledException();
+
     /// <summary>What the next logo fetch gets back.</summary>
     public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
 
@@ -76,6 +101,7 @@ public sealed class FakeTmdb : HttpMessageHandler
     private Func<HttpResponseMessage> AnswerTo(HttpRequestMessage request)
     {
         if (IsImageRequest(request)) return RespondToImages;
+        if (IsSeriesDetailsRequest(request)) return RespondToDetails;
 
         return PathOf(request) switch
         {
@@ -86,6 +112,9 @@ public sealed class FakeTmdb : HttpMessageHandler
     }
 
     private static string? PathOf(HttpRequestMessage request) => request.RequestUri?.AbsolutePath;
+
+    private static bool IsSeriesDetailsRequest(HttpRequestMessage request) =>
+        PathOf(request)?.StartsWith(SeriesDetailsPrefix, StringComparison.Ordinal) == true;
 
     private static bool IsImageRequest(HttpRequestMessage request) =>
         request.RequestUri?.Host == "image.tmdb.org";
@@ -141,6 +170,74 @@ public sealed class FakeTmdb : HttpMessageHandler
               "display_priorities": { "NO": 30 }
             }
           ]
+        }
+        """;
+
+    /// <summary>
+    /// Shaped like TMDB's own details answer, networks, ratings and a specials season included,
+    /// so the tests can prove what the BFF keeps, what it throws away, and that season 0 comes
+    /// through with the rest.
+    /// </summary>
+    public const string DefaultSeriesDetails = """
+        {
+          "adult": false,
+          "backdrop_path": "/8NClAsRlpjUcOZoQPvomjTqhOhO.jpg",
+          "created_by": [ { "id": 2467337, "name": "Dan Erickson" } ],
+          "episode_run_time": [],
+          "first_air_date": "2022-02-17",
+          "genres": [ { "id": 18, "name": "Drama" } ],
+          "homepage": "https://tv.apple.com/show/severance",
+          "id": 95396,
+          "in_production": true,
+          "languages": ["en"],
+          "last_air_date": "2025-03-21",
+          "name": "Severance",
+          "networks": [ { "id": 2552, "name": "Apple TV+" } ],
+          "number_of_episodes": 19,
+          "number_of_seasons": 2,
+          "origin_country": ["US"],
+          "original_language": "en",
+          "original_name": "Severance (original)",
+          "overview": "Mark leads a team of office workers whose memories have been surgically divided.",
+          "popularity": 226.7,
+          "poster_path": "/lFf6LLrQjYldcZItzOkGmMMigP7.jpg",
+          "seasons": [
+            {
+              "air_date": "2022-04-01",
+              "episode_count": 3,
+              "id": 200000,
+              "name": "Specials",
+              "overview": "",
+              "poster_path": "/specials.jpg",
+              "season_number": 0,
+              "vote_average": 0
+            },
+            {
+              "air_date": "2022-02-17",
+              "episode_count": 9,
+              "id": 126137,
+              "name": "Season 1",
+              "overview": "",
+              "poster_path": "/season1.jpg",
+              "season_number": 1,
+              "vote_average": 7.9
+            },
+            {
+              "air_date": "2025-01-17",
+              "episode_count": 10,
+              "id": 396324,
+              "name": "Season 2",
+              "overview": "",
+              "poster_path": "/season2.jpg",
+              "season_number": 2,
+              "vote_average": 8.1
+            }
+          ],
+          "status": "Returning Series",
+          "tagline": "Who are you at work?",
+          "type": "Scripted",
+          "vote_average": 8.4,
+          "vote_count": 3106
         }
         """;
 

@@ -202,6 +202,12 @@ private final class StubSeries: SeriesSearching {
         return answers[text] ?? served
     }
 
+    /// Nothing here opens a match: a search never asks this. What a details request does with
+    /// what the BFF answers is `SeriesDetailsTests`'.
+    func details(for id: Int) async throws -> SeriesDetails {
+        throw BffError.notServed(status: 404)
+    }
+
     /// Makes every search from here on wait to be released, so a test can look at a search
     /// mid-flight and choose which of two answers lands first.
     func holdSearches() { isHolding = true }

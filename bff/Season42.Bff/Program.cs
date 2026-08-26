@@ -22,6 +22,7 @@ var tmdbTimeout = TimeSpan.FromSeconds(15);
 builder.Services.AddHttpClient<TmdbWatchProviders>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<WatchProviderRefresh>();
 builder.Services.AddHttpClient<TmdbSeriesSearch>(client => client.Timeout = tmdbTimeout);
+builder.Services.AddHttpClient<TmdbSeriesDetails>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<LogoStore>();
 builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
@@ -68,15 +69,35 @@ app.MapGet("/series", async (
     {
         return Results.Ok(await tmdb.SearchAsync(query, cancellationToken));
     }
-    // TMDB refused, went quiet until the timeout ran out, or answered with something that is not
-    // a search answer. All three are one thing to the user — the server behind this one did not
-    // come up with an answer — and none of them is theirs to fix. A cancellation that is the
-    // caller's own going away is deliberately not caught: nobody is left to tell.
-    catch (Exception exception) when (
-        exception is HttpRequestException or JsonException
-        || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
     {
         app.Logger.LogWarning(exception, "TMDB could not be asked for series matching {Query}.", query);
+        return Results.Problem(
+            "TMDB could not be asked for series.", statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+// One series, by the id a Series Match carried. Nothing is kept here either: a series that has
+// just gained a season is exactly the one a user is likely to be looking at. The route reads an
+// int, so anything that is not an id never reaches TMDB at all — asking by name is what the
+// search beside this is for.
+app.MapGet("/series/{id:int}", async (
+    int id, TmdbSeriesDetails tmdb, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var details = await tmdb.DetailsOfAsync(id, cancellationToken);
+
+        // An id TMDB has never heard of is the caller asking about something that isn't there,
+        // which is a different answer from an ask this server could not make at all.
+        return details is null
+            ? Results.Problem(
+                "TMDB knows no series with that id.", statusCode: StatusCodes.Status404NotFound)
+            : Results.Ok(details);
+    }
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not be asked about the series {Id}.", id);
         return Results.Problem(
             "TMDB could not be asked for series.", statusCode: StatusCodes.Status502BadGateway);
     }
@@ -115,6 +136,14 @@ app.MapGet("/logos/{file}", async (
 });
 
 app.Run();
+
+// TMDB refused, went quiet until the timeout ran out, or answered with something that is not an
+// answer to what was asked. All three are one thing to the user — the server behind this one did
+// not come up with an answer — and none of them is theirs to fix. A cancellation that is the
+// caller's own going away is deliberately not one of them: nobody is left to tell.
+static bool TmdbFailed(Exception exception, CancellationToken callerWentAway) =>
+    exception is HttpRequestException or JsonException
+    || (exception is OperationCanceledException && !callerWentAway.IsCancellationRequested);
 
 /// <summary>What a search answers with: the name, and TMDB's logo path verbatim.</summary>
 internal sealed record WatchProviderResult(string Name, string LogoPath);

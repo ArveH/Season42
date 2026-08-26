@@ -8,10 +8,18 @@ import SwiftUI
 /// Every rule about the search is `SeriesSearch`'s. This renders what it says, and writes
 /// nothing back to the form it was opened over — the box it opened pre-filled from is a copy
 /// of the Title, not the Title.
+///
+/// Tapping a match pushes its details onto the sheet's own stack, so Back comes straight back
+/// to the results the search already has: trying a second match is one tap, not a second
+/// search.
 struct SeriesSearchSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var search: SeriesSearch
+
+    /// Where a pushed match's details are fetched from — the same BFF the search asked, held
+    /// here because the destination is built when the row is tapped rather than with the row.
+    private let series: any SeriesSearching
 
     /// - Parameters:
     ///   - title: what the form's Title held when Search was tapped, which is what the box
@@ -19,6 +27,7 @@ struct SeriesSearchSheet: View {
     ///   - series: where the search gets its answers.
     init(searchingFor title: String, series: any SeriesSearching) {
         _search = State(initialValue: SeriesSearch(text: title, series: series))
+        self.series = series
     }
 
     var body: some View {
@@ -26,6 +35,9 @@ struct SeriesSearchSheet: View {
             Form {
                 searchSection
                 resultsSection
+            }
+            .navigationDestination(for: SeriesMatch.self) { match in
+                SeriesDetailsView(for: match, series: series)
             }
             .navigationTitle("Find a series")
             .navigationBarTitleDisplayMode(.inline)
@@ -78,9 +90,11 @@ struct SeriesSearchSheet: View {
 
         case .results(let matches):
             Section("Matches") {
-                // Plain rows: tapping one opens its details, and there are no details yet.
+                // The match itself is what the row is pushed with: there is nothing to look
+                // up again on the way to its details, and the name is on screen from the
+                // first frame of the screen it pushes.
                 ForEach(matches) { match in
-                    Text(match.name)
+                    NavigationLink(match.name, value: match)
                 }
             }
 
@@ -132,8 +146,25 @@ private struct PreviewSeries: SeriesSearching {
     ]
     var fails = false
 
+    var details = SeriesDetails(
+        id: 95396,
+        name: "Severance",
+        originalName: "Severance",
+        overview: "Mark leads a team of office workers whose memories have been surgically divided.",
+        seasons: [
+            SeriesSeason(seasonNumber: 0, episodeCount: 3),
+            SeriesSeason(seasonNumber: 1, episodeCount: 9),
+            SeriesSeason(seasonNumber: 2, episodeCount: 10),
+        ]
+    )
+
     func series(matching text: String) async throws -> [SeriesMatch] {
         if fails { throw BffError.notServed(status: 502) }
         return matches
+    }
+
+    func details(for id: Int) async throws -> SeriesDetails {
+        if fails { throw BffError.notServed(status: 502) }
+        return details
     }
 }
