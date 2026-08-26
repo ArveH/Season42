@@ -98,3 +98,4 @@ stops here, as the provider id did in ADR-0007 and the TMDB id does in
 [ADR-0002](0002-catalog-entries-are-templates.md).
 
 The app-side half — drawing a poster and keeping it — is deliberately not part of this decision.
+It is taken in [ADR-0013](0013-a-poster-is-adopted-as-bytes-and-no-tmdb-id-is-kept.md).

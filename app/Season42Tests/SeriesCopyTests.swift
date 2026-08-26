@@ -22,6 +22,7 @@ struct SeriesCopyTests {
             name: "Money Heist",
             originalName: "La casa de papel",
             overview: "A heist.",
+            hasPoster: false,
             seasons: [SeriesSeason(seasonNumber: 1, episodeCount: 13)]
         )
 
@@ -110,6 +111,7 @@ struct SeriesCopyTests {
             name: "Not Yet",
             originalName: "Not Yet",
             overview: "Announced, and nothing more.",
+            hasPoster: false,
             seasons: []
         )
 
@@ -325,6 +327,7 @@ struct SeriesCopyTests {
             name: "Severance",
             originalName: "Severance",
             overview: "Mark leads a team of office workers whose memories have been surgically divided.",
+            hasPoster: false,
             seasons: [
                 SeriesSeason(seasonNumber: 0, episodeCount: 3),
                 SeriesSeason(seasonNumber: 1, episodeCount: 9),
@@ -338,6 +341,7 @@ struct SeriesCopyTests {
             name: "A Series",
             originalName: "A Series",
             overview: "What it is about.",
+            hasPoster: false,
             seasons: seasons.map { SeriesSeason(seasonNumber: $0.0, episodeCount: $0.1) }
         )
     }

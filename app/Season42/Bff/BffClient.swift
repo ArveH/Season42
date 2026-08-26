@@ -4,7 +4,8 @@ import Foundation
 /// server is and one `fetch` does every `GET`, so each endpoint the app uses is a few lines
 /// on top of both: today `GET /providers?query=` for the Watch Providers a search matched,
 /// `GET /logos/{file}` for the bytes behind one, `GET /series?query=` for the Series Matches a
-/// search matched, and `GET /series/{id}` for the Series Details behind one.
+/// search matched, `GET /series/{id}` for the Series Details behind one, and
+/// `GET /series/{id}/poster` for that series' poster.
 ///
 /// It conforms to the narrow protocols the rest of the app asks through — `LogoSearching`
 /// and `SeriesSearching` today, more as the BFF grows — so nothing outside this file depends
@@ -72,6 +73,18 @@ struct BffClient: LogoSearching, SeriesSearching {
             // What came back isn't a Series Details.
             throw BffError.notUnderstood
         }
+    }
+
+    func poster(for id: Int) async throws -> Data {
+        // Asked by the id the details were read with, never by a path: the details carry a yes
+        // or a no and nothing the app could send becomes part of a filename (ADR-0012).
+        //
+        // Cached bytes are as good as fetched ones, as a logo's are: the user is about to keep
+        // whichever bytes they are shown as their own, and the BFF is holding the same picture
+        // behind them either way.
+        return try await fetch(
+            baseUrl.appending(path: "series").appending(path: String(id)).appending(path: "poster")
+        )
     }
 
     func logo(at path: String) async throws -> Data {

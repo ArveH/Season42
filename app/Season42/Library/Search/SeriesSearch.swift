@@ -68,6 +68,14 @@ final class SeriesSearch {
 
     private(set) var detailsState: DetailsState = .loading
 
+    /// The poster of the opened match, as bytes, and nil where there is none to draw — the
+    /// details said there was no poster, or the bytes would not come. Fetched once, here:
+    /// what the detail screen draws is what Copy keeps, so there is one ask and not two.
+    ///
+    /// Cleared the moment another match is opened, so a poster never outlives the series it
+    /// was fetched for.
+    private(set) var poster: Data?
+
     private let series: any SeriesSearching
 
     /// Which search is the current one. A second search started before the first has answered
@@ -107,19 +115,30 @@ final class SeriesSearch {
         }
     }
 
-    /// Opens `match` and reads its details. The results are left exactly as they are, which is
-    /// what makes Back a return to them rather than a second search.
+    /// Opens `match`, reads its details, and fetches the poster if the details say there is
+    /// one. The results are left exactly as they are, which is what makes Back a return to them
+    /// rather than a second search.
     ///
-    /// Never throws: details that can't be read are a state the detail screen shows. A match
-    /// opened while an earlier one's details are still owed makes the earlier answer stale, and
-    /// a stale answer is dropped rather than shown under the wrong name.
+    /// Never throws: details that can't be read are a state the detail screen shows, and a
+    /// poster that can't be fetched is simply no poster — it costs a picture and stops nothing,
+    /// exactly as a Watch Provider whose logo won't load is still a name to adopt. A match
+    /// opened while an earlier one's answers are still owed makes them stale, and a stale answer
+    /// is dropped rather than shown under the wrong name.
     func open(_ match: SeriesMatch) async {
         openedMatch = match
         detailsState = .loading
+        poster = nil
         do {
             let details = try await series.details(for: match.id)
             guard openedMatch == match else { return }
             detailsState = .loaded(details)
+
+            // Nothing to ask for where TMDB has no poster, which is what `hasPoster` is in the
+            // payload for: a placeholder is drawn without an ask that would only be refused.
+            guard details.hasPoster else { return }
+            let bytes = try? await series.poster(for: match.id)
+            guard openedMatch == match else { return }
+            poster = bytes
         } catch {
             guard openedMatch == match else { return }
             detailsState = .failed
