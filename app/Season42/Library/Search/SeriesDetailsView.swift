@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// What tapping a match pushes: the series' poster, its name, what it is called where it was
-/// made, what it is about, the seasons it has, and the Copy that fills the form in with them. Back is the
-/// navigation bar's own, and the results are still listed underneath it, so trying a second
-/// match is one tap rather than a fresh search.
+/// made, what it is about, the seasons it has, and the Copy that fills the form in with them.
+/// Back is the navigation bar's own, and the results are still listed underneath it, so trying
+/// a second match is one tap rather than a fresh search.
 ///
 /// Everything Copy would write is worked out before it is tapped, as a `SeriesCopy`, and
 /// everything that copy invents is on the screen above the button — which is the whole of what
@@ -100,15 +100,24 @@ struct SeriesDetailsView: View {
     }
 
     /// The poster, or the stand-in where there is none to draw — TMDB has none, or the bytes
-    /// would not come. The bytes drawn here are the bytes Copy keeps: the poster is fetched
-    /// once, so what the user looked at is what they end up with.
+    /// would not come. A poster still on its way spins in the same frame rather than showing
+    /// the stand-in, which would say "this series has no poster" about one that has.
+    ///
+    /// The bytes drawn here are the bytes Copy keeps: the poster is fetched once, so what the
+    /// user looked at is what they end up with.
+    @ViewBuilder
     private var posterSection: some View {
         Section {
-            HStack {
-                Spacer()
-                PosterImage(poster: search.poster, height: posterHeight)
-                Spacer()
+            Group {
+                if search.posterState == .loading {
+                    ProgressView()
+                        .frame(width: posterHeight * 2 / 3, height: posterHeight)
+                } else {
+                    Poster(poster: search.poster, height: posterHeight)
+                        .accessibilityLabel(match.name)
+                }
             }
+            .frame(maxWidth: .infinity)
         }
     }
 

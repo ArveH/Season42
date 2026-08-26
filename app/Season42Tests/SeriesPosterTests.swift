@@ -16,7 +16,28 @@ struct SeriesPosterTests {
         await search.open(severanceMatch)
 
         #expect(series.postersAsked == [95396])
+        #expect(search.posterState == .adopted(bytes))
         #expect(search.poster == bytes)
+    }
+
+    /// A poster on its way is not a poster that isn't there: the details already said there is
+    /// one, so the screen is told to wait rather than to draw the stand-in and take it back.
+    @Test func aPosterOnItsWaySaysSoRatherThanReadingAsNone() async {
+        let series = StubSeries(details: withPoster, poster: bytes)
+        series.holdAnswers()
+        let search = SeriesSearch(text: "sever", series: series)
+
+        async let opening: Void = search.open(severanceMatch)
+        await series.openStarted(95396)
+        series.releaseOpen(95396)
+        await series.posterStarted(95396)
+
+        #expect(search.detailsState == .loaded(withPoster))
+        #expect(search.posterState == .loading)
+        #expect(search.poster == nil)
+
+        series.releasePoster(95396)
+        await opening
     }
 
     /// `hasPoster` is in the payload so the app can draw its placeholder without firing an ask
@@ -28,7 +49,7 @@ struct SeriesPosterTests {
         await search.open(severanceMatch)
 
         #expect(series.postersAsked.isEmpty)
-        #expect(search.poster == nil)
+        #expect(search.posterState == SeriesSearch.PosterState.none)
     }
 
     /// The bytes are fetched once, on the way to the screen that draws them, so Copy takes what
@@ -55,7 +76,7 @@ struct SeriesPosterTests {
         await search.open(severanceMatch)
 
         #expect(search.detailsState == .loaded(withPoster))
-        #expect(search.poster == nil)
+        #expect(search.posterState == SeriesSearch.PosterState.none)
     }
 
     @Test func detailsThatCouldNotBeReadAreNeverAskedForAPoster() async {

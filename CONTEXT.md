@@ -63,16 +63,17 @@ tab — the `tv` symbol in secondary grey stands in for a Logo that isn't there.
 _Avoid_: icon, artwork, provider logo, image
 
 **Poster**:
-The picture of a Library Entry the user adopted with a Copy — a Tracked Series today — held on the
-entry as bytes exactly as a Logo is held on a Streaming Service, and for the same reason: the
-Library and Watching tabs are the two screens the user reaches for most, and both must draw on a
-train (ADR-0013). Once adopted it is theirs: nothing refreshes it, and no TMDB identifier is kept
-beside it, so re-adopting means searching again. Theirs to be rid of, too — the form shows the
-adopted Poster with a Remove that takes the Poster and nothing else with it, as the adopted Logo
-has. An entry may carry none, and a Poster that would not fetch costs a picture and nothing else:
-everything else still copies. Where a Poster slot is drawn regardless, a placeholder in secondary
-grey stands in for one that isn't there — a different symbol from the `tv` that stands in for a
-missing Logo, so that inside one row "no poster" and "no logo" never look alike.
+The picture of a Library Entry the user adopted with a Copy — a Tracked Series today — held on
+the entry as bytes exactly as a Logo is held on a Streaming Service, and for the same reason: what
+the app has adopted must draw with the BFF stopped, unreachable or never deployed, which the
+Library and Watching tabs are about to need of it (ADR-0013). Once adopted it is theirs: nothing
+refreshes it, and no TMDB identifier is kept beside it, so re-adopting means searching again.
+Theirs to be rid of, too — the form shows the adopted Poster with a Remove that takes the Poster
+and nothing else with it, as the adopted Logo has. An entry may carry none, and a Poster that
+would not fetch costs a picture and nothing else: everything else still copies. Where a Poster
+slot is drawn and there is none to draw, the `photo` symbol in secondary grey stands in — a
+different symbol from the `tv` that stands in for a missing Logo, so that where the two are drawn
+together "no poster" and "no logo" never look alike.
 _Avoid_: cover, artwork, image, thumbnail
 
 **Watch Provider**:
@@ -128,7 +129,8 @@ _Avoid_: series info, TMDB record, metadata
 Taking a Series Details into the form the search was opened over: its name becomes the Title, its
 overview becomes the Description, its seasons become the app's, flattened to what the app can hold
 (ADR-0011), and the poster the detail screen drew becomes the Poster — the very bytes the user
-looked at, fetched once rather than twice (ADR-0013). Nothing else moves — Status, Position, Streaming Service, Next Episode Date and
+looked at, fetched once rather than twice (ADR-0013). Nothing else moves — Status, Position,
+Streaming Service, Next Episode Date and
 the watched state are the user's alone, and TMDB's answer says nothing about them. From the moment
 it lands, everything copied is the user's own, as editable as if they had typed it and saved no
 sooner: the Library holds what was copied, never a link back to where it came from (ADR-0002).

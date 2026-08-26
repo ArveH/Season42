@@ -55,6 +55,22 @@ final class SeriesSearch {
         case failed
     }
 
+    /// Where the opened match's poster has got to. Three cases and not an optional, because
+    /// "there is none" and "it hasn't arrived yet" are different things to draw: a stand-in
+    /// for the first would be a lie for the second, and the details already say which it is.
+    enum PosterState: Equatable {
+        /// There is no poster to draw — TMDB has none, or the bytes would not come. One case
+        /// for both: to the user they are the same missing picture, and there is nothing to
+        /// correct either way.
+        case none
+
+        /// TMDB has one and it is on its way.
+        case loading
+
+        /// The bytes, which are what the detail screen draws and what Copy keeps.
+        case adopted(Data)
+    }
+
     /// What the search is for. Pre-filled from the Title the sheet was opened over, and the
     /// user's to correct from there without the Title moving with it.
     var text: String
@@ -68,13 +84,19 @@ final class SeriesSearch {
 
     private(set) var detailsState: DetailsState = .loading
 
-    /// The poster of the opened match, as bytes, and nil where there is none to draw — the
-    /// details said there was no poster, or the bytes would not come. Fetched once, here:
-    /// what the detail screen draws is what Copy keeps, so there is one ask and not two.
+    /// Where the opened match's poster has got to. Fetched once, here: what the detail screen
+    /// draws is what Copy keeps, so there is one ask and not two.
     ///
-    /// Cleared the moment another match is opened, so a poster never outlives the series it
-    /// was fetched for.
-    private(set) var poster: Data?
+    /// Reset the moment another match is opened, so a poster never outlives the series it was
+    /// fetched for.
+    private(set) var posterState: PosterState = .none
+
+    /// The bytes to draw and to copy, and nil where there are none — which a poster still on
+    /// its way is too: nothing keeps what hasn't arrived.
+    var poster: Data? {
+        guard case .adopted(let bytes) = posterState else { return nil }
+        return bytes
+    }
 
     private let series: any SeriesSearching
 
@@ -127,7 +149,7 @@ final class SeriesSearch {
     func open(_ match: SeriesMatch) async {
         openedMatch = match
         detailsState = .loading
-        poster = nil
+        posterState = .none
         do {
             let details = try await series.details(for: match.id)
             guard openedMatch == match else { return }
@@ -136,9 +158,10 @@ final class SeriesSearch {
             // Nothing to ask for where TMDB has no poster, which is what `hasPoster` is in the
             // payload for: a placeholder is drawn without an ask that would only be refused.
             guard details.hasPoster else { return }
+            posterState = .loading
             let bytes = try? await series.poster(for: match.id)
             guard openedMatch == match else { return }
-            poster = bytes
+            posterState = bytes.map(PosterState.adopted) ?? .none
         } catch {
             guard openedMatch == match else { return }
             detailsState = .failed

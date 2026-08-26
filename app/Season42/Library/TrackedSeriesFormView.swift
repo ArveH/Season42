@@ -169,7 +169,8 @@ struct TrackedSeriesFormView: View {
     private var posterSection: some View {
         Section("Poster") {
             HStack {
-                PosterImage(poster: poster, height: posterHeight)
+                Poster(poster: poster, height: posterHeight)
+                    .accessibilityLabel(title)
                 Spacer()
                 Button("Remove", role: .destructive) { poster = nil }
                     .buttonStyle(.borderless)
@@ -196,10 +197,10 @@ struct TrackedSeriesFormView: View {
     ///
     /// Only the fields TMDB's answer speaks to are written — the Poster among them, as the very
     /// bytes the detail screen drew, and as nothing where that series had none: a copy replaces
-    /// what the last one left, rather than leaving one series' picture over another's name. The Status, the Streaming
-    /// Service, the Next Episode Date and the watched state are untouched; the Position moves
-    /// only where the copied seasons no longer reach it, which the clamp on `seasons` above
-    /// does and the detail screen said it would. That move is stated here too: the screen that
+    /// what the last one left, rather than leaving one series' picture over another's name.
+    /// The Status, the Streaming Service, the Next Episode Date and the watched state are
+    /// untouched; the Position moves only where the copied seasons no longer reach it, which
+    /// the clamp on `seasons` above does and the detail screen said it would. That move is stated here too: the screen that
     /// warned of it is gone by the time it happens.
     private func apply(_ copied: SeriesCopy) {
         title = copied.title

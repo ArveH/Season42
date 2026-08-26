@@ -7,23 +7,13 @@ import SwiftUI
 /// The frame is TMDB's poster shape, 2:3, and the height is the caller's: every caller sizes
 /// its slot against the text beside it. Bytes that won't decode draw as no Poster rather than
 /// as a failure — a picture that isn't there is what the stand-in already says.
-struct PosterImage: View {
+struct Poster: View {
     /// The image bytes, or nil for the stand-in.
     let poster: Data?
 
     /// How tall the slot is. The width follows from it, so a column of them lines up whichever
     /// of the two it happens to be drawing.
     let height: CGFloat
-
-    /// The Poster a Tracked Series carries, which is what everywhere but a search is drawing.
-    init(series: TrackedSeries, height: CGFloat) {
-        self.init(poster: series.poster, height: height)
-    }
-
-    init(poster: Data?, height: CGFloat) {
-        self.poster = poster
-        self.height = height
-    }
 
     var body: some View {
         Group {
@@ -48,8 +38,8 @@ struct PosterImage: View {
 
 #Preview("A poster and none") {
     HStack(spacing: 16) {
-        PosterImage(poster: PreviewPoster.bytes(.systemIndigo), height: 120)
-        PosterImage(poster: nil, height: 120)
+        Poster(poster: PreviewPoster.bytes(.systemIndigo), height: 120)
+        Poster(poster: nil, height: 120)
     }
 }
 
