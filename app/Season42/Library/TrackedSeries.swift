@@ -13,11 +13,6 @@ final class TrackedSeries {
     var position: Position?
     /// Where the user watches it, or nil if they watch it nowhere they have registered.
     var streamingService: StreamingService?
-    /// The hand-typed service name a store written before Streaming Services were
-    /// registered still holds, waiting for `Library` to adopt it into a real one
-    /// (ADR-0006). Always nil once that has happened; delete this property, and the
-    /// `originalName` that keeps it readable, once no store can still carry one.
-    @Attribute(originalName: "streamingService") var legacyStreamingServiceName: String?
     var nextEpisodeDate: Date?
     var addedAt: Date
     /// When the user last marked an episode watched, or nil if they never have.

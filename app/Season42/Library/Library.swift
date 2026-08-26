@@ -38,7 +38,6 @@ final class Library {
         self.container = container
         self.now = now
         reload()
-        adoptLegacyStreamingServiceNames()
     }
 
     // MARK: - Tracking a series by hand
@@ -340,56 +339,6 @@ final class Library {
 
     // MARK: - Loading
 
-    /// Adopts the hand-typed Streaming Service names left in a store written before
-    /// services were registered: each entry that still holds one is pointed at a
-    /// registered service of that name, one being registered if this is the first entry
-    /// to name it (ADR-0006).
-    ///
-    /// Runs on every open and does nothing once no entry holds a name, so it needs
-    /// nothing remembered about whether it has run before. Names that differ only in
-    /// case are one service, spelled the way the most recently added entry spelled it —
-    /// which is why this walks `entries`, newest first.
-    ///
-    /// Delete along with the two `legacyStreamingServiceName` properties.
-    private func adoptLegacyStreamingServiceNames() {
-        var registered = Dictionary(
-            streamingServices.map { ($0.name.lowercased(), $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        var adoptedAny = false
-
-        for entry in entries {
-            let legacyName: String? = switch entry {
-            case .series(let series): series.legacyStreamingServiceName
-            case .movie(let movie): movie.legacyStreamingServiceName
-            }
-            guard let legacyName else { continue }
-            adoptedAny = true
-
-            // A name of nothing but whitespace meant "no service" when it was typed, and
-            // still does: the entry is left naming none rather than registering a blank.
-            let service = legacyName.trimmed.nilIfEmpty.map { name in
-                registered[name.lowercased()] ?? {
-                    let service = StreamingService(name: name)
-                    context.insert(service)
-                    registered[name.lowercased()] = service
-                    return service
-                }()
-            }
-
-            switch entry {
-            case .series(let series):
-                series.streamingService = service
-                series.legacyStreamingServiceName = nil
-            case .movie(let movie):
-                movie.streamingService = service
-                movie.legacyStreamingServiceName = nil
-            }
-        }
-
-        if adoptedAny { save() }
-    }
-
     /// Persists an edit to something already in the store. Unlike a rejected new entry,
     /// there is nothing here for the user to fix and no useful degraded mode, so a failing
     /// save leaves the in-memory Library as the user sees it and is not surfaced.
@@ -444,12 +393,32 @@ extension Library {
         try container(configuration: ModelConfiguration(schema: schema, url: url))
     }
 
+    /// Opens a store, and where the schema in the app can't open the one on disk, throws
+    /// that store away and writes a fresh one in its place (ADR-0009). A store the app
+    /// can't read holds nothing it can hand the user, so the only question is whether the
+    /// app opens at all.
     private static func container(configuration: ModelConfiguration) throws -> ModelContainer {
-        try ModelContainer(for: schema, configurations: configuration)
+        do {
+            return try ModelContainer(for: schema, configurations: configuration)
+        } catch {
+            guard !configuration.isStoredInMemoryOnly else { throw error }
+            discardStore(at: configuration.url)
+            return try ModelContainer(for: schema, configurations: configuration)
+        }
+    }
+
+    /// Deletes the SQLite file a store is kept in, along with the write-ahead log and
+    /// shared-memory files SQLite keeps beside it — leaving one of those behind is
+    /// leaving the store half there, and the fresh open fails on it.
+    private static func discardStore(at url: URL) {
+        let directory = url.deletingLastPathComponent()
+        let store = url.lastPathComponent
+        for name in [store, store + "-wal", store + "-shm"] {
+            try? FileManager.default.removeItem(at: directory.appending(path: name))
+        }
     }
 }
 
 private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
-    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

@@ -5,7 +5,7 @@ An iPhone app for tracking which series and movies one person watches across str
 ## Language
 
 **Library**:
-The user's own collection of Tracked Series and Tracked Movies — everything the app stores, and the only place a series or a movie is held (ADR-0005). Lives only on the device.
+The user's own collection of Tracked Series and Tracked Movies — everything the app stores, and the only place a series or a movie is held (ADR-0005). Lives only on the device, and while there is none worth keeping, a store the app can no longer open is discarded and started again empty rather than taking the launch with it (ADR-0009).
 _Avoid_: user data, my shows, collection
 
 **Library Entry**:

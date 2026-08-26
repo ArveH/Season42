@@ -11,9 +11,6 @@ final class TrackedMovie {
     var summary: String
     /// Where the user watches it, or nil if they watch it nowhere they have registered.
     var streamingService: StreamingService?
-    /// The hand-typed service name a store written before Streaming Services were
-    /// registered still holds; see `TrackedSeries.legacyStreamingServiceName`.
-    @Attribute(originalName: "streamingService") var legacyStreamingServiceName: String?
     var addedAt: Date
     /// Whether the user has seen it. An unwatched movie is a watchlist entry.
     var isWatched: Bool

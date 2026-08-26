@@ -228,6 +228,26 @@ struct LibraryTests {
         #expect(relaunched.trackedSeries.first?.status == .watching)
         #expect(relaunched.trackedSeries.first?.position == Position(season: 1, episode: 4))
     }
+
+    /// A store the app's schema cannot open — one written by a shape of the models that
+    /// no longer exists — is thrown away and written again empty, rather than taking the
+    /// launch with it (ADR-0009). A file that is not a store at all stands in for it:
+    /// what matters is that opening failed, not why.
+    @Test func aStoreThatCannotBeOpenedIsReplacedByAnEmptyOne() throws {
+        let storeURL = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+        try Data("not a store".utf8).write(to: storeURL)
+
+        let library = Library(container: try Library.container(at: storeURL))
+
+        #expect(library.entries.isEmpty)
+
+        // And what replaced it is a working store, not one that merely opened once.
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let relaunched = Library(container: try Library.container(at: storeURL))
+
+        #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
+    }
 }
 
 /// `Seasons` is the one piece of arithmetic the facade delegates to, and the add form
