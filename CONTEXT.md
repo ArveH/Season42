@@ -61,9 +61,10 @@ tab — the `tv` symbol in secondary grey stands in for a Logo that isn't there.
 _Avoid_: icon, artwork, provider logo, image
 
 **Watch Provider**:
-A service TMDB knows of, with a name and a logo. Lives in the BFF only, in a daily snapshot of one
-region's providers, and is never stored by the app: it is what a search offers, not a thing the
-user owns. A Streaming Service is what the user registers; a Watch Provider is where the picture on
+A service TMDB knows of, with a name and a logo. Kept in the BFF, in a daily snapshot of one
+region's providers, and never stored by the app: it reaches the app only as a search result to be
+offered, and is gone the moment the sheet closes. It is what a search offers, not a thing the user
+owns. A Streaming Service is what the user registers; a Watch Provider is where the picture on
 it may have come from, and the two part company the moment the user renames one (ADR-0007).
 _Avoid_: streaming service, provider logo, TMDB service
 

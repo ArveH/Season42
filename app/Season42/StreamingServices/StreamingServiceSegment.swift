@@ -75,8 +75,8 @@ private extension StreamingService {
     }
 }
 
-/// Stand-in Logos for the previews in this folder. Nothing in the app can adopt a real one
-/// yet (#29), so this is how a Logo is seen at all before that lands.
+/// Stand-in Logos for the previews in this folder. A real one is adopted from the BFF,
+/// which a preview has no business starting, so this is how a Logo is seen in one.
 ///
 /// A namespace of its own rather than an extension on `Data`, and not behind `#if DEBUG`:
 /// a `#Preview` is compiled in every configuration, so what it calls has to be too, and
