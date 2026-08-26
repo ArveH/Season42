@@ -16,7 +16,9 @@ of a road taken and backed out of, and their reasoning is what the TMDB work inh
 - **Keep the API as a proxy in front of TMDB.** Rejected: it is a second deployable, a second
   place to put a key, and a second thing to be down, for a single-user app whose only client
   is the phone. Revisit if a TMDB key must never reach a device the user controls, or if a
-  second client appears.
+  second client appears. *Reversed by
+  [ADR-0007](0007-a-bff-fetches-provider-logos-the-app-keeps-the-bytes.md) on exactly that
+  condition.*
 - **Keep the app's Catalog code dormant behind a flag.** Rejected: code with no caller has no
   test pressure on it and rots in place. Git remembers it; the branch that adds TMDB can read
   it there.
