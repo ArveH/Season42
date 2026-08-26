@@ -202,7 +202,7 @@ served normally. That is the cost of scaling to zero, and a search is the only t
 against.
 
 ```sh
-curl 'https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io/providers?search=net'
+curl 'https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io/providers?query=net'
 ```
 
 ## CI
@@ -252,7 +252,7 @@ than one that finds it already there, so it refuses with that instruction rather
 anything. Every deploy passes the image it just pushed, because leaving that parameter at its
 default puts the placeholder back.
 
-A run ends by asking the deployed BFF for `/providers?search=net` over HTTPS. That request is
+A run ends by asking the deployed BFF for `/providers?query=net` over HTTPS. That request is
 given ten tries at fifteen-second spacing, because the app scales to zero and the first request
 after a deploy is waiting on a cold start and the awaited first TMDB fetch — the edge has been
 seen to answer `504` before the container was ready. A run is green when the address in
@@ -260,7 +260,7 @@ seen to answer `504` before the container was ready. A run is green when the add
 
 ## The app talking to it
 
-`LogoApi` in the iOS app is the only thing that calls these endpoints, and by default it calls
+`BffClient` in the iOS app is the only thing that calls these endpoints, and by default it calls
 [the deployed address](#the-deployed-address) over HTTPS. Nothing tells it that in Swift: the
 address is the `BFFBaseURL` key of the app's `Info.plist`, substituted from `BFF_BASE_URL` in
 `app/Config/Bff.xcconfig` — the same shape `DEVELOPMENT_TEAM` uses, and overridable the same way.
@@ -305,13 +305,13 @@ wires it as one — and it deliberately says nothing about whether a snapshot ha
 replica that has never reached TMDB still answers searches honestly with `503`, and calling it
 unhealthy would turn a degraded service into a dead one (ADR-0010).
 
-### `GET /providers?search=<text>`
+### `GET /providers?query=<text>`
 
 Watch Providers whose names contain the text, case-insensitively, ordered as TMDB would order
 them and capped at 20.
 
 ```sh
-curl 'http://localhost:5265/providers?search=net'
+curl 'http://localhost:5265/providers?query=net'
 [{"name":"Netflix","logoPath":"/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg"}]
 ```
 
@@ -320,7 +320,7 @@ this server serves.
 
 | Situation | Answer |
 | --- | --- |
-| A blank or missing `search` | `400` |
+| A blank or missing `query` | `400` |
 | Nothing matched | `200` with `[]` |
 | No snapshot has ever been taken | `503` |
 

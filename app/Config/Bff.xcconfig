@@ -8,7 +8,7 @@
 // the line to copy.
 //
 // The value reaches the app as the BFFBaseURL key of its Info.plist —
-// Info.plist next to this file substitutes it — which is where LogoApi reads it.
+// Info.plist next to this file substitutes it — which is where BffClient reads it.
 //
 // SLASH exists because an xcconfig treats // as the start of a comment wherever
 // it appears, so a URL's scheme cannot be written literally.
