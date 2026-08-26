@@ -13,10 +13,13 @@ enum ServiceNaming: Identifiable {
         }
     }
 
+    /// Kept short enough to survive an inline title bar with a button on either side:
+    /// "Rename streaming service" doesn't fit between Cancel and Save, and SwiftUI drops
+    /// a title it can't fit rather than truncating it, leaving the sheet unlabelled.
     var title: String {
         switch self {
-        case .adding: "New streaming service"
-        case .renaming: "Rename streaming service"
+        case .adding: "New service"
+        case .renaming: "Rename service"
         }
     }
 
