@@ -74,6 +74,11 @@ resource registry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
   }
 }
 
+// Whoever deploys this template has to be allowed to write a role assignment, which Contributor
+// is not. The deploy identity is therefore also an RBAC Administrator on the resource group,
+// under a condition that permits AcrPull and no other role — see stage 7 of scripts/azure-setup.sh.
+// ARM re-submits this assignment on every deploy, so the permission is needed even when the
+// assignment already exists and the write would change nothing.
 resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: registry
   name: guid(registry.id, identity.id, acrPullRoleDefinitionId)
