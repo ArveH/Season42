@@ -184,9 +184,11 @@ What it creates, and why it looks the way it does:
 https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io
 ```
 
-That is the generated `*.azurecontainerapps.io` hostname, and it is what the app compiles in as its
-default base URL. The generated segment belongs to the Container Apps environment and is stable for
-its life; it changes only if the environment is recreated.
+That is the generated `*.azurecontainerapps.io` hostname, and it is the app's default base URL —
+committed in `app/Config/Bff.xcconfig`, which the build hands to the app through its `Info.plist`.
+The generated segment belongs to the Container Apps environment and is stable for its life; it
+changes only if the environment is recreated. Recreating the environment is therefore a one-line
+change to that file.
 
 **The first request after an idle period can time out.** Nothing is running at min 0, so that
 request waits for a container to start *and* for the TMDB fetch that start awaits — long enough
@@ -253,20 +255,32 @@ seen to answer `504` before the container was ready. A run is green when the add
 
 ## The app talking to it
 
-This describes a BFF running on the developer's machine. A deployed one is addressed over HTTPS,
-and the cleartext below is the one exception ADR-0010 keeps.
+`LogoApi` in the iOS app is the only thing that calls these endpoints, and by default it calls
+[the deployed address](#the-deployed-address) over HTTPS. Nothing tells it that in Swift: the
+address is the `BFFBaseURL` key of the app's `Info.plist`, substituted from `BFF_BASE_URL` in
+`app/Config/Bff.xcconfig` — the same shape `DEVELOPMENT_TEAM` uses, and overridable the same way.
 
-`LogoApi` in the iOS app is the only thing that calls these endpoints, and
-`http://localhost:5265` is its default base URL — the address `dotnet run` prints, which a
-simulator on the same machine reaches as its own loopback. A device does not: point the base URL
-at the machine's LAN address through `LogoApi(baseUrl:)` if you ever need one to search.
+### Pointing a build at a BFF on your own machine
 
-**App Transport Security does not block this.** ATS refuses cleartext HTTP in general, and this
-project carries no exception, but a request to `localhost` from the simulator goes through as it
-is — verified against a running server from the app target. Should that ever change, the fix is
-`NSAllowsLocalNetworking` in the app's Info.plist, which permits loopback and link-local addresses
-only; `NSAllowsArbitraryLoads` would turn cleartext on for every host the app ever talks to and is
-not the answer.
+Put the override in `app/Config/Local.xcconfig`, which is gitignored:
+
+```
+BFF_BASE_URL = http:$(SLASH)$(SLASH)localhost:5265
+```
+
+`$(SLASH)` is not decoration: an xcconfig treats `//` as the start of a comment wherever it
+appears, so a scheme cannot be written literally. `SLASH` is defined in `Bff.xcconfig`.
+
+`http://localhost:5265` is the address `dotnet run` prints, which a simulator on the same machine
+reaches as its own loopback. A device does not: use the machine's LAN address instead, or pass one
+through `LogoApi(baseUrl:)`.
+
+**App Transport Security does not block this override.** The deployed default needs no help — it
+is a real certificate on a real domain — so the only cleartext left is this one, and ATS lets a
+request to `localhost` from the simulator through as it is; this project carries no exception and
+needs none. Should that ever change, the fix is `NSAllowsLocalNetworking` in the app's `Info.plist`,
+which permits loopback and link-local addresses only; `NSAllowsArbitraryLoads` would turn cleartext
+on for every host the app ever talks to and is not the answer.
 
 Nothing the app adopts depends on the server afterwards: the logo bytes are stored on the device
 (ADR-0007), so a search is the only thing a stopped BFF costs.

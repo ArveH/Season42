@@ -1,4 +1,9 @@
-// Copy to Local.xcconfig and fill in your own Apple Developer team ID.
-// Local.xcconfig is gitignored — it is yours alone and never committed.
+// Copy to Local.xcconfig and fill in what is yours alone. Local.xcconfig is
+// gitignored — it is never committed.
 
+// Your Apple Developer team ID. See Signing.xcconfig.
 DEVELOPMENT_TEAM =
+
+// Uncomment to point this build at a BFF other than the deployed one. See
+// Bff.xcconfig; SLASH is defined there because // starts an xcconfig comment.
+// BFF_BASE_URL = http:$(SLASH)$(SLASH)localhost:5265

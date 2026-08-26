@@ -6,11 +6,22 @@ import Foundation
 /// why it is kept to fetching and decoding, and why every rule about what a search then
 /// does lives in `LogoSearch`, where it is tested.
 struct LogoApi: LogoSearching {
-    /// Where the BFF is served from — the one place the app is told that. The default is
-    /// the BFF's local development address (the `http` profile in
-    /// `bff/Season42.Bff/Properties/launchSettings.json`), which is what a simulator
-    /// reaches on the machine running it.
-    static let defaultBaseUrl = URL(string: "http://localhost:5265")!
+    /// Where the BFF is served from — the one place the app is told that. The build tells
+    /// it, through the `BFFBaseURL` key of `Info.plist`: `Config/Bff.xcconfig` commits the
+    /// deployed address as the default, and `Config/Local.xcconfig` overrides it for a
+    /// build pointed somewhere else, such as a BFF on the developer's own machine.
+    ///
+    /// A build that carries no address at all is a broken build rather than a running app
+    /// with a quiet fault, so it stops here.
+    static let defaultBaseUrl: URL = {
+        guard let told = Bundle.main.object(forInfoDictionaryKey: "BFFBaseURL") as? String,
+              let url = URL(string: told), url.host() != nil else {
+            preconditionFailure(
+                "Info.plist carries no usable BFFBaseURL — check Config/Bff.xcconfig."
+            )
+        }
+        return url
+    }()
 
     private let baseUrl: URL
 

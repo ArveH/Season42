@@ -11,5 +11,6 @@
 //
 // Without it, simulator builds still work; only device builds and archives
 // need a team.
-
-#include? "Local.xcconfig"
+//
+// Season42.xcconfig is what the project reads, and it includes Local.xcconfig
+// after this file.

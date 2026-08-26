@@ -21,6 +21,9 @@
 		AA0000000000000000000021 /* Season42Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Season42Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000022 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 		AA0000000000000000000023 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		AA0000000000000000000024 /* Season42.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Season42.xcconfig; sourceTree = "<group>"; };
+		AA0000000000000000000025 /* Bff.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Bff.xcconfig; sourceTree = "<group>"; };
+		AA0000000000000000000026 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -72,7 +75,10 @@
 		AA0000000000000000000052 /* Config */ = {
 			isa = PBXGroup;
 			children = (
+				AA0000000000000000000024 /* Season42.xcconfig */,
 				AA0000000000000000000022 /* Signing.xcconfig */,
+				AA0000000000000000000025 /* Bff.xcconfig */,
+				AA0000000000000000000026 /* Info.plist */,
 				AA0000000000000000000023 /* Local.xcconfig.example */,
 			);
 			path = Config;
@@ -192,7 +198,7 @@
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000200 /* Debug configuration for PBXProject "Season42" */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AA0000000000000000000022 /* Signing.xcconfig */;
+			baseConfigurationReference = AA0000000000000000000024 /* Season42.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -258,7 +264,7 @@
 		};
 		AA0000000000000000000201 /* Release configuration for PBXProject "Season42" */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = AA0000000000000000000022 /* Signing.xcconfig */;
+			baseConfigurationReference = AA0000000000000000000024 /* Season42.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -323,6 +329,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -349,6 +356,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
