@@ -13,6 +13,15 @@ Reading the Dockerfile alone, the honest conclusion is that TLS was forgotten. I
 one hop away, held by the platform, and the container that spoke it would be terminating a
 connection that has already been terminated.
 
+**The app addresses `https://` and nothing else.** `LogoApi.defaultBaseUrl` is
+`http://localhost:5265` today, and it stops being cleartext when it stops being localhost: the
+committed default becomes the deployed `https://` FQDN. The one cleartext that survives is a
+developer pointing a simulator at a BFF on their own machine, through a `Local.xcconfig` override
+— the same uncommitted escape hatch `DEVELOPMENT_TEAM` already uses, reaching loopback, which ATS
+permits as it is. So the app needs no ATS exception for the deployed server and none for the local
+one, and it never gains `NSAllowsArbitraryLoads`. The app-side change itself is not part of this
+decision; what is settled here is that there is no third case.
+
 The image ships no shell. Chiseled is the runtime tag here because a server with three endpoints
 has no business carrying a package manager and a `/bin/sh`, and because it runs as a non-root user
 without being told to. What that costs is `docker exec` into a running container: there is nothing

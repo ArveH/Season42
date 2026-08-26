@@ -2,12 +2,7 @@ using System.Net;
 
 namespace Season42.Bff.Tests;
 
-/// <summary>
-/// <c>/health</c> is a liveness probe and nothing more: it answers for the host, not for the
-/// snapshot. A replica with no snapshot is the only replica during a TMDB outage, and one that
-/// reported itself unhealthy there would turn a degraded service — one answering an honest
-/// <c>503</c> from <c>/providers</c> — into a dead one.
-/// </summary>
+/// <summary><c>/health</c> answers for the host, never for the snapshot (ADR-0010).</summary>
 public class HealthEndpointTests
 {
     [Fact]
@@ -37,14 +32,15 @@ public class HealthEndpointTests
     }
 
     [Fact]
-    public async Task Health_SaysNothingAboutTheSnapshot()
+    public async Task Health_AnswersWithNoBodyAtAll()
     {
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
         var body = await client.GetStringAsync("/health");
 
-        Assert.DoesNotContain("Netflix", body);
-        Assert.DoesNotContain("snapshot", body, StringComparison.OrdinalIgnoreCase);
+        // Nothing to report is the contract, not an omission: a probe body read by nothing is a
+        // body that drifts, and snapshot age is its own endpoint if it is ever wanted (ADR-0010).
+        Assert.Equal("", body);
     }
 }

@@ -120,6 +120,9 @@ owns them.
 
 ## The app talking to it
 
+This describes a BFF running on the developer's machine. A deployed one is addressed over HTTPS,
+and the cleartext below is the one exception ADR-0010 keeps.
+
 `LogoApi` in the iOS app is the only thing that calls these endpoints, and
 `http://localhost:5265` is its default base URL — the address `dotnet run` prints, which a
 simulator on the same machine reaches as its own loopback. A device does not: point the base URL
