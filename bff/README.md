@@ -2,7 +2,8 @@
 
 An ASP.NET Core server whose only job is to hold the TMDB access token off the phone. It fetches
 the configured region's TV watch providers from TMDB on startup and every 24 hours, keeps the last
-good snapshot in memory and on disk, and serves matches from it (ADR-0007).
+good snapshot in memory and on disk, and serves matches from it (ADR-0007). It also searches TMDB
+for series, which it keeps nothing of at all.
 
 Projects: `Season42.Bff` (the server) and `Season42.Bff.Tests` (xUnit, driving the real endpoints
 through `WebApplicationFactory`). The solution file is `Season42.slnx` at the repo root.
@@ -348,3 +349,29 @@ own.
 | The snapshot does not name the logo (traversal attempts included) | `404` |
 | No snapshot has ever been taken | `503` |
 | TMDB could not serve the logo | `502` |
+
+### `GET /series?query=<text>`
+
+Series TMDB matched the text, in TMDB's own relevance order, each with the id to ask the next
+question with and the name to show.
+
+```sh
+curl 'http://localhost:5265/series?query=severance'
+[{"id":95396,"name":"Severance"}]
+```
+
+Nothing is kept and nothing is consulted: unlike `/providers`, which answers from a snapshot taken
+hours ago, this asks TMDB on every request. A search is one cheap call, and what a user searches
+for is often what they only just heard of — so a stale answer here would be visible to them as the
+series they came for not being listed. Which is also why there is no `503`: that status means "no
+snapshot has been taken yet", and this route has no snapshot to have taken.
+
+The id is TMDB's, and it is what a later ask for one match's details is made with. It is never
+stored: the Library holds what the user copied, not a link back to someone else's record
+(ADR-0002).
+
+| Situation | Answer |
+| --- | --- |
+| A blank or missing `query` | `400`, with no TMDB call made |
+| Nothing matched | `200` with `[]` |
+| TMDB refused, said nothing, or answered with something unreadable | `502` |

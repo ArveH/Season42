@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Season42.Bff;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,7 @@ var tmdbTimeout = TimeSpan.FromSeconds(15);
 // TMDB that accepts the connection and then says nothing would hold the port shut for 100 seconds.
 builder.Services.AddHttpClient<TmdbWatchProviders>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<WatchProviderRefresh>();
+builder.Services.AddHttpClient<TmdbSeriesSearch>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddSingleton<LogoStore>();
 builder.Services.AddHttpClient<TmdbLogoImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
@@ -48,6 +50,36 @@ app.MapGet("/providers", (string? query, WatchProviderStore store) =>
     }
 
     return Results.Ok(matches.Select(provider => new WatchProviderResult(provider.Name, provider.LogoPath)));
+});
+
+app.MapGet("/series", async (
+    string? query, TmdbSeriesSearch tmdb, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(query))
+    {
+        return Results.Problem(
+            "Give a search text: /series?query=severance.", statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    // Nothing is kept and nothing is consulted: unlike /providers, which answers from a snapshot
+    // the server took hours ago, this asks TMDB every time. A search is one cheap call, and the
+    // thing a user searches for is often the thing they only just heard of.
+    try
+    {
+        return Results.Ok(await tmdb.SearchAsync(query, cancellationToken));
+    }
+    // TMDB refused, went quiet until the timeout ran out, or answered with something that is not
+    // a search answer. All three are one thing to the user — the server behind this one did not
+    // come up with an answer — and none of them is theirs to fix. A cancellation that is the
+    // caller's own going away is deliberately not caught: nobody is left to tell.
+    catch (Exception exception) when (
+        exception is HttpRequestException or JsonException
+        || (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not be asked for series matching {Query}.", query);
+        return Results.Problem(
+            "TMDB could not be asked for series.", statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 app.MapGet("/logos/{file}", async (

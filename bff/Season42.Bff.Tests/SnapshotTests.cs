@@ -57,7 +57,7 @@ public class SnapshotTests
         }
 
         var unreachable = new FakeTmdb();
-        unreachable.Fail();
+        unreachable.FailProviders();
         using var restarted = new BffFactory(unreachable, storePath);
         var client = restarted.CreateClient();
 
@@ -73,7 +73,7 @@ public class SnapshotTests
         var client = factory.CreateClient();
         Assert.Single(await ProvidersEndpointTests.SearchAsync(client, "netflix"));
 
-        factory.Tmdb.Fail();
+        factory.Tmdb.FailProviders();
         await factory.RefreshAsync();
 
         Assert.Single(await ProvidersEndpointTests.SearchAsync(client, "netflix"));
@@ -85,7 +85,7 @@ public class SnapshotTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        factory.Tmdb.RespondWith(ProvidersEndpointTests.PayloadOf([("Viaplay", 3)]));
+        factory.Tmdb.RespondToProvidersWith(ProvidersEndpointTests.PayloadOf([("Viaplay", 3)]));
         await factory.RefreshAsync();
 
         Assert.Empty(await ProvidersEndpointTests.SearchAsync(client, "netflix"));
@@ -127,7 +127,7 @@ public class SnapshotTests
     public async Task Snapshot_DropsProvidersWithNoNameOrNoLogo()
     {
         var tmdb = new FakeTmdb();
-        tmdb.RespondWith("""
+        tmdb.RespondToProvidersWith("""
             {
               "results": [
                 { "display_priority": 1, "logo_path": "/real.jpg", "provider_name": "Real" },
@@ -150,7 +150,7 @@ public class SnapshotTests
         await File.WriteAllTextAsync(Path.Combine(storePath, TmdbOptions.SnapshotFileName), "[]");
 
         var unreachable = new FakeTmdb();
-        unreachable.Fail();
+        unreachable.FailProviders();
         using var factory = new BffFactory(unreachable, storePath);
         var client = factory.CreateClient();
 

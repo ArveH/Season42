@@ -54,6 +54,8 @@ public sealed class BffFactory : WebApplicationFactory<Program>
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
             services.AddHttpClient<TmdbLogoImages>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
+            services.AddHttpClient<TmdbSeriesSearch>()
+                .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
         });
     }
 }

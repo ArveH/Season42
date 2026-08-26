@@ -301,12 +301,12 @@ private final class StubLogos: LogoSearching {
             wakeWatchers()
             await withCheckedContinuation { held[text] = $0 }
         }
-        if searchFails { throw LogoError.notServed(status: 503) }
+        if searchFails { throw BffError.notServed(status: 503) }
         return answers[text] ?? served
     }
 
     func logo(at path: String) async throws -> Data {
-        if logoFails { throw LogoError.notServed(status: 404) }
+        if logoFails { throw BffError.notServed(status: 404) }
         return Self.logoBytes
     }
 
