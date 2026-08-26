@@ -169,7 +169,7 @@ private struct TrackedSeriesRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(series.title)
                 .font(.headline)
-            Text(subtitle)
+            (Text(subtitle) + StreamingServiceSegment(service: series.streamingService).text)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if let nextEpisodeDate = series.nextEpisodeDate {
@@ -185,11 +185,8 @@ private struct TrackedSeriesRow: View {
     }
 
     private var subtitle: String {
-        var parts = [series.status.title, series.position?.shorthand ?? "Not started"]
-        if let streamingService = series.streamingService {
-            parts.append(streamingService.name)
-        }
-        return parts.joined(separator: " · ")
+        [series.status.title, series.position?.shorthand ?? "Not started"]
+            .joined(separator: " · ")
     }
 }
 
@@ -205,7 +202,7 @@ private struct TrackedMovieRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(movie.title)
                     .font(.headline)
-                Text(subtitle)
+                (Text(subtitle) + StreamingServiceSegment(service: movie.streamingService).text)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -228,11 +225,7 @@ private struct TrackedMovieRow: View {
     }
 
     private var subtitle: String {
-        var parts = ["Movie"] + movie.watchedState
-        if let streamingService = movie.streamingService {
-            parts.append(streamingService.name)
-        }
-        return parts.joined(separator: " · ")
+        (["Movie"] + movie.watchedState).joined(separator: " · ")
     }
 }
 

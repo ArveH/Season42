@@ -48,7 +48,7 @@ private struct WatchingRow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(series.title)
                 .font(.headline)
-            Text(series.positionAndService)
+            (Text(series.positionSoFar) + StreamingServiceSegment(service: series.streamingService).text)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -99,7 +99,7 @@ private struct WaitingRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(series.title)
                 .font(.headline)
-            Text(series.positionAndService)
+            (Text(series.positionSoFar) + StreamingServiceSegment(service: series.streamingService).text)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if let nextEpisodeDate = series.nextEpisodeDate {
@@ -113,13 +113,9 @@ private struct WaitingRow: View {
 }
 
 private extension TrackedSeries {
-    /// Where the user got to, and where they watch it when they've said.
-    var positionAndService: String {
-        var parts = [position?.shorthand ?? "Not started"]
-        if let streamingService {
-            parts.append(streamingService.name)
-        }
-        return parts.joined(separator: " · ")
+    /// Where the user got to. Where they watch it is `StreamingServiceSegment`'s to draw.
+    var positionSoFar: String {
+        position?.shorthand ?? "Not started"
     }
 }
 
