@@ -45,6 +45,23 @@ dotnet test Season42.slnx      # from the repo root
 
 No test reaches the network: the TMDB HTTP handler is faked at the composition root.
 
+## The app talking to it
+
+`LogoApi` in the iOS app is the only thing that calls these endpoints, and
+`http://localhost:5265` is its default base URL — the address `dotnet run` prints, which a
+simulator on the same machine reaches as its own loopback. A device does not: point the base URL
+at the machine's LAN address through `LogoApi(baseUrl:)` if you ever need one to search.
+
+**App Transport Security does not block this.** ATS refuses cleartext HTTP in general, and this
+project carries no exception, but a request to `localhost` from the simulator goes through as it
+is — verified against a running server from the app target. Should that ever change, the fix is
+`NSAllowsLocalNetworking` in the app's Info.plist, which permits loopback and link-local addresses
+only; `NSAllowsArbitraryLoads` would turn cleartext on for every host the app ever talks to and is
+not the answer.
+
+Nothing the app adopts depends on the server afterwards: the logo bytes are stored on the device
+(ADR-0007), so a search is the only thing a stopped BFF costs.
+
 ## The endpoints
 
 `GET /providers?search=<text>` — Watch Providers whose names contain the text, case-insensitively,

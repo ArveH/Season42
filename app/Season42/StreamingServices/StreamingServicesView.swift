@@ -125,9 +125,8 @@ struct StreamingServicesView: View {
     StreamingServicesView(library: previewLibrary())
 }
 
-/// Services as the tab will show them once there is a way to adopt a Logo (#29): with one
-/// and without, so both halves of a Logo slot are visible before either can be reached
-/// through the app.
+/// Services as the tab shows them: with a Logo and without, so both halves of a Logo slot
+/// are visible without a BFF running behind the preview.
 @MainActor
 private func previewLibrary() -> Library {
     let library = try! Library.inMemory()

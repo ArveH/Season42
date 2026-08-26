@@ -2,7 +2,9 @@
 
 SwiftUI iPhone app (bundle id `com.season42.app`). Targets: `Season42` (app) and `Season42Tests` (Swift Testing, hosted in the app).
 
-Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed. There is nothing else in either target: the app has no bundled resources beyond its asset catalog, and no network dependency (ADR-0005).
+Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed. There is nothing else in either target: the app has no bundled resources beyond its asset catalog.
+
+The one thing it reaches the network for is searching for a Streaming Service's Logo, which goes to the BFF (ADR-0007) — see `bff/README.md`. Everything else works with the BFF stopped, an adopted Logo included, because the bytes are on the device.
 
 ## Build and test from the CLI
 
