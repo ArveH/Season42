@@ -12,6 +12,7 @@ namespace Season42.Bff;
 /// </summary>
 public sealed class TmdbWatchProviders(HttpClient http, IOptions<TmdbOptions> options)
 {
+    // TMDB's v3 API, authenticated with the read access token in the header.
     private const string Endpoint = "https://api.themoviedb.org/3/watch/providers/tv";
 
     private static readonly JsonSerializerOptions TmdbFormat = new()

@@ -1,6 +1,6 @@
 # A BFF fetches provider logos; the app keeps the bytes
 
-A second deployable comes back. `bff/` holds an ASP.NET Core server that reads a TMDB v4 Read
+A second deployable comes back. `bff/` holds an ASP.NET Core server that reads a TMDB API Read
 Access Token from configuration, fetches a region's TV watch providers from TMDB, and answers
 "which streaming services does TMDB know of whose name looks like this?". The token stays on the
 machine the server runs on. The app never holds it and never talks to TMDB.

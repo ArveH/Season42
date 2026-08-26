@@ -14,7 +14,7 @@ public sealed class TmdbOptions
     /// <summary>The file the last good snapshot is written to, inside <see cref="LogoStorePath"/>.</summary>
     public const string SnapshotFileName = "watch-providers.json";
 
-    /// <summary>A TMDB v4 Read Access Token. Empty is a startup failure, not a first-search failure.</summary>
+    /// <summary>A TMDB API Read Access Token. Empty is a startup failure, not a first-search failure.</summary>
     public string AccessToken { get; set; } = "";
 
     /// <summary>The country whose TV watch providers are fetched.</summary>

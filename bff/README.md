@@ -13,7 +13,7 @@ through `WebApplicationFactory`). The solution file is `Season42.slnx` at the re
 
 | Setting | Default | What it is |
 | --- | --- | --- |
-| `Tmdb:AccessToken` | *(empty)* | A TMDB v4 Read Access Token. Empty is a startup failure. |
+| `Tmdb:AccessToken` | *(empty)* | A TMDB API Read Access Token. Empty is a startup failure. |
 | `Tmdb:WatchRegion` | `NO` | The country whose TV watch providers are fetched. |
 | `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`) and, later, logo bytes. Relative to the content root. |
 
@@ -21,11 +21,12 @@ The token never belongs in `appsettings.json`. Set it with user-secrets:
 
 ```sh
 cd bff/Season42.Bff
-dotnet user-secrets set "Tmdb:AccessToken" "<your TMDB v4 Read Access Token>"
+dotnet user-secrets set "Tmdb:AccessToken" "<your TMDB API Read Access Token>"
 ```
 
 Get the token from <https://www.themoviedb.org/settings/api> — the **API Read Access Token**, not
 the older API key. It is sent as an `Authorization: Bearer` header, never as a query parameter.
+The BFF calls TMDB's **v3** API; the read access token is what authenticates those calls.
 
 ## Run
 

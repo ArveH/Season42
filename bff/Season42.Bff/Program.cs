@@ -11,7 +11,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration[TmdbOptions.AccessTokenKey])
 {
     throw new InvalidOperationException(
         $"No TMDB access token. Set {TmdbOptions.AccessTokenKey} — in development: dotnet user-secrets " +
-        $"set \"{TmdbOptions.AccessTokenKey}\" \"<your TMDB v4 Read Access Token>\".");
+        $"set \"{TmdbOptions.AccessTokenKey}\" \"<your TMDB API Read Access Token>\".");
 }
 
 builder.Services.AddSingleton<WatchProviderStore>();
