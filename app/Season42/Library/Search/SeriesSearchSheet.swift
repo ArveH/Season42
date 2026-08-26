@@ -17,17 +17,12 @@ struct SeriesSearchSheet: View {
 
     @State private var search: SeriesSearch
 
-    /// Where a pushed match's details are fetched from — the same BFF the search asked, held
-    /// here because the destination is built when the row is tapped rather than with the row.
-    private let series: any SeriesSearching
-
     /// - Parameters:
     ///   - title: what the form's Title held when Search was tapped, which is what the box
     ///     opens holding. Empty is an ordinary case: the box is simply ready to type in.
     ///   - series: where the search gets its answers.
     init(searchingFor title: String, series: any SeriesSearching) {
         _search = State(initialValue: SeriesSearch(text: title, series: series))
-        self.series = series
     }
 
     var body: some View {
@@ -37,7 +32,7 @@ struct SeriesSearchSheet: View {
                 resultsSection
             }
             .navigationDestination(for: SeriesMatch.self) { match in
-                SeriesDetailsView(for: match, series: series)
+                SeriesDetailsView(match: match, search: search)
             }
             .navigationTitle("Find a series")
             .navigationBarTitleDisplayMode(.inline)
@@ -147,7 +142,6 @@ private struct PreviewSeries: SeriesSearching {
     var fails = false
 
     var details = SeriesDetails(
-        id: 95396,
         name: "Severance",
         originalName: "Severance",
         overview: "Mark leads a team of office workers whose memories have been surgically divided.",

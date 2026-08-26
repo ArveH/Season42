@@ -44,7 +44,6 @@ public class SeriesDetailsEndpointTests
 
         var details = await DetailsOfAsync(client, 95396);
 
-        Assert.Equal(95396, details.Id);
         Assert.Equal("Severance", details.Name);
         Assert.Equal("Severance (original)", details.OriginalName);
         Assert.StartsWith("Mark leads a team of office workers", details.Overview);
@@ -94,7 +93,8 @@ public class SeriesDetailsEndpointTests
 
     /// <summary>
     /// The networks, the ratings, the poster and the taglines TMDB sends are all things nothing
-    /// on the detail screen shows. Carrying them would be answering a question nobody asked.
+    /// on the detail screen shows. Carrying them would be answering a question nobody asked —
+    /// and so would answering the id back, which the app already has from the match it opened.
     /// </summary>
     [Fact]
     public async Task Details_CarryNothingButTheNamedFields()
@@ -106,7 +106,7 @@ public class SeriesDetailsEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(
-            ["id", "name", "originalName", "overview", "seasons"],
+            ["name", "originalName", "overview", "seasons"],
             document.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ["seasonNumber", "episodeCount"],
@@ -268,7 +268,7 @@ public class SeriesDetailsEndpointTests
     };
 
     private sealed record DetailedSeries(
-        int Id, string Name, string OriginalName, string Overview, IReadOnlyList<DetailedSeason> Seasons);
+        string Name, string OriginalName, string Overview, IReadOnlyList<DetailedSeason> Seasons);
 
     private sealed record DetailedSeason(int SeasonNumber, int EpisodeCount);
 }

@@ -5,12 +5,10 @@ import Foundation
 /// seasons it has. This is the whole of it — the poster, the networks and the ratings TMDB also
 /// knows are not part of the ask.
 ///
-/// Someone else's data, never stored. The id is TMDB's, the same one the Series Match it was
-/// opened from carried, and nothing in the Library ever holds one (ADR-0002).
-struct SeriesDetails: Decodable, Equatable, Identifiable, Sendable {
-    /// TMDB's id — the id this was asked for, answered back.
-    let id: Int
-
+/// Someone else's data, never stored. Not even the id it was asked for comes back: the app
+/// already has that from the Series Match it opened, and nothing in the Library ever holds one
+/// (ADR-0002).
+struct SeriesDetails: Decodable, Equatable, Sendable {
     let name: String
 
     /// What the series is called where it was made, which for a series made elsewhere is the

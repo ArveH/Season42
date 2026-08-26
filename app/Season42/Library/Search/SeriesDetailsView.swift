@@ -1,26 +1,25 @@
 import SwiftUI
 
 /// What tapping a match pushes: the series' name, what it is called where it was made, what it
-/// is about, and the seasons it has. Back returns to the results, so trying a second match is
-/// one tap rather than a fresh search.
+/// is about, and the seasons it has. Back is the navigation bar's own, and the results are
+/// still listed underneath it, so trying a second match is one tap rather than a fresh search.
 ///
 /// Nothing here is copied into the form and no poster is shown: this is a screen for telling
 /// two similar titles apart, and reading what the next thing will fill in.
 ///
-/// Every rule about the fetch is `SeriesDetailsRequest`'s. This renders what it says.
+/// Every rule about reading the details is `SeriesSearch`'s — opening a match is the second
+/// half of the search, not a thing of its own. This renders what it says.
 struct SeriesDetailsView: View {
-    @State private var request: SeriesDetailsRequest
+    /// The match that was tapped. Its name is on screen from the first frame, before any
+    /// details have arrived.
+    let match: SeriesMatch
 
-    /// - Parameters:
-    ///   - match: the match that was tapped. Its name is on screen from the first frame.
-    ///   - series: where the details are fetched from.
-    init(for match: SeriesMatch, series: any SeriesSearching) {
-        _request = State(initialValue: SeriesDetailsRequest(for: match, series: series))
-    }
+    /// The search this was pushed from, which is what reads the details and holds them.
+    let search: SeriesSearch
 
     var body: some View {
         Form {
-            switch request.state {
+            switch search.detailsState {
             case .loading:
                 loadingSection
 
@@ -34,9 +33,9 @@ struct SeriesDetailsView: View {
         }
         // The match's name, so the bar says which one was tapped before anything has arrived
         // and doesn't change under the user once it has.
-        .navigationTitle(request.match.name)
+        .navigationTitle(match.name)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await request.load() }
+        .task { await search.open(match) }
     }
 
     private var loadingSection: some View {
@@ -49,25 +48,22 @@ struct SeriesDetailsView: View {
         }
     }
 
-    /// The failure, said here rather than in an alert, and with the Retry that is the only
-    /// thing there is to do about it: the match was served moments ago, so there is nothing
-    /// for the user to correct. Back is the other way out, and the results are still there.
+    /// The failure, said here rather than in an alert: the alerts around the form are for what
+    /// `Library` refuses, and a BFF that isn't there refuses nothing. Back is what to do about
+    /// it, and it costs nothing — the results it returns to are still listed.
     private var failedSection: some View {
         Section {
             Label(
-                "Couldn't load the details. The search results are still there — go back and pick another, or enter the series yourself.",
+                "Couldn't load the details. Go back and pick another match, or close this and enter the series yourself.",
                 systemImage: "exclamationmark.triangle"
             )
             .foregroundStyle(.secondary)
-            Button("Try Again") {
-                Task { await request.load() }
-            }
         }
     }
 
-    /// The names and the overview. The original name sits under the name rather than beside
-    /// it in the bar, because a title long enough to be worth telling apart is a title too
-    /// long for a navigation bar to show twice.
+    /// The names and the overview. The original name sits under the name rather than beside it
+    /// in the bar, because a title long enough to be worth telling apart is a title too long
+    /// for a navigation bar to show twice.
     private func aboutSection(_ details: SeriesDetails) -> some View {
         Section {
             VStack(alignment: .leading, spacing: 4) {
@@ -112,32 +108,36 @@ struct SeriesDetailsView: View {
 }
 
 #Preview("Details") {
-    NavigationStack {
-        SeriesDetailsView(for: SeriesMatch(id: 95396, name: "Severance"), series: PreviewDetails())
-    }
+    PreviewDetailScreen(series: PreviewDetails())
 }
 
 #Preview("No seasons") {
-    NavigationStack {
-        SeriesDetailsView(
-            for: SeriesMatch(id: 95396, name: "Severance"),
-            series: PreviewDetails(seasons: [])
-        )
-    }
+    PreviewDetailScreen(series: PreviewDetails(seasons: []))
 }
 
 #Preview("Unreachable") {
-    NavigationStack {
-        SeriesDetailsView(
-            for: SeriesMatch(id: 95396, name: "Severance"),
-            series: PreviewDetails(fails: true)
-        )
+    PreviewDetailScreen(series: PreviewDetails(fails: true))
+}
+
+/// The detail screen as the sheet pushes it — over a search, because the search is what reads
+/// the details. Not behind `#if DEBUG`: a `#Preview` is compiled in every configuration, so
+/// what it calls has to be too.
+private struct PreviewDetailScreen: View {
+    let series: any SeriesSearching
+
+    private var match: SeriesMatch { SeriesMatch(id: 95396, name: "Severance") }
+
+    var body: some View {
+        NavigationStack {
+            SeriesDetailsView(
+                match: match,
+                search: SeriesSearch(text: match.name, series: series)
+            )
+        }
     }
 }
 
 /// A BFF for the previews above, so every state of the screen can be seen without one running.
-/// Not behind `#if DEBUG`: a `#Preview` is compiled in every configuration, so what it calls
-/// has to be too.
 private struct PreviewDetails: SeriesSearching {
     var seasons: [SeriesSeason] = [
         SeriesSeason(seasonNumber: 0, episodeCount: 3),
@@ -151,7 +151,6 @@ private struct PreviewDetails: SeriesSearching {
     func details(for id: Int) async throws -> SeriesDetails {
         if fails { throw BffError.notServed(status: 502) }
         return SeriesDetails(
-            id: id,
             name: "Severance",
             originalName: "Severance",
             overview: "Mark leads a team of office workers whose memories have been surgically divided, "

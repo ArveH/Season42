@@ -2,9 +2,10 @@ import Foundation
 import Testing
 @testable import Season42
 
-/// Tests the search seam: what a search for a series does with what the BFF answers.
-/// Everything here runs against a stub — only `BffClient` needs a network, and it holds no
-/// rules for a test to check.
+/// Tests the search seam: what a search for a series does with what the BFF answers. What
+/// opening one of its matches does is `SeriesDetailsTests`, on the same type and the same stub.
+/// Everything here runs against `StubSeries` — only `BffClient` needs a network, and it holds
+/// no rules for a test to check.
 @MainActor
 struct SeriesSearchTests {
     // MARK: - Where a search starts from
@@ -56,14 +57,14 @@ struct SeriesSearchTests {
     /// The state a spinner is keyed off, seen while the answer is still owed.
     @Test func aSearchInFlightSaysSo() async {
         let series = StubSeries(matches: [severance])
-        series.holdSearches()
+        series.holdAnswers()
         let search = SeriesSearch(text: "sever", series: series)
 
         async let ran: Void = search.search()
         await series.searchStarted("sever")
         #expect(search.state == .searching)
 
-        series.release("sever")
+        series.releaseSearch("sever")
         await ran
         #expect(search.state != .searching)
     }
@@ -73,7 +74,7 @@ struct SeriesSearchTests {
     @Test func aSearchOvertakenByANewerOneNeverLands() async {
         let series = StubSeries()
         series.answers = ["sever": [severance], "thrones": [thrones]]
-        series.holdSearches()
+        series.holdAnswers()
         let search = SeriesSearch(text: "sever", series: series)
 
         async let overtaken: Void = search.search()
@@ -82,11 +83,11 @@ struct SeriesSearchTests {
         async let newer: Void = search.search()
         await series.searchStarted("thrones")
 
-        series.release("thrones")
+        series.releaseSearch("thrones")
         await newer
         #expect(search.results.map(\.name) == ["Game of Thrones"])
 
-        series.release("sever")
+        series.releaseSearch("sever")
         await overtaken
         #expect(search.results.map(\.name) == ["Game of Thrones"])
     }
@@ -163,70 +164,5 @@ private extension SeriesSearch {
     var results: [SeriesMatch] {
         guard case .results(let matches) = state else { return [] }
         return matches
-    }
-}
-
-/// The BFF as a series search sees it, with nothing behind it. Pinned to the main actor,
-/// which every caller of it here already is, so a test can read what was searched for and
-/// hold an answer back mid-flight without a race of its own.
-@MainActor
-private final class StubSeries: SeriesSearching {
-    /// What every search answers with, for the tests that run only one.
-    var served: [SeriesMatch]
-
-    /// What a particular search text answers with, for the tests that run two.
-    var answers: [String: [SeriesMatch]] = [:]
-
-    var fails: Bool
-
-    private(set) var searched: [String] = []
-
-    private var isHolding = false
-    private var held: [String: CheckedContinuation<Void, Never>] = [:]
-    private var started: Set<String> = []
-    private var watchers: [CheckedContinuation<Void, Never>] = []
-
-    init(matches: [SeriesMatch] = [], fails: Bool = false) {
-        self.served = matches
-        self.fails = fails
-    }
-
-    func series(matching text: String) async throws -> [SeriesMatch] {
-        searched.append(text)
-        if isHolding {
-            started.insert(text)
-            wakeWatchers()
-            await withCheckedContinuation { held[text] = $0 }
-        }
-        if fails { throw BffError.notServed(status: 502) }
-        return answers[text] ?? served
-    }
-
-    /// Nothing here opens a match: a search never asks this. What a details request does with
-    /// what the BFF answers is `SeriesDetailsTests`'.
-    func details(for id: Int) async throws -> SeriesDetails {
-        throw BffError.notServed(status: 404)
-    }
-
-    /// Makes every search from here on wait to be released, so a test can look at a search
-    /// mid-flight and choose which of two answers lands first.
-    func holdSearches() { isHolding = true }
-
-    /// Returns once a held search for `text` has actually been asked for.
-    func searchStarted(_ text: String) async {
-        while !started.contains(text) {
-            await withCheckedContinuation { watchers.append($0) }
-        }
-    }
-
-    /// Lets the held search for `text` answer.
-    func release(_ text: String) {
-        held.removeValue(forKey: text)?.resume()
-    }
-
-    private func wakeWatchers() {
-        let waiting = watchers
-        watchers = []
-        for watcher in waiting { watcher.resume() }
     }
 }

@@ -2,124 +2,148 @@ import Foundation
 import Testing
 @testable import Season42
 
-/// Tests the details seam: what opening one Series Match does with what the BFF answers.
-/// Everything here runs against a stub — only `BffClient` needs a network, and it holds no
-/// rules for a test to check.
+/// Tests the other half of the search seam: what opening one of the matches does with what the
+/// BFF answers. Opening a match lives on `SeriesSearch` because it is the second half of
+/// choosing which series the user meant, so these run against the same stub the search tests do.
 @MainActor
 struct SeriesDetailsTests {
-    // MARK: - Where a request starts from
+    // MARK: - Opening a match
 
-    /// The screen is pushed from a match, so it has a name to show before anything has
-    /// arrived — the user tapped it and knows which one they tapped.
-    @Test func aRequestStartsFromTheMatchItWasOpenedWith() {
-        let request = SeriesDetailsRequest(for: severanceMatch, series: StubDetails())
+    /// The screen is pushed by the tap that is itself the ask, so it has a name to show and a
+    /// spinner to run before anything has arrived.
+    @Test func openingAMatchRemembersWhichOneAndStartsLoading() async {
+        let series = StubSeries(details: severance)
+        series.holdAnswers()
+        let search = SeriesSearch(text: "sever", series: series)
 
-        #expect(request.match == severanceMatch)
-        #expect(request.state == .loading)
+        async let opening: Void = search.open(severanceMatch)
+        await series.openStarted(95396)
+        #expect(search.openedMatch == severanceMatch)
+        #expect(search.detailsState == .loading)
+
+        series.releaseOpen(95396)
+        await opening
     }
 
-    // MARK: - Running a request
+    @Test func openingAMatchAsksForItsId() async {
+        let series = StubSeries(details: severance)
+        let search = SeriesSearch(text: "sever", series: series)
 
-    @Test func aRequestAsksForTheIdOfTheMatchItWasOpenedWith() async {
-        let series = StubDetails(details: severance)
-        let request = SeriesDetailsRequest(for: severanceMatch, series: series)
+        await search.open(severanceMatch)
 
-        await request.load()
-
-        #expect(series.asked == [95396])
+        #expect(series.opened == [95396])
     }
 
-    @Test func aRequestShowsWhatItLoaded() async {
-        let request = SeriesDetailsRequest(for: severanceMatch, series: StubDetails(details: severance))
+    @Test func anOpenedMatchShowsWhatItLoaded() async {
+        let search = SeriesSearch(text: "sever", series: StubSeries(details: severance))
 
-        await request.load()
+        await search.open(severanceMatch)
 
-        #expect(request.state == .loaded(severance))
+        #expect(search.detailsState == .loaded(severance))
     }
 
-    /// The BFF passes season 0 through, and so does this: what the app makes of the specials
-    /// is a matter for what draws them, not for what asked.
-    @Test func aRequestKeepsEverySeasonTheBffAnswersWith() async {
-        let request = SeriesDetailsRequest(for: severanceMatch, series: StubDetails(details: severance))
+    /// The BFF passes season 0 through, and so does this: what the app makes of the specials is
+    /// a matter for what draws them, not for what asked.
+    @Test func anOpenedMatchKeepsEverySeasonTheBffAnsweredWith() async {
+        let search = SeriesSearch(text: "sever", series: StubSeries(details: severance))
 
-        await request.load()
+        await search.open(severanceMatch)
 
-        #expect(request.details?.seasons.map(\.seasonNumber) == [0, 1, 2])
-        #expect(request.details?.seasons.map(\.episodeCount) == [3, 9, 10])
+        #expect(search.details?.seasons.map(\.seasonNumber) == [0, 1, 2])
+        #expect(search.details?.seasons.map(\.episodeCount) == [3, 9, 10])
     }
 
-    @Test func aRequestThatCouldNotBeRunFails() async {
-        let request = SeriesDetailsRequest(for: severanceMatch, series: StubDetails(fails: true))
+    @Test func aMatchWhoseDetailsCouldNotBeReadFails() async {
+        let search = SeriesSearch(text: "sever", series: StubSeries(details: severance, fails: true))
 
-        await request.load()
+        await search.open(severanceMatch)
 
-        #expect(request.state == .failed)
+        #expect(search.detailsState == .failed)
     }
 
     /// An id the BFF has no series for is a failure like any other here: the user tapped a
     /// match the search served moments ago, and there is nothing for them to correct.
-    @Test func aRequestForSomethingTheBffHasNoSeriesForFails() async {
-        let request = SeriesDetailsRequest(
-            for: severanceMatch, series: StubDetails(fails: true, as: .notServed(status: 404)))
+    @Test func aMatchTheBffHasNoSeriesForFails() async {
+        let search = SeriesSearch(
+            text: "sever",
+            series: StubSeries(details: severance, fails: true, as: .notServed(status: 404))
+        )
 
-        await request.load()
+        await search.open(severanceMatch)
 
-        #expect(request.state == .failed)
+        #expect(search.detailsState == .failed)
     }
 
-    /// What the Retry button does. Nothing about the match changed, so it is the same ask.
-    @Test func aRequestThatFailedCanBeRunAgain() async {
-        let series = StubDetails(details: severance, fails: true)
-        let request = SeriesDetailsRequest(for: severanceMatch, series: series)
-        await request.load()
+    // MARK: - What opening one leaves alone
 
-        series.fails = false
-        await request.load()
+    /// What Back returns to. The results are the search's, and reading a match's details is not
+    /// a thing that touches them.
+    @Test func openingAMatchLeavesTheResultsListed() async {
+        let series = StubSeries(matches: [severanceMatch, thronesMatch], details: severance)
+        let search = SeriesSearch(text: "sever", series: series)
+        await search.search()
 
-        #expect(request.state == .loaded(severance))
-        #expect(series.asked == [95396, 95396])
+        await search.open(severanceMatch)
+
+        #expect(search.state == .results([severanceMatch, thronesMatch]))
     }
 
-    /// The state a spinner is keyed off, seen while the answer is still owed.
-    @Test func aRequestInFlightSaysSo() async {
-        let series = StubDetails(details: severance)
-        series.holdRequests()
-        let request = SeriesDetailsRequest(for: severanceMatch, series: series)
+    /// Details that couldn't be read leave them listed too — that is the whole of what the
+    /// failure tells the user to do about it.
+    @Test func aFailedOpenLeavesTheResultsListed() async {
+        let series = StubSeries(matches: [severanceMatch, thronesMatch])
+        let search = SeriesSearch(text: "sever", series: series)
+        await search.search()
 
-        async let ran: Void = request.load()
-        await series.requestStarted(95396)
-        #expect(request.state == .loading)
+        series.fails = true
+        await search.open(severanceMatch)
 
-        series.release(95396)
-        await ran
-        #expect(request.state == .loaded(severance))
+        #expect(search.detailsState == .failed)
+        #expect(search.state == .results([severanceMatch, thronesMatch]))
     }
 
-    /// Retrying after a failure shows the spinner again rather than leaving the failure up
-    /// with nothing apparently happening.
-    @Test func aRetryIsInFlightWhileItRuns() async {
-        let series = StubDetails(details: severance, fails: true)
-        let request = SeriesDetailsRequest(for: severanceMatch, series: series)
-        await request.load()
-        #expect(request.state == .failed)
+    /// Back and then a second match is the whole point of the Back button.
+    @Test func openingASecondMatchReplacesTheFirstOnesDetails() async {
+        let series = StubSeries()
+        series.detailAnswers = [95396: severance, 1399: thrones]
+        let search = SeriesSearch(text: "e", series: series)
+        await search.open(severanceMatch)
 
-        series.fails = false
-        series.holdRequests()
-        async let ran: Void = request.load()
-        await series.requestStarted(95396)
-        #expect(request.state == .loading)
+        await search.open(thronesMatch)
 
-        series.release(95396)
-        await ran
+        #expect(search.openedMatch == thronesMatch)
+        #expect(search.details == thrones)
+    }
+
+    /// A slow first open answering after a second match has already landed must not replace it:
+    /// details under a name they didn't come from are worse than nothing.
+    @Test func anOpenOvertakenByANewerOneNeverLands() async {
+        let series = StubSeries()
+        series.detailAnswers = [95396: severance, 1399: thrones]
+        series.holdAnswers()
+        let search = SeriesSearch(text: "e", series: series)
+
+        async let overtaken: Void = search.open(severanceMatch)
+        await series.openStarted(95396)
+        async let newer: Void = search.open(thronesMatch)
+        await series.openStarted(1399)
+
+        series.releaseOpen(1399)
+        await newer
+        #expect(search.details == thrones)
+
+        series.releaseOpen(95396)
+        await overtaken
+        #expect(search.details == thrones)
     }
 
     // MARK: - What the stub answers with
 
     private var severanceMatch: SeriesMatch { SeriesMatch(id: 95396, name: "Severance") }
+    private var thronesMatch: SeriesMatch { SeriesMatch(id: 1399, name: "Game of Thrones") }
 
     private var severance: SeriesDetails {
         SeriesDetails(
-            id: 95396,
             name: "Severance",
             originalName: "Severance",
             overview: "Mark leads a team of office workers whose memories have been surgically divided.",
@@ -130,74 +154,22 @@ struct SeriesDetailsTests {
             ]
         )
     }
+
+    private var thrones: SeriesDetails {
+        SeriesDetails(
+            name: "Game of Thrones",
+            originalName: "Game of Thrones",
+            overview: "Seven noble families fight for control of the mythical land of Westeros.",
+            seasons: [SeriesSeason(seasonNumber: 1, episodeCount: 10)]
+        )
+    }
 }
 
-private extension SeriesDetailsRequest {
-    /// What is on screen, for the tests that are about what a request produced rather than
-    /// which state it is in.
+private extension SeriesSearch {
+    /// What is on the detail screen, for the tests that are about what an open produced rather
+    /// than which state it is in.
     var details: SeriesDetails? {
-        guard case .loaded(let details) = state else { return nil }
+        guard case .loaded(let details) = detailsState else { return nil }
         return details
-    }
-}
-
-/// The BFF as a details request sees it, with nothing behind it. Pinned to the main actor,
-/// which every caller of it here already is, so a test can read what was asked for and hold an
-/// answer back mid-flight without a race of its own.
-@MainActor
-private final class StubDetails: SeriesSearching {
-    var served: SeriesDetails?
-    var fails: Bool
-    var failure: BffError
-
-    private(set) var asked: [Int] = []
-
-    private var isHolding = false
-    private var held: [Int: CheckedContinuation<Void, Never>] = [:]
-    private var started: Set<Int> = []
-    private var watchers: [CheckedContinuation<Void, Never>] = []
-
-    init(details: SeriesDetails? = nil, fails: Bool = false, as failure: BffError = .notReached) {
-        self.served = details
-        self.fails = fails
-        self.failure = failure
-    }
-
-    /// Nothing here searches: a details request never asks this.
-    func series(matching text: String) async throws -> [SeriesMatch] { [] }
-
-    func details(for id: Int) async throws -> SeriesDetails {
-        asked.append(id)
-        if isHolding {
-            started.insert(id)
-            wakeWatchers()
-            await withCheckedContinuation { held[id] = $0 }
-        }
-        if fails { throw failure }
-        guard let served else { throw BffError.notServed(status: 404) }
-        return served
-    }
-
-    /// Makes every request from here on wait to be released, so a test can look at one
-    /// mid-flight.
-    func holdRequests() { isHolding = true }
-
-    /// Returns once a held request for `id` has actually been asked for.
-    func requestStarted(_ id: Int) async {
-        while !started.contains(id) {
-            await withCheckedContinuation { watchers.append($0) }
-        }
-    }
-
-    /// Lets the held request for `id` answer.
-    func release(_ id: Int) {
-        started.remove(id)
-        held.removeValue(forKey: id)?.resume()
-    }
-
-    private func wakeWatchers() {
-        let waiting = watchers
-        watchers = []
-        for watcher in waiting { watcher.resume() }
     }
 }

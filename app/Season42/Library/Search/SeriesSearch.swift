@@ -1,10 +1,15 @@
 import Foundation
 
 /// A search for a series, and everything the search sheet is holding while it runs: the text
-/// being searched for and where the search has got to. Every decision about a search lives
+/// being searched for, where the search has got to, and — once the user has opened one of the
+/// matches — where reading its Series Details has got to. Every decision about a search lives
 /// here — that a blank text searches for nothing, that an empty answer is not a failure, that
 /// a stale answer is dropped — so the sheet renders this and decides nothing, and all of it is
 /// tested against a stub.
+///
+/// Opening a match is part of the search rather than a thing of its own: it is the second half
+/// of choosing which series the user meant, and it is what a Series Match's id exists to be
+/// asked with.
 ///
 /// The text starts out as the form's Title and is not the form's Title: it is a copy, editable
 /// here and written back nowhere. Only copying a match, which this cannot yet do, will ever
@@ -34,11 +39,34 @@ final class SeriesSearch {
         case failed
     }
 
+    /// Where reading the details of the opened match has got to. There is no "nothing yet":
+    /// nothing reads this until a match has been opened, and opening one is itself the ask.
+    enum DetailsState: Equatable {
+        /// The details are on their way. What the detail screen spins on.
+        case loading
+
+        /// What the BFF answered with.
+        case loaded(SeriesDetails)
+
+        /// The details couldn't be read at all — the BFF is unreachable, has no series under
+        /// that id, or answered with something that isn't a Series Details. All one thing to
+        /// the user: they opened a match the search served moments ago, and there is nothing
+        /// here for them to correct. Back still lists what the search matched.
+        case failed
+    }
+
     /// What the search is for. Pre-filled from the Title the sheet was opened over, and the
     /// user's to correct from there without the Title moving with it.
     var text: String
 
     private(set) var state: State = .idle
+
+    /// The match whose details are being read, and nil until one has been opened. What the
+    /// detail screen puts in its title bar, so the user sees which of several similar titles
+    /// they tapped before anything has arrived.
+    private(set) var openedMatch: SeriesMatch?
+
+    private(set) var detailsState: DetailsState = .loading
 
     private let series: any SeriesSearching
 
@@ -76,6 +104,25 @@ final class SeriesSearch {
         } catch {
             guard thisSearch == currentSearch else { return }
             state = .failed
+        }
+    }
+
+    /// Opens `match` and reads its details. The results are left exactly as they are, which is
+    /// what makes Back a return to them rather than a second search.
+    ///
+    /// Never throws: details that can't be read are a state the detail screen shows. A match
+    /// opened while an earlier one's details are still owed makes the earlier answer stale, and
+    /// a stale answer is dropped rather than shown under the wrong name.
+    func open(_ match: SeriesMatch) async {
+        openedMatch = match
+        detailsState = .loading
+        do {
+            let details = try await series.details(for: match.id)
+            guard openedMatch == match else { return }
+            detailsState = .loaded(details)
+        } catch {
+            guard openedMatch == match else { return }
+            detailsState = .failed
         }
     }
 }

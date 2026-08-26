@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 
 namespace Season42.Bff;
@@ -24,7 +23,7 @@ public sealed class TmdbSeriesDetails(HttpClient http, IOptions<TmdbOptions> opt
     };
 
     /// <summary>
-    /// What TMDB knows about the series with this id, or nil where it has never heard of it —
+    /// What TMDB knows about the series with this id, or null where it has never heard of it —
     /// an id nobody can look up is a different answer from an ask that could not be made, and
     /// the two reach the user as different statuses.
     /// </summary>
@@ -48,7 +47,6 @@ public sealed class TmdbSeriesDetails(HttpClient http, IOptions<TmdbOptions> opt
         // A name TMDB doesn't carry is empty, not absent: the app draws the original name beside
         // the name and the overview under it, and nothing there is worse for being blank.
         return new SeriesDetails(
-            payload.Id,
             payload.Name ?? "",
             payload.OriginalName ?? "",
             payload.Overview ?? "",
@@ -61,15 +59,13 @@ public sealed class TmdbSeriesDetails(HttpClient http, IOptions<TmdbOptions> opt
     /// <summary>
     /// TMDB's answer, read for the fields that matter. Everything else it sends — the poster,
     /// the networks, the ratings, the air dates — has no property here and so is discarded.
+    /// TMDB writes its names in snake case, which <see cref="TmdbFormat"/> is what reads.
     /// </summary>
     private sealed record TmdbSeries(
-        int Id,
         string? Name,
-        [property: JsonPropertyName("original_name")] string? OriginalName,
+        string? OriginalName,
         string? Overview,
         List<TmdbSeason>? Seasons);
 
-    private sealed record TmdbSeason(
-        [property: JsonPropertyName("season_number")] int SeasonNumber,
-        [property: JsonPropertyName("episode_count")] int EpisodeCount);
+    private sealed record TmdbSeason(int SeasonNumber, int EpisodeCount);
 }

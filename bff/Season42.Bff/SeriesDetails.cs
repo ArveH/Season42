@@ -7,12 +7,11 @@ namespace Season42.Bff;
 /// nothing on the detail screen shows them.
 /// </summary>
 /// <remarks>
-/// The id is TMDB's, the same one the <see cref="SeriesMatch"/> this was opened from carried,
-/// and it is never stored: the Library holds what the user copied, not a link back to someone
-/// else's record (ADR-0002).
+/// The id it was asked for is not answered back. The app already has it, from the
+/// <see cref="SeriesMatch"/> it opened, and it is never stored on either side: the Library holds
+/// what the user copied, not a link back to someone else's record (ADR-0002).
 /// </remarks>
 public sealed record SeriesDetails(
-    int Id,
     string Name,
     string OriginalName,
     string Overview,
