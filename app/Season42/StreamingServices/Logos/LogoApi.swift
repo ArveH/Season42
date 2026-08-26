@@ -24,9 +24,11 @@ struct LogoApi: LogoSearching {
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [URLQueryItem(name: "search", value: text)]
-        guard let url = components?.url else { throw LogoError.notProviders }
+        guard let url = components?.url else { throw LogoError.notReached }
 
-        let json = try await fetch(url)
+        // A search asks what the BFF says *now*, so what `URLSession` happens to have
+        // kept from the last one is of no use.
+        let json = try await fetch(url, ignoringWhatWasCached: true)
         do {
             return try JSONDecoder().decode([WatchProvider].self, from: json)
         } catch {
@@ -40,19 +42,23 @@ struct LogoApi: LogoSearching {
         // `/logos/{file}` takes TMDB's path without its leading slash, which is the whole
         // of the translation between the two halves of the BFF's contract (ADR-0008).
         let file = path.hasPrefix("/") ? String(path.dropFirst()) : path
+
+        // Cached bytes are as good as fetched ones here, which is the whole reason the
+        // BFF keeps a store of its own: a logo TMDB has published does not change under
+        // its own path (ADR-0008). A search asking for twenty of them is why it matters.
         return try await fetch(baseUrl.appending(path: "logos").appending(path: file))
     }
 
-    /// One `GET`, with anything but a `200` treated as nothing having been served. A
-    /// search asks what the BFF says *now*, and the bytes it answers with are about to be
-    /// adopted, so what `URLSession` happens to have kept is of no use either way.
-    private func fetch(_ url: URL) async throws -> Data {
+    /// One `GET`, with anything but a `200` treated as nothing having been served.
+    private func fetch(_ url: URL, ignoringWhatWasCached: Bool = false) async throws -> Data {
         var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        if ignoringWhatWasCached {
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let answer = response as? HTTPURLResponse else { throw LogoError.notProviders }
+        guard let answer = response as? HTTPURLResponse else { throw LogoError.notReached }
         guard answer.statusCode == 200 else {
             throw LogoError.notServed(status: answer.statusCode)
         }

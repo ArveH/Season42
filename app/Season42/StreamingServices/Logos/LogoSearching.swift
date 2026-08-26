@@ -28,7 +28,13 @@ protocol LogoSearching: Sendable {
 /// is shown verbatim: the sheet says one thing about a search it couldn't run, and that
 /// saving without a Logo is still open.
 enum LogoError: Error, Equatable {
-    /// The server was reached but answered with something other than success.
+    /// No HTTP answer came back at all — the address wouldn't build, or what did come
+    /// back isn't an HTTP response.
+    case notReached
+
+    /// The server was reached but answered with something other than success. The status
+    /// is carried for whoever is reading a log, not for the user: nothing they can do
+    /// about a `503` differs from what they can do about a `502`.
     case notServed(status: Int)
 
     /// The server answered, but what came back isn't a list of Watch Providers.

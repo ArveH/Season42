@@ -46,6 +46,12 @@ final class LogoSearch {
 
     private let logos: any LogoSearching
 
+    /// Which search is the current one. A second search started before the first has
+    /// answered makes the first one's answer stale, and a stale answer is dropped rather
+    /// than shown: results under a name they did not come from are worse than the spinner
+    /// they would replace.
+    private var currentSearch = 0
+
     /// - Parameters:
     ///   - name: what the name field starts out holding — nothing for a new service, the
     ///     current name for one being renamed.
@@ -73,15 +79,16 @@ final class LogoSearch {
         let text = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
+        currentSearch += 1
+        let thisSearch = currentSearch
         state = .searching
         do {
             let providers = try await logos.providers(matching: text)
-            guard !providers.isEmpty else {
-                state = .matchedNothing
-                return
-            }
-            state = .results(await matches(for: providers))
+            let found = providers.isEmpty ? [] : await matches(for: providers)
+            guard thisSearch == currentSearch else { return }
+            state = found.isEmpty ? .matchedNothing : .results(found)
         } catch {
+            guard thisSearch == currentSearch else { return }
             state = .failed
         }
     }

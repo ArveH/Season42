@@ -192,7 +192,7 @@ struct StreamingServiceNamingSheet: View {
     private var adoptedLogoSection: some View {
         Section("Logo") {
             HStack {
-                logoImage(search.logo)
+                StreamingServiceLogo(logo: search.logo, height: logoHeight)
                 Spacer()
                 Button("Remove", role: .destructive) { search.removeLogo() }
                     .buttonStyle(.borderless)
@@ -227,7 +227,7 @@ struct StreamingServiceNamingSheet: View {
 
         case .matchedNothing:
             Section {
-                Text("No streaming service matched that name. Try another spelling, or save without a logo.")
+                Text("Nothing matched that name. Try another spelling, or save without a logo.")
                     .foregroundStyle(.secondary)
             }
 
@@ -249,7 +249,7 @@ struct StreamingServiceNamingSheet: View {
             search.adopt(match)
         } label: {
             HStack {
-                logoImage(match.logo)
+                StreamingServiceLogo(logo: match.logo, height: logoHeight)
                     .frame(width: 44)
                     .accessibilityHidden(true)
                 Text(match.name)
@@ -258,22 +258,6 @@ struct StreamingServiceNamingSheet: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-    }
-
-    /// Logo bytes drawn at the row height, or the `tv` stand-in where there are none or
-    /// they won't decode — the same two halves of a Logo slot the rest of the app draws.
-    @ViewBuilder
-    private func logoImage(_ logo: Data?) -> some View {
-        if let logo, let image = UIImage(data: logo) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(height: logoHeight)
-        } else {
-            Image(systemName: "tv")
-                .foregroundStyle(.secondary)
-                .frame(height: logoHeight)
-        }
     }
 
     private func runSearch() {

@@ -49,12 +49,35 @@ struct LogoSearchTests {
         let search = LogoSearch(name: "net", logos: logos)
 
         async let ran: Void = search.search()
-        await logos.searchStarted()
+        await logos.searchStarted("net")
         #expect(search.state == .searching)
 
-        logos.releaseSearches()
+        logos.release("net")
         await ran
         #expect(search.state != .searching)
+    }
+
+    /// A slow first search answering after a second one has already landed must not
+    /// replace it: results under a name they didn't come from are worse than nothing.
+    @Test func aSearchOvertakenByANewerOneNeverLands() async {
+        let logos = StubLogos()
+        logos.answers = ["net": [netflix], "sky": [skyShowtime]]
+        logos.holdSearches()
+        let search = LogoSearch(name: "net", logos: logos)
+
+        async let overtaken: Void = search.search()
+        await logos.searchStarted("net")
+        search.name = "sky"
+        async let newer: Void = search.search()
+        await logos.searchStarted("sky")
+
+        logos.release("sky")
+        await newer
+        #expect(search.results.map(\.name) == ["SkyShowtime"])
+
+        logos.release("net")
+        await overtaken
+        #expect(search.results.map(\.name) == ["SkyShowtime"])
     }
 
     @Test func aSearchThatMatchesNothingIsNotAFailure() async {
@@ -243,22 +266,28 @@ private extension LogoSearch {
     }
 }
 
-/// The BFF as a search sees it, with nothing behind it. A class rather than a struct so a
-/// test can see what was searched for and hold an answer back mid-flight. Everything on
-/// it is touched from the main actor only, which `@unchecked` is standing in for.
-private final class StubLogos: LogoSearching, @unchecked Sendable {
+/// The BFF as a search sees it, with nothing behind it. Pinned to the main actor, which
+/// every caller of it here already is, so a test can read what was searched for and hold
+/// an answer back mid-flight without a race of its own.
+@MainActor
+private final class StubLogos: LogoSearching {
     static let logoBytes = Data("logo".utf8)
 
+    /// What every search answers with, for the tests that run only one.
     var served: [WatchProvider]
+
+    /// What a particular search text answers with, for the tests that run two.
+    var answers: [String: [WatchProvider]] = [:]
+
     var searchFails: Bool
     var logoFails = false
 
     private(set) var searched: [String] = []
 
-    private var held: CheckedContinuation<Void, Never>?
-    private var started: CheckedContinuation<Void, Never>?
     private var isHolding = false
-    private var hasStarted = false
+    private var held: [String: CheckedContinuation<Void, Never>] = [:]
+    private var started: Set<String> = []
+    private var watchers: [CheckedContinuation<Void, Never>] = []
 
     init(providers: [WatchProvider] = [], searchFails: Bool = false) {
         self.served = providers
@@ -268,13 +297,12 @@ private final class StubLogos: LogoSearching, @unchecked Sendable {
     func providers(matching text: String) async throws -> [WatchProvider] {
         searched.append(text)
         if isHolding {
-            hasStarted = true
-            started?.resume()
-            started = nil
-            await withCheckedContinuation { held = $0 }
+            started.insert(text)
+            wakeWatchers()
+            await withCheckedContinuation { held[text] = $0 }
         }
         if searchFails { throw LogoError.notServed(status: 503) }
-        return served
+        return answers[text] ?? served
     }
 
     func logo(at path: String) async throws -> Data {
@@ -282,18 +310,25 @@ private final class StubLogos: LogoSearching, @unchecked Sendable {
         return Self.logoBytes
     }
 
-    /// Makes the next search wait, so a test can look at the search mid-flight.
+    /// Makes every search from here on wait to be released, so a test can look at a
+    /// search mid-flight and choose which of two answers lands first.
     func holdSearches() { isHolding = true }
 
-    /// Returns once a held search has actually been asked for.
-    func searchStarted() async {
-        guard !hasStarted else { return }
-        await withCheckedContinuation { started = $0 }
+    /// Returns once a held search for `text` has actually been asked for.
+    func searchStarted(_ text: String) async {
+        while !started.contains(text) {
+            await withCheckedContinuation { watchers.append($0) }
+        }
     }
 
-    func releaseSearches() {
-        isHolding = false
-        held?.resume()
-        held = nil
+    /// Lets the held search for `text` answer.
+    func release(_ text: String) {
+        held.removeValue(forKey: text)?.resume()
+    }
+
+    private func wakeWatchers() {
+        let waiting = watchers
+        watchers = []
+        for watcher in waiting { watcher.resume() }
     }
 }

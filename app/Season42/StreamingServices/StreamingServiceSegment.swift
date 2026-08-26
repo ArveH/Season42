@@ -41,19 +41,35 @@ struct StreamingServiceSegment: View {
     }
 }
 
-/// A Logo-sized slot: the Logo a Streaming Service carries, or the `tv` symbol in
-/// secondary grey standing in where it carries none.
+/// A Logo-sized slot: the Logo bytes handed to it, or the `tv` symbol in secondary grey
+/// standing in where there are none — or where they won't decode, which draws as no Logo
+/// rather than as a failure.
+///
+/// Every Logo the app draws is drawn here, a Logo a service already carries and one a
+/// search is offering alike, so the picture on a result row is the picture the user gets.
 struct StreamingServiceLogo: View {
-    let service: StreamingService
+    /// The image bytes, or nil for the stand-in.
+    let logo: Data?
 
     /// How tall the slot is, so that a column of them lines up whichever of the two it
-    /// happens to be drawing. The two callers ask for different heights, and both scale
-    /// theirs with the text beside it.
+    /// happens to be drawing. Every caller asks for a different height, and all of them
+    /// scale theirs with the text beside it.
     let height: CGFloat
 
+    /// The Logo a Streaming Service carries, which is what everywhere but the search
+    /// results is drawing.
+    init(service: StreamingService, height: CGFloat) {
+        self.init(logo: service.logo, height: height)
+    }
+
+    init(logo: Data?, height: CGFloat) {
+        self.logo = logo
+        self.height = height
+    }
+
     var body: some View {
-        if let logo = service.logoToDraw {
-            logo
+        if let image = logo.flatMap(UIImage.init(data:)) {
+            Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
