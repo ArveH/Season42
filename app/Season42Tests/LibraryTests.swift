@@ -235,7 +235,14 @@ struct LibraryTests {
     /// what matters is that opening failed, not why.
     @Test func aStoreThatCannotBeOpenedIsReplacedByAnEmptyOne() throws {
         let storeURL = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).store")
-        defer { try? FileManager.default.removeItem(at: storeURL) }
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(
+                    at: storeURL.deletingLastPathComponent()
+                        .appending(path: storeURL.lastPathComponent + suffix)
+                )
+            }
+        }
         try Data("not a store".utf8).write(to: storeURL)
 
         let library = Library(container: try Library.container(at: storeURL))
@@ -244,6 +251,25 @@ struct LibraryTests {
 
         // And what replaced it is a working store, not one that merely opened once.
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let relaunched = Library(container: try Library.container(at: storeURL))
+
+        #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
+    }
+
+    /// The store the app itself runs against lives in `Application Support`, so the
+    /// discarding has to survive a space in the path — a directory read that percent
+    /// encodes one finds nothing to delete, and the fresh open fails on the store that
+    /// is still sitting there.
+    @Test func aStoreInADirectoryWithASpaceInItsNameIsDiscardedToo() throws {
+        let directory = URL.temporaryDirectory.appending(path: "Application Support \(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+
+        let library = Library(container: try Library.container(at: storeURL))
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+
         let relaunched = Library(container: try Library.container(at: storeURL))
 
         #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])

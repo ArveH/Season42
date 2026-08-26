@@ -1,8 +1,9 @@
 # A Library store the app can't open is discarded, not migrated
 
 Opening the on-device store is done twice: once ordinarily, and, if that throws, once more after
-deleting the store file and the write-ahead log and shared-memory files beside it. The second open
-is against an empty directory, so it is the same open a fresh install does. The app has no
+deleting the store file and everything SQLite and SwiftData keep beside it under its name — the
+write-ahead log, the shared-memory and journal files, the support directory. The second open finds
+nothing of the old store left, so it is the same open a fresh install does. The app has no
 migration plan, no versioned schema, and no code that knows two shapes of a model at once.
 
 This is a trade of the user's Library against launching at all, and it is only defensible while
@@ -46,11 +47,22 @@ Recovery lives in the one private function every container of the Library goes t
 covers the app's store and the stores tests open at an explicit URL alike, and is skipped for an
 in-memory store, where there is no file to discard and a failure is a real failure. It is testable
 without a schema change: a file that is not a store at all fails to open the same way a poisoned one
-does.
+does — and one of those tests puts it in a directory with a space in its name, because the app's
+own store lives in `Application Support` and a directory read that percent-encodes the path finds
+nothing there to delete. The store from #34 itself is not something a test can write — it needs the models as they
+were — so that one is checked by hand, by opening a store written by the previous release's schema.
 
-An open that fails for a passing reason — a device out of disk, a file locked — now costs the
-Library rather than surfacing. That is the accepted price of the trade above, and it is another
-thing the reconsideration has to weigh.
+Where a fresh store cannot be written either, the failure carries both errors. The second one only
+says that writing failed; the first is the one that says why the store had to go, and losing it
+would lose the only thing worth reading in a crash report.
+
+An open that fails for a passing reason now costs the Library rather than surfacing, because the
+recovery cannot tell a schema it can never open from a store it merely could not open this time. A
+device out of disk is one such reason; the one to weigh hardest is file protection — a store first
+opened before the device has been unlocked since boot fails to open, and would be deleted. Nothing
+in the app launches before a user unlock today: there is no widget, no extension, no background
+launch, and the only opener is `Season42App`. An app that grows one has to narrow this catch first,
+and that is part of what the reconsideration above has to weigh.
 
 `Season42App` keeps its `fatalError`, now reachable only when a fresh store cannot be created in an
 empty directory. There is nothing to degrade to at that point.

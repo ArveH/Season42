@@ -403,19 +403,52 @@ extension Library {
         } catch {
             guard !configuration.isStoredInMemoryOnly else { throw error }
             discardStore(at: configuration.url)
-            return try ModelContainer(for: schema, configurations: configuration)
+            do {
+                return try ModelContainer(for: schema, configurations: configuration)
+            } catch let secondError {
+                // Both errors, because the first one says why the store had to go and is
+                // the only one worth reading — the second says only that a fresh store
+                // couldn't be written either.
+                throw LibraryStoreError(opening: error, andAfterDiscarding: secondError)
+            }
         }
     }
 
-    /// Deletes the SQLite file a store is kept in, along with the write-ahead log and
-    /// shared-memory files SQLite keeps beside it — leaving one of those behind is
-    /// leaving the store half there, and the fresh open fails on it.
+    /// Deletes everything the store is kept in: the SQLite file, the write-ahead log,
+    /// shared-memory and journal files SQLite keeps beside it, and the support directory
+    /// SwiftData puts large values in. Leaving any of them behind is leaving the store
+    /// half there, which is what the fresh open would then fail on.
     private static func discardStore(at url: URL) {
         let directory = url.deletingLastPathComponent()
         let store = url.lastPathComponent
-        for name in [store, store + "-wal", store + "-shm"] {
-            try? FileManager.default.removeItem(at: directory.appending(path: name))
+        // `default.store` is kept company by `default.store-wal` and `.default_SUPPORT`,
+        // so both the file's own name and its name without the extension are prefixes to
+        // look for — and a leading dot is not part of either.
+        let base = url.deletingPathExtension().lastPathComponent
+        let beside = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for file in beside {
+            let name = file.lastPathComponent
+            guard name == store
+                || name.hasPrefix(store + "-")
+                || name.drop(while: { $0 == "." }).hasPrefix(base + "_")
+            else { continue }
+            try? FileManager.default.removeItem(at: file)
         }
+    }
+}
+
+/// What a Library can fail to open with once it has already thrown the store away: the
+/// failure that condemned the store, and the one that stopped a fresh one taking its place.
+struct LibraryStoreError: Error, CustomStringConvertible {
+    let opening: any Error
+    let andAfterDiscarding: any Error
+
+    var description: String {
+        "opening the store failed (\(opening)), and so did writing a fresh one "
+            + "in its place (\(andAfterDiscarding))"
     }
 }
 
