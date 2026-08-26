@@ -1,0 +1,157 @@
+# The BFF's CI: tests on every pull request, and on main a build-push-deploy that the same tests
+# gate. Nothing here builds or tests the iOS app — that needs a macOS runner and the code-signing
+# setup, which is its own fight.
+#
+# Azure authentication is an OIDC federated credential on an app registration scoped to
+# `repo:<owner>/<repo>:ref:refs/heads/main`, created by scripts/azure-setup.sh. There is no client
+# secret: a pull request cannot authenticate to Azure, and does not try.
+
+name: BFF
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    # An app-only or docs-only commit does not redeploy.
+    paths:
+      - 'bff/**'
+      - 'infra/**'
+      - 'Season42.slnx'
+      - '.github/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never a cancelled one: an interrupted `az deployment group create`
+# leaves the resource group half-updated. Pull request runs are only tests, so a superseded one is
+# worth cancelling.
+concurrency:
+  group: bff-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # No test reaches the network: the TMDB handler is faked at the composition root, so this
+      # needs no token and no Azure.
+      - run: dotnet test Season42.slnx
+
+  deploy:
+    name: Build, push and deploy
+    needs: test
+    # Pull requests deploy nothing. They also hold no credential that would let them.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # No `environment:` here, deliberately. A job that names one gets an OIDC subject of
+    # `repo:<owner>/<repo>:environment:<name>`, which the federated credential — scoped to
+    # `ref:refs/heads/main` — does not match, and the login would fail.
+    permissions:
+      contents: read
+      # OIDC. Without this azure/login fails in a way that reads like a bad credential rather than
+      # a missing permission.
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      APP_NAME: season42-bff
+    # Secrets and variables reach the run steps below as environment variables rather than as
+    # `${{ }}` spliced into the script: a value with a quote or a backtick in it would otherwise
+    # become shell.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # The registry is created by the deployment template, so on the very first run there is
+      # nothing to push to yet. That run deploys once with the template's placeholder image to
+      # bring the registry into being, then carries on as every later run does. The resource group
+      # holds exactly one registry, which is why picking the first is safe.
+      - name: Find the registry
+        id: registry
+        env:
+          CONTAINERAPP_ENV: ${{ vars.AZURE_CONTAINERAPP_ENV }}
+          TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          login_server=$(az acr list -g "$RESOURCE_GROUP" --query "[0].loginServer" -o tsv)
+          if [ -z "$login_server" ]; then
+            echo "No registry yet — bootstrapping it with the deployment template."
+            az deployment group create \
+              -g "$RESOURCE_GROUP" -f infra/main.bicep -n bff-bootstrap \
+              -p containerAppEnvironmentName="$CONTAINERAPP_ENV" \
+              -p appName="$APP_NAME" \
+              -p tmdbAccessToken="$TMDB_ACCESS_TOKEN" \
+              -o none
+            login_server=$(az acr list -g "$RESOURCE_GROUP" --query "[0].loginServer" -o tsv)
+          fi
+          echo "login-server=$login_server" >> "$GITHUB_OUTPUT"
+
+      # The SHA tag is what makes the revision list mean anything: every revision points at an
+      # image traceable to a commit, and a rollback is picking an older tag. `latest` is a
+      # convenience and nothing depends on it.
+      - name: Build and push the image
+        id: image
+        env:
+          LOGIN_SERVER: ${{ steps.registry.outputs.login-server }}
+        run: |
+          set -euo pipefail
+          repository="$LOGIN_SERVER/$APP_NAME"
+          az acr login --name "${LOGIN_SERVER%%.*}"
+          docker build -t "$repository:$GITHUB_SHA" -t "$repository:latest" bff
+          docker push "$repository:$GITHUB_SHA"
+          docker push "$repository:latest"
+          echo "reference=$repository:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      # The image parameter is passed every time. Leaving it at its default would put the
+      # Container Apps placeholder image back.
+      - name: Deploy
+        id: deployment
+        env:
+          CONTAINERAPP_ENV: ${{ vars.AZURE_CONTAINERAPP_ENV }}
+          TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+          IMAGE: ${{ steps.image.outputs.reference }}
+        run: |
+          set -euo pipefail
+          fqdn=$(az deployment group create \
+            -g "$RESOURCE_GROUP" -f infra/main.bicep -n "bff-$GITHUB_SHA" \
+            -p containerAppEnvironmentName="$CONTAINERAPP_ENV" \
+            -p appName="$APP_NAME" \
+            -p tmdbAccessToken="$TMDB_ACCESS_TOKEN" \
+            -p image="$IMAGE" \
+            --query properties.outputs.fqdn.value -o tsv)
+          echo "fqdn=https://$fqdn" >> "$GITHUB_OUTPUT"
+          echo "Deployed $IMAGE to https://$fqdn"
+
+      # The deployed BFF answering a real search is the only proof the revision is serving. It is
+      # given room to be slow: the app scales to zero, so this request may be waiting on a cold
+      # start and the awaited first TMDB fetch, and the edge has been seen to answer 504 before
+      # the container was ready.
+      - name: Ask the deployed BFF for a provider
+        env:
+          BASE_URL: ${{ steps.deployment.outputs.fqdn }}
+        run: |
+          set -euo pipefail
+          url="$BASE_URL/providers?search=net"
+          for attempt in $(seq 1 10); do
+            status=$(curl -sS -o /tmp/providers.json -w '%{http_code}' --max-time 60 "$url" || echo 000)
+            if [ "$status" = "200" ]; then
+              cat /tmp/providers.json
+              exit 0
+            fi
+            echo "attempt $attempt: $status — waiting"
+            sleep 15
+          done
+          echo "The deployed BFF never answered $url with 200."
+          exit 1

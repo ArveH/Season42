@@ -198,6 +198,57 @@ against.
 curl 'https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io/providers?search=net'
 ```
 
+## CI
+
+`.github/workflows/bff.yml` is the only workflow in this repository, and it is the BFF's alone.
+Nothing in it builds or tests the iOS app: that needs a macOS runner and the code-signing setup,
+which is a separate fight and not one worth blocking a deployment on.
+
+| Trigger | What it does |
+| --- | --- |
+| Pull request | `dotnet test Season42.slnx`, and nothing else. Reaches no Azure |
+| Push to `main` | The same tests, gating build → push → deploy. A red test never reaches Azure |
+| `workflow_dispatch` | The same as a push, for a manual redeploy of `main` |
+
+The push trigger is path-filtered to `bff/**`, `infra/**`, `Season42.slnx` and `.github/**`, so a
+commit touching only `app/` deploys nothing. Pull requests are not filtered — the tests take
+seconds, and a filter there only buys the chance of merging something untested.
+
+It reads exactly what `scripts/azure-setup.sh` wrote — the secrets `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `TMDB_ACCESS_TOKEN`, and the variables
+`AZURE_RESOURCE_GROUP` and `AZURE_CONTAINERAPP_ENV`. (`AZURE_LOCATION` is the wizard's; the
+template defaults to the resource group's own region, which is the same thing.) A fresh clone is
+wired up by running that script; the table under [One-time Azure setup](#one-time-azure-setup) is
+the whole list.
+
+**Authentication is an OIDC federated credential**, so no client secret exists in GitHub. Two
+things follow, and both are load-bearing:
+
+- The deploy job asks for `id-token: write`. Without it `azure/login` fails in a way that reads
+  like a bad credential rather than a missing permission.
+- The deploy job names no `environment:`. A job that names one gets an OIDC subject of
+  `repo:<owner>/<repo>:environment:<name>`, and the credential is scoped to
+  `ref:refs/heads/main` — so naming an environment would break the login. A credential for any
+  other ref is a second federated credential, never a widening of this one.
+
+**Images are tagged with the git SHA and with `latest`**, and it is the SHA tag that is doing the
+work: every Container Apps revision points at an image traceable to a commit, so the revision list
+means something and a rollback is a redeploy of an older tag. `latest` is convenience; nothing
+depends on it.
+
+The deployment template creates the registry, which means the very first run has nowhere to push
+yet. It handles that itself: with no registry in the resource group it deploys once with the
+template's placeholder image to bring one into being, then builds, pushes and deploys as every
+later run does. Every deploy passes the image it just pushed, because leaving that parameter at
+its default puts the placeholder back.
+
+A run ends by asking the deployed BFF for `/providers?search=net` over HTTPS. That request is
+given ten tries at fifteen-second spacing, because the app scales to zero and the first request
+after a deploy is waiting on a cold start and the awaited first TMDB fetch — the edge has been
+seen to answer `504` before the container was ready. A run is green when the address in
+[The deployed address](#the-deployed-address) has answered with real providers.
+
+
 ## The app talking to it
 
 This describes a BFF running on the developer's machine. A deployed one is addressed over HTTPS,
