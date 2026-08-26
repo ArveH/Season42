@@ -1,14 +1,16 @@
 import SwiftUI
 
 /// What tapping a match pushes: the series' name, what it is called where it was made, what it
-/// is about, and the seasons it has. Back is the navigation bar's own, and the results are
-/// still listed underneath it, so trying a second match is one tap rather than a fresh search.
+/// is about, the seasons it has, and the Copy that fills the form in with them. Back is the
+/// navigation bar's own, and the results are still listed underneath it, so trying a second
+/// match is one tap rather than a fresh search.
 ///
-/// Nothing here is copied into the form and no poster is shown: this is a screen for telling
-/// two similar titles apart, and reading what the next thing will fill in.
+/// Everything Copy would write is worked out before it is tapped, as a `SeriesCopy`, and
+/// everything that copy invents is on the screen above the button — which is the whole of what
+/// makes the seasons flatten honest (ADR-0011). This renders that; it decides none of it.
 ///
 /// Every rule about reading the details is `SeriesSearch`'s — opening a match is the second
-/// half of the search, not a thing of its own. This renders what it says.
+/// half of the search, not a thing of its own.
 struct SeriesDetailsView: View {
     /// The match that was tapped. Its name is on screen from the first frame, before any
     /// details have arrived.
@@ -17,6 +19,18 @@ struct SeriesDetailsView: View {
     /// The search this was pushed from, which is what reads the details and holds them.
     let search: SeriesSearch
 
+    /// What the form was holding when the sheet opened, which is what a copy would land on top
+    /// of. It cannot have moved since: the form is underneath a sheet.
+    let form: SeriesFormContents
+
+    /// Hands the copy to the form, which writes it in and closes the sheet. Nothing here
+    /// dismisses anything: the form owns the sheet, so the form is what closes it.
+    let onCopy: (SeriesCopy) -> Void
+
+    /// The copy the user asked for over a form they had already typed into, held while they are
+    /// asked whether they meant it. Nil the rest of the time.
+    @State private var pendingCopy: SeriesCopy?
+
     var body: some View {
         Form {
             switch search.detailsState {
@@ -24,8 +38,11 @@ struct SeriesDetailsView: View {
                 loadingSection
 
             case .loaded(let details):
+                let copy = details.copy(over: form)
                 aboutSection(details)
                 seasonsSection(details.seasons)
+                notesSection(copy.notes)
+                copySection(copy)
 
             case .failed:
                 failedSection
@@ -35,6 +52,23 @@ struct SeriesDetailsView: View {
         // and doesn't change under the user once it has.
         .navigationTitle(match.name)
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Replace what you've entered?",
+            isPresented: .init(
+                get: { pendingCopy != nil },
+                set: { if !$0 { pendingCopy = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingCopy
+        ) { copy in
+            Button("Copy", role: .destructive) { onCopy(copy) }
+            Button("Keep what I typed", role: .cancel) {}
+        } message: { _ in
+            Text(
+                "The title, the description and the seasons on the form are replaced. "
+                    + "Your status, position, streaming service and next episode date are left alone."
+            )
+        }
         .task { await search.open(match) }
     }
 
@@ -105,10 +139,68 @@ struct SeriesDetailsView: View {
             }
         }
     }
+
+    /// What copying would do that TMDB's answer doesn't say — every season dropped, every one
+    /// invented, and a Position that would move. Above the button and not behind it, because a
+    /// count the app made up is only defensible while it is stated before it is taken (ADR-0011).
+    /// Nothing at all where the answer needed nothing done to it.
+    @ViewBuilder
+    private func notesSection(_ notes: [SeriesCopyNote]) -> some View {
+        if !notes.isEmpty {
+            Section("Before you copy") {
+                ForEach(notes) { note in
+                    Label(note.text, systemImage: "info.circle")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    /// Copy, and what it would cost. A form the user has typed into is asked about first; a
+    /// fresh one is simply filled in, because there is nothing there to lose.
+    private func copySection(_ copy: SeriesCopy) -> some View {
+        Section {
+            Button("Copy into the form") {
+                if copy.overwritesTheForm {
+                    pendingCopy = copy
+                } else {
+                    onCopy(copy)
+                }
+            }
+        } footer: {
+            Text(
+                "Fills in the title, the description and the seasons, and leaves the rest to you. "
+                    + "Nothing is saved until you save the form."
+            )
+        }
+    }
 }
 
 #Preview("Details") {
     PreviewDetailScreen(series: PreviewDetails())
+}
+
+#Preview("Over a form already filled in") {
+    PreviewDetailScreen(
+        series: PreviewDetails(),
+        form: SeriesFormContents(
+            title: "Severence",
+            summary: "The one about the office.",
+            seasons: [10, 10, 10, 10],
+            position: Position(season: 4, episode: 2)
+        )
+    )
+}
+
+#Preview("Specials and a gap") {
+    PreviewDetailScreen(
+        series: PreviewDetails(seasons: [
+            SeriesSeason(seasonNumber: 0, episodeCount: 3),
+            SeriesSeason(seasonNumber: 1, episodeCount: 9),
+            SeriesSeason(seasonNumber: 3, episodeCount: 10),
+            SeriesSeason(seasonNumber: 4, episodeCount: 0),
+        ])
+    )
 }
 
 #Preview("No seasons") {
@@ -124,6 +216,7 @@ struct SeriesDetailsView: View {
 /// what it calls has to be too.
 private struct PreviewDetailScreen: View {
     let series: any SeriesSearching
+    var form: SeriesFormContents = .new
 
     private var match: SeriesMatch { SeriesMatch(id: 95396, name: "Severance") }
 
@@ -131,7 +224,9 @@ private struct PreviewDetailScreen: View {
         NavigationStack {
             SeriesDetailsView(
                 match: match,
-                search: SeriesSearch(text: match.name, series: series)
+                search: SeriesSearch(text: match.name, series: series),
+                form: form,
+                onCopy: { _ in }
             )
         }
     }

@@ -7,7 +7,8 @@ import SwiftUI
 ///
 /// Every rule about the search is `SeriesSearch`'s. This renders what it says, and writes
 /// nothing back to the form it was opened over — the box it opened pre-filled from is a copy
-/// of the Title, not the Title.
+/// of the Title, not the Title. The one thing that ever reaches the form is a copy the user
+/// asked for on the detail screen, and it goes there by way of `onCopy`.
 ///
 /// Tapping a match pushes its details onto the sheet's own stack, so Back comes straight back
 /// to the results the search already has: trying a second match is one tap, not a second
@@ -17,12 +18,27 @@ struct SeriesSearchSheet: View {
 
     @State private var search: SeriesSearch
 
+    /// What the form was holding when Search was tapped — the Title the box opens with, and
+    /// the rest of what a copy would land on top of.
+    private let form: SeriesFormContents
+
+    /// What to do with a copy the user asked for. The form writes it in and closes this sheet:
+    /// the form owns the sheet, so the form is what closes it.
+    private let onCopy: (SeriesCopy) -> Void
+
     /// - Parameters:
-    ///   - title: what the form's Title held when Search was tapped, which is what the box
-    ///     opens holding. Empty is an ordinary case: the box is simply ready to type in.
+    ///   - form: what the form holds. Its Title is what the box opens holding, and an empty one
+    ///     is an ordinary case: the box is simply ready to type in.
     ///   - series: where the search gets its answers.
-    init(searchingFor title: String, series: any SeriesSearching) {
-        _search = State(initialValue: SeriesSearch(text: title, series: series))
+    ///   - onCopy: what to do with what the user copied.
+    init(
+        over form: SeriesFormContents,
+        series: any SeriesSearching,
+        onCopy: @escaping (SeriesCopy) -> Void
+    ) {
+        self.form = form
+        self.onCopy = onCopy
+        _search = State(initialValue: SeriesSearch(text: form.title, series: series))
     }
 
     var body: some View {
@@ -32,7 +48,7 @@ struct SeriesSearchSheet: View {
                 resultsSection
             }
             .navigationDestination(for: SeriesMatch.self) { match in
-                SeriesDetailsView(match: match, search: search)
+                SeriesDetailsView(match: match, search: search, form: form, onCopy: onCopy)
             }
             .navigationTitle("Find a series")
             .navigationBarTitleDisplayMode(.inline)
@@ -116,19 +132,28 @@ struct SeriesSearchSheet: View {
 }
 
 #Preview("Matches") {
-    SeriesSearchSheet(searchingFor: "sever", series: PreviewSeries())
+    SeriesSearchSheet(over: .searching(for: "sever"), series: PreviewSeries()) { _ in }
 }
 
 #Preview("From an empty title") {
-    SeriesSearchSheet(searchingFor: "", series: PreviewSeries())
+    SeriesSearchSheet(over: .new, series: PreviewSeries()) { _ in }
 }
 
 #Preview("Nothing matched") {
-    SeriesSearchSheet(searchingFor: "zzz", series: PreviewSeries(matches: []))
+    SeriesSearchSheet(over: .searching(for: "zzz"), series: PreviewSeries(matches: [])) { _ in }
 }
 
 #Preview("Unreachable") {
-    SeriesSearchSheet(searchingFor: "sever", series: PreviewSeries(fails: true))
+    SeriesSearchSheet(over: .searching(for: "sever"), series: PreviewSeries(fails: true)) { _ in }
+}
+
+private extension SeriesFormContents {
+    /// A new form with only a Title typed into it, for the previews above.
+    static func searching(for title: String) -> SeriesFormContents {
+        var form = SeriesFormContents.new
+        form.title = title
+        return form
+    }
 }
 
 /// A BFF for the previews above, so every state of the search can be seen without one

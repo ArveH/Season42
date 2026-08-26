@@ -12,6 +12,15 @@ struct Seasons: Codable, Hashable, Sendable, ExpressibleByArrayLiteral {
         self.init(episodeCounts: episodeCounts)
     }
 
+    /// What a form nothing has been typed into offers: one season of ten episodes, which is a
+    /// guess at a series rather than anything known about one. Named here because copying has to
+    /// tell a form still holding it from a form the user has typed seasons into.
+    static let newSeriesPlaceholder: Seasons = [10]
+
+    /// One season of one episode — the least a Tracked Series can be, and what copying falls
+    /// back to where TMDB lists no aired season at all (ADR-0011).
+    static let oneSeasonOfOneEpisode: Seasons = [1]
+
     var count: Int { episodeCounts.count }
     var isEmpty: Bool { episodeCounts.isEmpty }
 

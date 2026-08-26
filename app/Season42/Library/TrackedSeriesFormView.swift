@@ -36,7 +36,7 @@ struct TrackedSeriesFormView: View {
         self.series = series
         _title = State(initialValue: tracked?.title ?? "")
         _summary = State(initialValue: tracked?.summary ?? "")
-        _seasons = State(initialValue: tracked?.seasons ?? [10])
+        _seasons = State(initialValue: tracked?.seasons ?? .newSeriesPlaceholder)
         _status = State(initialValue: tracked?.status ?? .planned)
         _hasPosition = State(initialValue: tracked?.position != nil)
         _position = State(initialValue: tracked?.position ?? Position(season: 1, episode: 1))
@@ -130,11 +130,11 @@ struct TrackedSeriesFormView: View {
             } message: { message in
                 Text(message)
             }
-            // The sheet opens over the form holding a copy of the Title, and writes back
-            // nothing: what the user does in there costs them the form only when they choose
+            // The sheet opens over what the form holds and writes back nothing but a copy the
+            // user asked for: what they do in there costs them the form only when they choose
             // to take something from it.
             .sheet(isPresented: $isSearching) {
-                SeriesSearchSheet(searchingFor: title, series: series)
+                SeriesSearchSheet(over: contents, series: series, onCopy: apply)
             }
             // Keep the Position inside the seasons and episodes entered so far.
             .onChange(of: seasons) { _, _ in position = seasons.clamping(position) }
@@ -143,6 +143,32 @@ struct TrackedSeriesFormView: View {
     }
 
     private var isEditing: Bool { editing != nil }
+
+    /// What the form is holding, for the search sheet to work out what a copy would land on
+    /// top of. The Position is what the user says they have watched to, and nothing at all
+    /// while they say they have watched nothing.
+    private var contents: SeriesFormContents {
+        SeriesFormContents(
+            title: title,
+            summary: summary,
+            seasons: seasons,
+            position: hasPosition ? position : nil
+        )
+    }
+
+    /// Takes what the user copied off a Series Details and closes the sheet. Everything copied
+    /// is theirs from here — as editable as if they had typed it, and saved no sooner.
+    ///
+    /// Only the three fields TMDB's answer speaks to are written. The Status, the Streaming
+    /// Service, the Next Episode Date and the watched state are untouched; the Position moves
+    /// only where the copied seasons no longer reach it, which the clamp below does and the
+    /// detail screen said it would.
+    private func apply(_ copied: SeriesCopy) {
+        title = copied.title
+        summary = copied.summary
+        seasons = copied.seasons
+        isSearching = false
+    }
 
     private var seasonCount: Binding<Int> {
         Binding(get: { seasons.count }, set: { seasons.setCount($0) })

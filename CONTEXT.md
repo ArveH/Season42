@@ -24,7 +24,9 @@ _Avoid_: show, subscription, my series
 A movie the user has entered into the Library. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie), held as `isWatched`. Marking one watched stamps the date; un-marking corrects the state and leaves the stamp alone, as un-watching an episode of a Tracked Series does.
 
 **Description**:
-The user's own free-text note on what a Tracked Series or Tracked Movie is about. Carried in code as `summary`, because SwiftData reserves the name `description`.
+What a Tracked Series or Tracked Movie is about, typed by the user or copied in from a search
+and theirs to edit from there. Carried in code as `summary`, because SwiftData reserves the name
+`description`.
 _Avoid_: synopsis, blurb, notes
 
 **Status**:
@@ -96,3 +98,14 @@ there is to ask with it. Someone else's data like the Series Match it was opened
 stored: it is read, and what reaches the Library is what the user copied out of it by hand
 (ADR-0002).
 _Avoid_: series info, TMDB record, metadata
+
+**Copy**:
+Taking a Series Details into the form the search was opened over: its name becomes the Title, its
+overview becomes the Description, and its seasons become the app's, flattened to what the app can
+hold (ADR-0011). Nothing else moves — Status, Position, Streaming Service, Next Episode Date and
+the watched state are the user's alone, and TMDB's answer says nothing about them. From the moment
+it lands, everything copied is the user's own, as editable as if they had typed it and saved no
+sooner: the Library holds what was copied, never a link back to where it came from (ADR-0002).
+Because the flatten invents episode counts, every invention is stated on the detail screen before
+Copy is tapped.
+_Avoid_: import, sync, add from TMDB
