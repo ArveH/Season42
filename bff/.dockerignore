@@ -1,0 +1,12 @@
+# Build output, so the context carries source and nothing the SDK inside the image will produce.
+**/bin/
+**/obj/
+
+# The Logo Store: fetched logos and a snapshot. Baking a stale one into an image would be a
+# quietly wrong image — a container is expected to start with an empty store and fill it.
+**/store/
+
+# The tests never run inside the image; the image builds the server.
+Season42.Bff.Tests/
+
+.DS_Store
