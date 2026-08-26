@@ -18,13 +18,14 @@ struct StreamingServiceSegment: View {
     @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 16
 
     var body: some View {
-        if let service, let logo = service.logoImage {
+        // Drawn through the Logo slot rather than by hand, so the one Logo in the app that
+        // is drawn beside a name and the one drawn instead of it are the same drawing. The
+        // slot's `tv` stand-in is unreachable here: the branch is only taken by a service
+        // that has a Logo, because a service without one draws as its name.
+        if let service, service.logoToDraw != nil {
             HStack(spacing: 4) {
                 Text(verbatim: "\(subtitle) ·")
-                logo
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: logoHeight)
+                StreamingServiceLogo(service: service, height: logoHeight)
                     .accessibilityLabel(service.name)
             }
         } else {
@@ -43,14 +44,15 @@ struct StreamingServiceSegment: View {
 /// A Logo-sized slot: the Logo a Streaming Service carries, or the `tv` symbol in
 /// secondary grey standing in where it carries none.
 struct StreamingServiceLogo: View {
-    let service: StreamingService?
+    let service: StreamingService
 
     /// How tall the slot is, so that a column of them lines up whichever of the two it
-    /// happens to be drawing.
+    /// happens to be drawing. The two callers ask for different heights, and both scale
+    /// theirs with the text beside it.
     let height: CGFloat
 
     var body: some View {
-        if let logo = service?.logoImage {
+        if let logo = service.logoToDraw {
             logo
                 .resizable()
                 .scaledToFit()
@@ -63,21 +65,24 @@ struct StreamingServiceLogo: View {
     }
 }
 
-extension StreamingService {
-    /// The adopted Logo as something to draw, or nil where there is none — or where the
-    /// bytes are not an image, which is drawn as no Logo rather than as a failure: the
-    /// name and the `tv` stand-in are already what a service without one shows.
-    var logoImage: Image? {
+private extension StreamingService {
+    /// The adopted Logo ready to be drawn, or nil where there is none — or where the bytes
+    /// won't decode, which draws as no Logo rather than as a failure: the name and the `tv`
+    /// stand-in are already what a service without one shows.
+    var logoToDraw: Image? {
         guard let logo, let image = UIImage(data: logo) else { return nil }
         return Image(uiImage: image)
     }
 }
 
-extension Data {
-    /// A stand-in Logo for previews. Nothing in the app can adopt a real one yet (#29),
-    /// so this is how a Logo is seen at all before that lands. Not behind `#if DEBUG`:
-    /// a `#Preview` is compiled in every configuration, so what it calls must be too.
-    static func previewLogo(_ color: UIColor) -> Data {
+/// Stand-in Logos for the previews in this folder. Nothing in the app can adopt a real one
+/// yet (#29), so this is how a Logo is seen at all before that lands.
+///
+/// A namespace of its own rather than an extension on `Data`, and not behind `#if DEBUG`:
+/// a `#Preview` is compiled in every configuration, so what it calls has to be too, and
+/// this way what ships is one obviously preview-shaped type rather than a wider `Data`.
+enum PreviewLogo {
+    static func bytes(_ color: UIColor) -> Data {
         let size = CGSize(width: 154, height: 90)
         return UIGraphicsImageRenderer(size: size).pngData { _ in
             color.setFill()
@@ -90,7 +95,7 @@ extension Data {
 }
 
 #Preview {
-    let withLogo = StreamingService(name: "Netflix", logo: .previewLogo(.systemRed))
+    let withLogo = StreamingService(name: "Netflix", logo: PreviewLogo.bytes(.systemRed))
     let withoutLogo = StreamingService(name: "NRK TV")
 
     List {

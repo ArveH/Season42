@@ -54,8 +54,10 @@ _Avoid_: channel, platform, provider, label
 **Logo**:
 The image the user has adopted onto a Streaming Service, held on it as bytes. Once adopted it
 is theirs: renaming the service does not disturb it, and nothing ever refreshes it — which is
-why nothing is remembered about where it came from (ADR-0007). A service may carry none, and
-where a row would draw one and there is none, the `tv` symbol stands in.
+why nothing is remembered about where it came from (ADR-0007). A service may carry none. A
+Library Entry's row draws the Logo where its service has one and the service's name where it
+has not; where a Logo slot is drawn regardless — as beside the name in the Streaming Services
+tab — the `tv` symbol in secondary grey stands in for a Logo that isn't there.
 _Avoid_: icon, artwork, provider logo, image
 
 **Watch Provider**:

@@ -10,6 +10,9 @@ struct StreamingServicesView: View {
     @State private var deleting: StreamingService?
     @State private var failureMessage: String?
 
+    /// The Logo slot grows with the name beside it, as the one in a row does.
+    @ScaledMetric(relativeTo: .body) private var logoHeight = 24
+
     var body: some View {
         NavigationStack {
             Group {
@@ -86,7 +89,7 @@ struct StreamingServicesView: View {
     /// do: this is the tab where services are managed, so the name has to stay readable.
     private func row(for service: StreamingService) -> some View {
         HStack {
-            StreamingServiceLogo(service: service, height: 24)
+            StreamingServiceLogo(service: service, height: logoHeight)
                 .frame(width: 44)
                 // The name is right beside it, so the slot has nothing of its own to say.
                 .accessibilityHidden(true)
@@ -221,8 +224,8 @@ private struct StreamingServiceNamingAlert: ViewModifier {
 @MainActor
 private func previewLibrary() -> Library {
     let library = try! Library.inMemory()
-    try! library.addStreamingService(name: "Apple TV+", logo: .previewLogo(.systemIndigo))
-    try! library.addStreamingService(name: "Netflix", logo: .previewLogo(.systemRed))
+    try! library.addStreamingService(name: "Apple TV+", logo: PreviewLogo.bytes(.systemIndigo))
+    try! library.addStreamingService(name: "Netflix", logo: PreviewLogo.bytes(.systemRed))
     try! library.addStreamingService(name: "NRK TV")
     return library
 }
