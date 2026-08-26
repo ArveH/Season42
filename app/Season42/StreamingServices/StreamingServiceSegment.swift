@@ -2,22 +2,107 @@ import SwiftUI
 
 /// The one place a row draws where its Library Entry is watched. The Watching tab's
 /// series row and both Library rows use it, so where the Streaming Service reads one way
-/// it reads that way everywhere — and there is a single place to change when it is to
-/// show more than a name.
+/// it reads that way everywhere.
 ///
-/// The segment owns the `·` that precedes it, because an entry naming no service must
-/// leave no separator behind. The rest of a subtitle is still one joined string, and a row
-/// appends `text` to it so the whole subtitle stays a single run of text: that is what
-/// keeps wrapping and truncation exactly as they were.
+/// A service the user has adopted a Logo onto draws as that Logo; one with none draws as
+/// its name. The segment owns the `·` that precedes either, because an entry naming no
+/// service must leave no separator behind — and it owns the rest of the subtitle too, so
+/// that the name case stays a single run of text and wraps and truncates as it always has.
 struct StreamingServiceSegment: View {
+    /// The rest of the subtitle, which this segment follows.
+    let subtitle: String
+
     /// Where the entry is watched, or nil when the user has named nowhere.
     let service: StreamingService?
 
-    var body: some View { text }
+    @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 16
 
-    /// The same drawing as a `Text`, for a row that has the rest of a subtitle to join it to.
-    var text: Text {
-        guard let service else { return Text(verbatim: "") }
-        return Text(verbatim: " · \(service.name)")
+    var body: some View {
+        // Drawn through the Logo slot rather than by hand, so the one Logo in the app that
+        // is drawn beside a name and the one drawn instead of it are the same drawing. The
+        // slot's `tv` stand-in is unreachable here: the branch is only taken by a service
+        // that has a Logo, because a service without one draws as its name.
+        if let service, service.logoToDraw != nil {
+            HStack(spacing: 4) {
+                Text(verbatim: "\(subtitle) ·")
+                StreamingServiceLogo(service: service, height: logoHeight)
+                    .accessibilityLabel(service.name)
+            }
+        } else {
+            text
+        }
     }
+
+    /// The whole subtitle as one `Text`, for the entries whose service has no Logo to
+    /// draw — and for those naming no service at all.
+    private var text: Text {
+        guard let service else { return Text(verbatim: subtitle) }
+        return Text(verbatim: "\(subtitle) · \(service.name)")
+    }
+}
+
+/// A Logo-sized slot: the Logo a Streaming Service carries, or the `tv` symbol in
+/// secondary grey standing in where it carries none.
+struct StreamingServiceLogo: View {
+    let service: StreamingService
+
+    /// How tall the slot is, so that a column of them lines up whichever of the two it
+    /// happens to be drawing. The two callers ask for different heights, and both scale
+    /// theirs with the text beside it.
+    let height: CGFloat
+
+    var body: some View {
+        if let logo = service.logoToDraw {
+            logo
+                .resizable()
+                .scaledToFit()
+                .frame(height: height)
+        } else {
+            Image(systemName: "tv")
+                .foregroundStyle(.secondary)
+                .frame(height: height)
+        }
+    }
+}
+
+private extension StreamingService {
+    /// The adopted Logo ready to be drawn, or nil where there is none — or where the bytes
+    /// won't decode, which draws as no Logo rather than as a failure: the name and the `tv`
+    /// stand-in are already what a service without one shows.
+    var logoToDraw: Image? {
+        guard let logo, let image = UIImage(data: logo) else { return nil }
+        return Image(uiImage: image)
+    }
+}
+
+/// Stand-in Logos for the previews in this folder. Nothing in the app can adopt a real one
+/// yet (#29), so this is how a Logo is seen at all before that lands.
+///
+/// A namespace of its own rather than an extension on `Data`, and not behind `#if DEBUG`:
+/// a `#Preview` is compiled in every configuration, so what it calls has to be too, and
+/// this way what ships is one obviously preview-shaped type rather than a wider `Data`.
+enum PreviewLogo {
+    static func bytes(_ color: UIColor) -> Data {
+        let size = CGSize(width: 154, height: 90)
+        return UIGraphicsImageRenderer(size: size).pngData { _ in
+            color.setFill()
+            UIBezierPath(
+                roundedRect: CGRect(origin: .zero, size: size),
+                cornerRadius: 16
+            ).fill()
+        }
+    }
+}
+
+#Preview {
+    let withLogo = StreamingService(name: "Netflix", logo: PreviewLogo.bytes(.systemRed))
+    let withoutLogo = StreamingService(name: "NRK TV")
+
+    List {
+        StreamingServiceSegment(subtitle: "Watching · S2E4", service: withLogo)
+        StreamingServiceSegment(subtitle: "Watching · S2E4", service: withoutLogo)
+        StreamingServiceSegment(subtitle: "Watching · S2E4", service: nil)
+    }
+    .font(.subheadline)
+    .foregroundStyle(.secondary)
 }

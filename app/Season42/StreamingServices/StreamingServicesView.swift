@@ -10,6 +10,9 @@ struct StreamingServicesView: View {
     @State private var deleting: StreamingService?
     @State private var failureMessage: String?
 
+    /// The Logo slot grows with the name beside it, as the one in a row does.
+    @ScaledMetric(relativeTo: .body) private var logoHeight = 24
+
     var body: some View {
         NavigationStack {
             Group {
@@ -81,8 +84,15 @@ struct StreamingServicesView: View {
 
     /// A row, tappable on its text to rename what it names, showing how many entries name
     /// this service — which is what makes the delete warning below unsurprising.
+    ///
+    /// The Logo is drawn beside the name rather than instead of it, as the rows elsewhere
+    /// do: this is the tab where services are managed, so the name has to stay readable.
     private func row(for service: StreamingService) -> some View {
         HStack {
+            StreamingServiceLogo(service: service, height: logoHeight)
+                .frame(width: 44)
+                // The name is right beside it, so the slot has nothing of its own to say.
+                .accessibilityHidden(true)
             Text(service.name)
             Spacer()
             Text("^[\(service.entryCount) entry](inflect: true)")
@@ -205,5 +215,17 @@ private struct StreamingServiceNamingAlert: ViewModifier {
 }
 
 #Preview {
-    StreamingServicesView(library: try! Library.inMemory())
+    StreamingServicesView(library: previewLibrary())
+}
+
+/// Services as the tab will show them once there is a way to adopt a Logo (#29): with one
+/// and without, so both halves of a Logo slot are visible before either can be reached
+/// through the app.
+@MainActor
+private func previewLibrary() -> Library {
+    let library = try! Library.inMemory()
+    try! library.addStreamingService(name: "Apple TV+", logo: PreviewLogo.bytes(.systemIndigo))
+    try! library.addStreamingService(name: "Netflix", logo: PreviewLogo.bytes(.systemRed))
+    try! library.addStreamingService(name: "NRK TV")
+    return library
 }

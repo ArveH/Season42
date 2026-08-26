@@ -140,13 +140,14 @@ final class Library {
 
     /// Registers a Streaming Service the user can then name on their entries.
     ///
+    /// - Parameter logo: the Logo to adopt onto it, or nil to register it with none.
     /// - Throws: `LibraryError` if the name is blank or already registered; nothing is
     ///   stored in that case.
     @discardableResult
-    func addStreamingService(name: String) throws -> StreamingService {
+    func addStreamingService(name: String, logo: Data? = nil) throws -> StreamingService {
         let name = try validatedServiceName(name, keeping: nil)
 
-        let service = StreamingService(name: name)
+        let service = StreamingService(name: name, logo: logo)
         context.insert(service)
         try context.save()
         reload()
@@ -161,6 +162,14 @@ final class Library {
     ///   "Netflix" — is not a clash with itself.
     func renameStreamingService(_ service: StreamingService, to name: String) throws {
         service.name = try validatedServiceName(name, keeping: service)
+        save()
+    }
+
+    /// Adopts a Logo onto a Streaming Service, or clears the one it has when handed nil.
+    /// The name is untouched either way: the two are the user's to set apart, and nothing
+    /// ever revisits an adopted Logo of its own accord (ADR-0007).
+    func setLogo(_ logo: Data?, on service: StreamingService) {
+        service.logo = logo
         save()
     }
 

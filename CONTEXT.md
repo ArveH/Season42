@@ -44,11 +44,21 @@ A user-entered, optional date on a Tracked Series recording when the next episod
 
 **Streaming Service**:
 One of the services the user has registered, kept as a list they add to, rename and delete
-themselves. A Tracked Series or Tracked Movie names at most one of them as where the user
-watches it, and names the service itself rather than a copy of its name, so renaming one
-renames it everywhere it is named. An entry may name none. Says nothing about global
-availability: it is where this user watches, not where the thing can be watched.
+themselves, and optionally carrying a Logo. A Tracked Series or Tracked Movie names at most
+one of them as where the user watches it, and names the service itself rather than a copy of
+its name, so renaming one renames it everywhere it is named. An entry may name none. Says
+nothing about global availability: it is where this user watches, not where the thing can be
+watched.
 _Avoid_: channel, platform, provider, label
+
+**Logo**:
+The image the user has adopted onto a Streaming Service, held on it as bytes. Once adopted it
+is theirs: renaming the service does not disturb it, and nothing ever refreshes it — which is
+why nothing is remembered about where it came from (ADR-0007). A service may carry none. A
+Library Entry's row draws the Logo where its service has one and the service's name where it
+has not; where a Logo slot is drawn regardless — as beside the name in the Streaming Services
+tab — the `tv` symbol in secondary grey stands in for a Logo that isn't there.
+_Avoid_: icon, artwork, provider logo, image
 
 **Watch Provider**:
 A service TMDB knows of, with a name and a logo. Lives in the BFF only, in a daily snapshot of one
