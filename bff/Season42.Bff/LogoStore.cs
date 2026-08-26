@@ -13,10 +13,6 @@ public sealed class LogoStore
     /// <summary>The logo bytes sit beside the snapshot, not among it.</summary>
     public const string DirectoryName = "logos";
 
-    // A file being written is not a file that can be served, so it is written under another name
-    // and moved into place — a reader either sees no logo or sees a whole one.
-    private const string PartialSuffix = ".partial";
-
     private readonly string _directory;
     private readonly IServiceProvider _services;
     private readonly ILogger<LogoStore> _log;
@@ -59,8 +55,8 @@ public sealed class LogoStore
             using var scope = _services.CreateScope();
             var tmdb = scope.ServiceProvider.GetRequiredService<TmdbImages>();
 
-            var bytes = await tmdb.FetchAsync(TmdbImages.LogoSize, file, cancellationToken);
-            await WriteAsync(path, bytes, cancellationToken);
+            var bytes = await tmdb.FetchLogoAsync(file, cancellationToken);
+            await StoreFile.WriteAsync(path, bytes, _log, cancellationToken);
             return bytes;
         }
         finally
@@ -80,19 +76,4 @@ public sealed class LogoStore
         _ => "application/octet-stream",
     };
 
-    private async Task WriteAsync(string path, byte[] bytes, CancellationToken cancellationToken)
-    {
-        var partial = path + PartialSuffix;
-        try
-        {
-            Directory.CreateDirectory(_directory);
-            await File.WriteAllBytesAsync(partial, bytes, cancellationToken);
-            File.Move(partial, path, overwrite: true);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // The caller already has the bytes; all that is lost is the saving on the next ask.
-            _log.LogWarning(exception, "Could not write the logo {Path} into the store.", path);
-        }
-    }
 }

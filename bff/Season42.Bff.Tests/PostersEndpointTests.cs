@@ -12,8 +12,8 @@ public class PostersEndpointTests
     /// <summary>The id of Severance in <see cref="FakeTmdb.DefaultSeriesDetails"/>.</summary>
     private const int KnownSeries = 95396;
 
-    /// <summary>The poster path that answer carries.</summary>
-    private const string KnownPoster = "lFf6LLrQjYldcZItzOkGmMMigP7.jpg";
+    /// <summary>The file TMDB's poster path in that answer names.</summary>
+    private const string KnownPosterFile = "lFf6LLrQjYldcZItzOkGmMMigP7.jpg";
 
     [Fact]
     public async Task Poster_NotYetInTheStore_IsFetchedFromTmdbAndReturned()
@@ -33,7 +33,7 @@ public class PostersEndpointTests
     /// It is the whole reason a hit is worth having.
     /// </summary>
     [Fact]
-    public async Task Poster_IsAskedOfTmdbAtTheOneSizeTheAppKeeps()
+    public async Task Poster_NotYetInTheStore_IsAskedForAtTheOneSizeTheAppKeeps()
     {
         using var factory = new BffFactory();
         var client = factory.CreateClient();
@@ -43,7 +43,7 @@ public class PostersEndpointTests
         Assert.Single(factory.Tmdb.SeriesDetailsRequests);
         var request = Assert.Single(factory.Tmdb.ImageRequests);
         Assert.Equal(
-            $"https://image.tmdb.org/t/p/{TmdbImages.PosterSize}/{KnownPoster}",
+            $"https://image.tmdb.org/t/p/{TmdbImages.PosterSize}/{KnownPosterFile}",
             request.RequestUri?.ToString());
     }
 
@@ -79,7 +79,7 @@ public class PostersEndpointTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.True(File.Exists(first.PosterPathOf(KnownSeries)));
             // Never under the path TMDB published it at: that is the logo store's key, not this one.
-            Assert.False(File.Exists(Path.Combine(first.PosterDirectory, KnownPoster)));
+            Assert.False(File.Exists(Path.Combine(first.PosterDirectory, KnownPosterFile)));
         }
 
         using var restarted = new BffFactory(storePath: storePath);
@@ -107,6 +107,13 @@ public class PostersEndpointTests
         // be a store hit, and would prove nothing about two fetches at once.
         await FakeTmdb.WaitForAsync(() => factory.Tmdb.SeriesDetailsRequests.Count == 1);
         var second = client.GetAsync($"/series/{KnownSeries}/poster");
+
+        // And it is given every chance to reach TMDB before the first is answered: the fake
+        // records a request before it holds it, so an ungated second ask would already be
+        // counted here. Without this the first could win the race and the test would quietly
+        // become the store-hit test beside it.
+        await Task.Delay(250);
+        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
         held.SetResult();
 
         foreach (var response in await Task.WhenAll(first, second))

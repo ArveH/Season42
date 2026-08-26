@@ -103,12 +103,12 @@ _Avoid_: search result, TMDB series, candidate
 What the user reads about the one series they opened from a search: its name, its original name,
 what it is about, whether there is a poster to be had, and every season TMDB lists with its
 episode count — season 0, the specials, among them, because the BFF translates TMDB's shape and
-leaves the app's product decisions to the app. Whether there is a poster is a yes or a no and
-never TMDB's path to it: the poster is asked for by the same id, which is what makes that ask
-safe without an allowlist to check it against (ADR-0012). This is what a Series Match's id is asked the next question with, and the only question
-there is to ask with it. Someone else's data like the Series Match it was opened from, never
-stored: it is read, and what reaches the Library is what the user copied out of it by hand
-(ADR-0002).
+leaves the app's product decisions to the app. Whether there is a poster is a yes or a no and never
+TMDB's path to it: the poster is asked for by the same id, which is what makes that ask safe with
+no allowlist to check it against (ADR-0012). This is what a Series Match's id is asked the next
+question with, and the only question there is to ask with it. Someone else's data like the Series
+Match it was opened from, never stored: it is read, and what reaches the Library is what the user
+copied out of it by hand (ADR-0002).
 _Avoid_: series info, TMDB record, metadata
 
 **Copy**:

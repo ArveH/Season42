@@ -25,10 +25,6 @@ public sealed class PosterStore
     /// </summary>
     public const string ContentType = "image/jpeg";
 
-    // A file being written is not a file that can be served, so it is written under another name
-    // and moved into place — a reader either sees no poster or sees a whole one.
-    private const string PartialSuffix = ".partial";
-
     private readonly string _directory;
     private readonly IServiceProvider _services;
     private readonly ILogger<PosterStore> _log;
@@ -77,8 +73,9 @@ public sealed class PosterStore
             // Whoever held the gate may have been fetching this very poster.
             if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
 
-            // Resolved per fetch rather than held: both of these are typed HttpClients, and a
-            // singleton holding one would pin a single handler for the life of the server.
+            // Resolved per fetch rather than held: both of these reach TMDB through a typed
+            // HttpClient, and a singleton holding one would pin a single handler for the life of
+            // the server.
             using var scope = _services.CreateScope();
             var details = scope.ServiceProvider.GetRequiredService<TmdbSeriesDetails>();
 
@@ -87,10 +84,9 @@ public sealed class PosterStore
             if (posterPath is null) return null;
 
             var images = scope.ServiceProvider.GetRequiredService<TmdbImages>();
-            var bytes = await images.FetchAsync(
-                TmdbImages.PosterSize, posterPath.TrimStart('/'), cancellationToken);
+            var bytes = await images.FetchPosterAsync(posterPath, cancellationToken);
 
-            await WriteAsync(path, bytes, cancellationToken);
+            await StoreFile.WriteAsync(path, bytes, _log, cancellationToken);
             return bytes;
         }
         finally
@@ -128,19 +124,4 @@ public sealed class PosterStore
         }
     }
 
-    private async Task WriteAsync(string path, byte[] bytes, CancellationToken cancellationToken)
-    {
-        var partial = path + PartialSuffix;
-        try
-        {
-            Directory.CreateDirectory(_directory);
-            await File.WriteAllBytesAsync(partial, bytes, cancellationToken);
-            File.Move(partial, path, overwrite: true);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            // The caller already has the bytes; all that is lost is the saving on the next ask.
-            _log.LogWarning(exception, "Could not write the poster {Path} into the store.", path);
-        }
-    }
 }

@@ -62,8 +62,9 @@ The container listens on plain HTTP on `:8080` and holds no certificate. That is
 terminates at the Container Apps edge, which hands the container plain HTTP on the internal network
 (ADR-0010). A `docker run` on a public host would be publishing cleartext.
 
-It starts with an empty Logo Store and fills it — the container mounts nothing, so the store lives
-inside it and goes when it goes. Durable storage arrives with the deployment.
+It starts with an empty store and fills it — the container mounts nothing, so the snapshot, the
+logos and the posters live inside it and go when it goes. Durable storage arrives with the
+deployment.
 
 There is no shell in the image, so `docker exec` gets you nothing. `docker logs` and the endpoints
 are the way in.
@@ -128,7 +129,7 @@ owns them.
 ## The deployment
 
 `infra/main.bicep` is everything the BFF needs in Azure that the setup above did not create: a
-container registry, a storage account with a file share for the Logo Store, and the Container App
+container registry, a storage account with a file share for the store, and the Container App
 itself. It is **parameterised on the resource group and the Container Apps environment**, and owns
 neither — those are the substrate, and a template that owns the ground it stands on is a much
 scarier thing to re-run than one that does not.

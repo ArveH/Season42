@@ -25,11 +25,18 @@ every hit just to learn what the file is called — and a store that costs a TMD
 not a store. Keyed on the id, a hit costs no TMDB call at all, and only a miss pays
 details-then-image.
 
-Nothing expires, for the same reason nothing in the logo store does: the bytes under a poster path
-do not change, and a series that is re-postered arrives with a new path rather than new bytes under
-the old one. Nothing negative is remembered: a poster is fetched about twice per adoption rather
-than once per render, so a remembered "no" would save almost nothing and would go on being wrong
-about a series that has since gained one.
+Nothing expires — but not for the logo store's reason, and the difference is the id key again. The
+logo store's bytes cannot go stale, because a rebranded provider arrives under a new path and the
+old path keeps meaning what it always meant. A poster kept under a series id can: TMDB re-posters
+a returning series, and this store will go on serving the poster it first saw. That is accepted
+rather than unnoticed. A poster is a picture of a series, not a fact about it, and the app is
+about to keep whichever one the user adopted as bytes of its own anyway; the escape, if a stale
+one ever matters, is the same one ADR-0007 promised for the whole store — delete the directory
+and let it fill again.
+
+Nothing negative is remembered either: a poster is fetched about twice per adoption rather than
+once per render, so a remembered "no" would save almost nothing and would go on being wrong about
+a series that has since gained one.
 
 One poster size, `w342`, as a single committed constant beside the logo's `w154` — so what the
 user looks at is what they keep.
@@ -69,7 +76,13 @@ The store directory holds three kinds of thing now — `watch-providers.json`, `
 nothing else, which is what ADR-0007 promised about it.
 
 `w342` is baked into the bytes on disk rather than recorded beside them, as `w154` is for logos.
-Changing the size is a deletion of `posters/` rather than a migration.
+Changing the size is a deletion of `posters/` rather than a migration — and so, for the same
+directory, is picking up a series' new poster.
+
+`hasPoster` says what TMDB's answer said, not that a fetch will succeed. A series can advertise a
+poster whose image the host then refuses, and that is a `502` like any other TMDB failure: the app
+draws its placeholder for a `hasPoster` of false, and has to survive a poster that will not arrive
+in either case.
 
 A miss costs two TMDB calls where a logo's costs one, and the extra one is on the authenticated
 API rather than the public image host. This is the price of the id key, and it is paid once per

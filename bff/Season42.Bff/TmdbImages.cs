@@ -8,7 +8,8 @@ namespace Season42.Bff;
 /// <remarks>
 /// The sizes live here together, one committed constant each, because a size is what the bytes
 /// on disk are: changing one is not a migration but a deletion of that store's directory
-/// (ADR-0008, ADR-0012). Neither is a parameter of the ask, so no caller can name a size.
+/// (ADR-0008, ADR-0012). Each kind of image has its own ask at its own size, so a size is never
+/// something a caller passes and never something a caller of this server could name.
 /// </remarks>
 public sealed class TmdbImages(HttpClient http)
 {
@@ -23,14 +24,24 @@ public sealed class TmdbImages(HttpClient http)
     /// </summary>
     public const string PosterSize = "w342";
 
-    /// <summary>
-    /// The bytes of one image, at one of the sizes above. No token goes with this: TMDB's image
-    /// host is public, and the access token belongs only on the API calls that need it.
-    /// </summary>
-    /// <param name="size">One of the constants above, never anything a caller of this server said.</param>
+    /// <summary>The bytes of one Watch Provider's logo, at <see cref="LogoSize"/>.</summary>
     /// <param name="file">The file TMDB published it under, without its leading slash.</param>
+    /// <inheritdoc cref="FetchAsync" path="/exception"/>
+    public Task<byte[]> FetchLogoAsync(string file, CancellationToken cancellationToken) =>
+        FetchAsync(LogoSize, file, cancellationToken);
+
+    /// <summary>The bytes of one series' poster, at <see cref="PosterSize"/>.</summary>
+    /// <param name="path">TMDB's poster path, leading slash and all.</param>
+    /// <inheritdoc cref="FetchAsync" path="/exception"/>
+    public Task<byte[]> FetchPosterAsync(string path, CancellationToken cancellationToken) =>
+        FetchAsync(PosterSize, path.TrimStart('/'), cancellationToken);
+
+    /// <summary>
+    /// The bytes of one image. No token goes with this: TMDB's image host is public, and the
+    /// access token belongs only on the API calls that need it.
+    /// </summary>
     /// <exception cref="HttpRequestException">TMDB could not serve the image.</exception>
-    public async Task<byte[]> FetchAsync(string size, string file, CancellationToken cancellationToken)
+    private async Task<byte[]> FetchAsync(string size, string file, CancellationToken cancellationToken)
     {
         using var response = await http.GetAsync($"{ImageHost}/{size}/{file}", cancellationToken);
         response.EnsureSuccessStatusCode();
