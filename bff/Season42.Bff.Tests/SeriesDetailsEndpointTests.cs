@@ -92,9 +92,11 @@ public class SeriesDetailsEndpointTests
     }
 
     /// <summary>
-    /// The networks, the ratings, the poster and the taglines TMDB sends are all things nothing
-    /// on the detail screen shows. Carrying them would be answering a question nobody asked —
-    /// and so would answering the id back, which the app already has from the match it opened.
+    /// The networks, the ratings, the poster path and the taglines TMDB sends are all things
+    /// nothing on the detail screen shows. Carrying them would be answering a question nobody
+    /// asked — and so would answering the id back, which the app already has from the match it
+    /// opened. Whether there *is* a poster is the one thing kept off TMDB's poster path, and it
+    /// is a yes or a no rather than the path itself: a poster is asked for by id (ADR-0012).
     /// </summary>
     [Fact]
     public async Task Details_CarryNothingButTheNamedFields()
@@ -106,12 +108,44 @@ public class SeriesDetailsEndpointTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(
-            ["name", "originalName", "overview", "seasons"],
+            ["name", "originalName", "overview", "hasPoster", "seasons"],
             document.RootElement.EnumerateObject().Select(property => property.Name));
         Assert.Equal(
             ["seasonNumber", "episodeCount"],
             document.RootElement.GetProperty("seasons")[0].EnumerateObject()
                 .Select(property => property.Name));
+    }
+
+    /// <summary>
+    /// The app draws a placeholder where a series has no poster, and it must be able to do that
+    /// without firing an ask it expects to be answered with a 404.
+    /// </summary>
+    [Fact]
+    public async Task Details_SayWhetherThereIsAPosterToAskFor()
+    {
+        using var factory = new BffFactory();
+        var withPoster = await DetailsOfAsync(factory.CreateClient(), 95396);
+
+        var none = new FakeTmdb();
+        none.RespondToDetailsWithNoPoster();
+        using var without = new BffFactory(none);
+        var withoutPoster = await DetailsOfAsync(without.CreateClient(), 95396);
+
+        Assert.True(withPoster.HasPoster);
+        Assert.False(withoutPoster.HasPoster);
+    }
+
+    /// <summary>TMDB sends an empty poster path for some series; that is no poster either.</summary>
+    [Fact]
+    public async Task Details_WithAnEmptyPosterPath_HaveNoPoster()
+    {
+        var tmdb = new FakeTmdb();
+        tmdb.RespondToDetailsWith("""{ "id": 7, "name": "Quiet", "poster_path": "", "seasons": [] }""");
+        using var factory = new BffFactory(tmdb);
+
+        var details = await DetailsOfAsync(factory.CreateClient(), 7);
+
+        Assert.False(details.HasPoster);
     }
 
     /// <summary>
@@ -131,6 +165,7 @@ public class SeriesDetailsEndpointTests
         Assert.Equal("Quiet", details.Name);
         Assert.Equal("", details.OriginalName);
         Assert.Equal("", details.Overview);
+        Assert.False(details.HasPoster);
         Assert.Empty(details.Seasons);
     }
 
@@ -268,7 +303,11 @@ public class SeriesDetailsEndpointTests
     };
 
     private sealed record DetailedSeries(
-        string Name, string OriginalName, string Overview, IReadOnlyList<DetailedSeason> Seasons);
+        string Name,
+        string OriginalName,
+        string Overview,
+        bool HasPoster,
+        IReadOnlyList<DetailedSeason> Seasons);
 
     private sealed record DetailedSeason(int SeasonNumber, int EpisodeCount);
 }

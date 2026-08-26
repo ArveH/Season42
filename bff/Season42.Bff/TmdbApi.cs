@@ -13,7 +13,7 @@ namespace Season42.Bff;
 /// </summary>
 /// <remarks>
 /// Not the image host: that is public, takes no token, and answers with bytes rather than JSON,
-/// so <see cref="TmdbLogoImages"/> talks to it directly. This is the API, and the API is the
+/// so <see cref="TmdbImages"/> talks to it directly. This is the API, and the API is the
 /// half the token belongs to.
 /// </remarks>
 public sealed class TmdbApi(HttpClient http, IOptions<TmdbOptions> options)

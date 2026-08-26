@@ -33,7 +33,7 @@ public sealed class FakeTmdb : HttpMessageHandler
         get { lock (_requests) return _requests.ToList(); }
     }
 
-    /// <summary>Only the requests to TMDB's image host — what a logo fetch costs.</summary>
+    /// <summary>Only the requests to TMDB's image host — what fetching an image costs.</summary>
     public IReadOnlyList<HttpRequestMessage> ImageRequests =>
         Requests.Where(IsImageRequest).ToList();
 
@@ -76,6 +76,11 @@ public sealed class FakeTmdb : HttpMessageHandler
     public void FailDetails() =>
         RespondToDetails = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
 
+    /// <summary>What TMDB answers about a series it lists no poster for.</summary>
+    public void RespondToDetailsWithNoPoster() => RespondToDetailsWith("""
+        { "id": 95396, "name": "Severance", "overview": "", "poster_path": null, "seasons": [] }
+        """);
+
     /// <summary>What TMDB answers for an id it has never heard of.</summary>
     public void NotFoundOnDetails() =>
         RespondToDetails = () => new HttpResponseMessage(HttpStatusCode.NotFound);
@@ -86,16 +91,46 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// </summary>
     public void TimeOutOnDetails() => RespondToDetails = () => throw new TaskCanceledException();
 
-    /// <summary>What the next logo fetch gets back.</summary>
+    /// <summary>What the next image fetch gets back — a logo's bytes or a poster's.</summary>
     public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
 
     public void FailImages() => RespondToImages = () => new HttpResponseMessage(HttpStatusCode.NotFound);
 
-    protected override Task<HttpResponseMessage> SendAsync(
+    /// <summary>
+    /// Set to hold every answer until it is completed. It is how a test keeps one fetch in
+    /// flight while a second ask for the same thing arrives, which is the only way to see
+    /// whether the two cost one fetch or two.
+    /// </summary>
+    /// <remarks>
+    /// The request is recorded before the wait, so a test can watch for the first ask reaching
+    /// TMDB and know the second one arrives while it is still unanswered.
+    /// </remarks>
+    public TaskCompletionSource? HoldAnswers { get; set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         lock (_requests) _requests.Add(request);
-        return Task.FromResult(AnswerTo(request)());
+        var answer = AnswerTo(request);
+
+        if (HoldAnswers is { } held) await held.Task.WaitAsync(cancellationToken);
+
+        return answer();
+    }
+
+    /// <summary>
+    /// Waits for something the fake has been asked, so a test can act on the first request
+    /// having arrived rather than on a sleep. Fails rather than hanging the suite.
+    /// </summary>
+    public static async Task WaitForAsync(Func<bool> asked)
+    {
+        for (var attempt = 0; attempt < 500; attempt++)
+        {
+            if (asked()) return;
+            await Task.Delay(10);
+        }
+
+        throw new TimeoutException("TMDB was not asked what the test was waiting for.");
     }
 
     private Func<HttpResponseMessage> AnswerTo(HttpRequestMessage request)

@@ -1,5 +1,6 @@
-// The Azure side of the Season42 BFF: a registry to pull the image from, a file share for the
-// Logo Store, and the Container App itself.
+// The Azure side of the Season42 BFF: a registry to pull the image from, a file share for what it
+// keeps of TMDB's — the provider snapshot, the Logo Store and the Poster Store — and the Container
+// App itself.
 //
 // What this template does NOT own is the substrate it deploys onto — the resource group and the
 // Container Apps environment. Those are provisioned once by scripts/azure-setup.sh and passed in
@@ -91,8 +92,9 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-// The Logo Store's disk. It holds a cache and nothing the user owns (ADR-0008) — losing it costs
-// fetches — so there is nothing here to back up, and no redundancy beyond the cheapest.
+// The store's disk. It holds a cache and nothing the user owns (ADR-0007, ADR-0008, ADR-0012) —
+// losing it costs fetches — so there is nothing here to back up, and no redundancy beyond the
+// cheapest.
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: resourceName
   location: location
@@ -229,11 +231,11 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
         // Scaling to zero means a cold start pays the awaited first TMDB fetch, which is the
         // accepted trade: a search is the only thing a stopped BFF costs.
         minReplicas: 0
-        // MAX ONE REPLICA IS LOAD-BEARING, NOT A COST DECISION. The Logo Store is
-        // write-once-per-path and writes to *.partial before moving into place, but File.Move over
-        // SMB is not a local rename; and watch-providers.json is rewritten wholesale every 24 hours
-        // by every replica independently. One replica means neither is ever exercised. Before
-        // raising this number, revisit the snapshot-write path.
+        // MAX ONE REPLICA IS LOAD-BEARING, NOT A COST DECISION. The Logo Store and the Poster
+        // Store are both write-once-per-key and write to *.partial before moving into place, but
+        // File.Move over SMB is not a local rename; and watch-providers.json is rewritten wholesale
+        // every 24 hours by every replica independently. One replica means neither is ever
+        // exercised. Before raising this number, revisit the snapshot-write path.
         maxReplicas: 1
       }
     }
