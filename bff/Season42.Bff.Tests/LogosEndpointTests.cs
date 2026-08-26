@@ -95,7 +95,7 @@ public class LogosEndpointTests
     }
 
     [Fact]
-    public async Task Logo_BeforeAnySuccessfulFetch_IsRefused()
+    public async Task Logo_BeforeAnySnapshotExists_IsUnavailableRatherThanNotFound()
     {
         var tmdb = new FakeTmdb();
         tmdb.Fail();
@@ -104,7 +104,29 @@ public class LogosEndpointTests
 
         var response = await client.GetAsync($"/logos/{KnownLogo}");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // "I do not know yet" and "no such logo" are different answers (ADR-0007).
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Empty(factory.Tmdb.ImageRequests);
+    }
+
+    [Fact]
+    public async Task Logo_PublishedAsAPng_IsServedAsOne()
+    {
+        var tmdb = new FakeTmdb();
+        tmdb.RespondWith("""
+            {
+              "results": [
+                { "display_priority": 1, "logo_path": "/viaplay.png", "provider_name": "Viaplay" }
+              ]
+            }
+            """);
+        using var factory = new BffFactory(tmdb);
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/logos/viaplay.png");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("image/png", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]

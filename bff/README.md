@@ -86,4 +86,5 @@ own.
 | Situation | Answer |
 | --- | --- |
 | The snapshot does not name the logo (traversal attempts included) | `404` |
+| No snapshot has ever been taken | `503` |
 | TMDB could not serve the logo | `502` |

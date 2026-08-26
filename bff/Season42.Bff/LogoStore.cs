@@ -33,8 +33,7 @@ public sealed class LogoStore
     {
         _services = services;
         _log = log;
-        _directory = Path.Combine(
-            Path.GetFullPath(options.Value.LogoStorePath, environment.ContentRootPath), DirectoryName);
+        _directory = Path.Combine(options.Value.StoreRootFrom(environment), DirectoryName);
     }
 
     /// <summary>
@@ -75,9 +74,9 @@ public sealed class LogoStore
     {
         ".jpg" or ".jpeg" => "image/jpeg",
         ".png" => "image/png",
-        ".svg" => "image/svg+xml",
-        // A logo TMDB publishes under some other extension is still served, but as bytes rather
-        // than as something a browser will try to interpret.
+        // The two TMDB publishes provider logos as. Anything else is still served, but as bytes
+        // rather than as something a browser will try to interpret — an SVG served from this
+        // server's own origin would be a script this server had published.
         _ => "application/octet-stream",
     };
 

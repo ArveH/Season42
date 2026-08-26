@@ -27,8 +27,7 @@ public sealed class WatchProviderStore
     {
         _log = log;
         _snapshotPath = Path.Combine(
-            Path.GetFullPath(options.Value.LogoStorePath, environment.ContentRootPath),
-            TmdbOptions.SnapshotFileName);
+            options.Value.StoreRootFrom(environment), TmdbOptions.SnapshotFileName);
         _providers = ReadFromDisk();
     }
 
@@ -53,12 +52,14 @@ public sealed class WatchProviderStore
     /// <summary>
     /// Whether the current snapshot names <paramref name="logoFile"/> as some Watch Provider's
     /// logo. This is the allowlist the logo route serves from: a path that is not in it is not a
-    /// path this server has ever published, whatever it looks like.
+    /// path this server has ever published, whatever it looks like. Null — as distinct from
+    /// false — means no snapshot has ever been taken, so this is "I do not know yet" rather than
+    /// "no such logo", the same distinction <see cref="Search"/> draws (ADR-0007).
     /// </summary>
-    public bool Knows(string logoFile)
+    public bool? Publishes(string logoFile)
     {
         var providers = _providers;
-        if (providers is null) return false;
+        if (providers is null) return null;
 
         // TMDB's logo paths carry a leading slash; the route's are what follows it.
         return providers.Any(provider =>

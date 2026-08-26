@@ -52,11 +52,16 @@ app.MapGet("/logos/{file}", async (
     // a path no Watch Provider publishes is not a path this server serves. Path traversal is
     // refused right here, by this same check, rather than by a rule of its own — there is nothing
     // to escape from when the only names that get through are ones TMDB gave us.
-    if (!providers.Knows(file))
+    switch (providers.Publishes(file))
     {
-        return Results.Problem(
-            "No watch provider in the current snapshot has that logo.",
-            statusCode: StatusCodes.Status404NotFound);
+        case null:
+            return Results.Problem(
+                "No watch providers have been fetched from TMDB yet.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        case false:
+            return Results.Problem(
+                "No watch provider in the current snapshot has that logo.",
+                statusCode: StatusCodes.Status404NotFound);
     }
 
     try
