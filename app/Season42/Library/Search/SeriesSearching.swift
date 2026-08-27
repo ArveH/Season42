@@ -24,11 +24,15 @@ protocol SeriesSearching: Sendable {
     /// Everything the app shows about the series with this id — the id a Series Match carried,
     /// which is the only thing it is ever good for.
     ///
+    /// Named for what it is about rather than as a plain `details(for:)`, because `BffClient`
+    /// answers this and `MovieSearching`'s alike, and two asks that differ only in what they
+    /// hand back are a thing to read twice at every call site.
+    ///
     /// - Throws: whatever went wrong reaching or reading the answer, an id the BFF has no
     ///   series for included. Unlike a search, there is no empty answer to tell apart from a
     ///   failure: the user tapped a match that was served moments ago, so anything other than
     ///   the details is the same "couldn't ask" to them.
-    func details(for id: Int) async throws -> SeriesDetails
+    func seriesDetails(for id: Int) async throws -> SeriesDetails
 
     /// The poster image bytes of the series with this id — the same id the details were read
     /// with, because there is no path to ask with and the app never sees one (ADR-0012).
@@ -36,5 +40,5 @@ protocol SeriesSearching: Sendable {
     /// - Throws: whatever went wrong reaching or reading them, a series TMDB has no poster for
     ///   included. A detail screen without its poster is still a detail screen, so this failing
     ///   costs a picture and nothing else: everything else still copies.
-    func poster(for id: Int) async throws -> Data
+    func seriesPoster(for id: Int) async throws -> Data
 }

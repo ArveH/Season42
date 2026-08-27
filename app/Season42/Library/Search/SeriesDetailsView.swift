@@ -279,7 +279,7 @@ private struct PreviewDetails: SeriesSearching {
 
     func series(matching text: String) async throws -> [SeriesMatch] { [] }
 
-    func details(for id: Int) async throws -> SeriesDetails {
+    func seriesDetails(for id: Int) async throws -> SeriesDetails {
         if fails { throw BffError.notServed(status: 502) }
         return SeriesDetails(
             name: "Severance",
@@ -291,7 +291,7 @@ private struct PreviewDetails: SeriesSearching {
         )
     }
 
-    func poster(for id: Int) async throws -> Data {
+    func seriesPoster(for id: Int) async throws -> Data {
         if posterFails { throw BffError.notServed(status: 502) }
         return PreviewPoster.bytes(.systemIndigo)
     }
