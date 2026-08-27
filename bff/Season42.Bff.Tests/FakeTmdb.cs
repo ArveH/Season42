@@ -26,6 +26,12 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// <summary>One series by id — everything TMDB knows about it. The id follows this.</summary>
     public const string SeriesDetailsPrefix = "/3/tv/";
 
+    /// <summary>Movies by title.</summary>
+    public const string MovieSearchPath = "/3/search/movie";
+
+    /// <summary>One movie by id — everything TMDB knows about it. The id follows this.</summary>
+    public const string MovieDetailsPrefix = "/3/movie/";
+
     private readonly List<HttpRequestMessage> _requests = new();
 
     public IReadOnlyList<HttpRequestMessage> Requests
@@ -44,6 +50,14 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// <summary>Only the requests for one series' details — what opening one match costs.</summary>
     public IReadOnlyList<HttpRequestMessage> SeriesDetailsRequests =>
         Requests.Where(IsSeriesDetailsRequest).ToList();
+
+    /// <summary>Only the requests for a movie search — what one search costs.</summary>
+    public IReadOnlyList<HttpRequestMessage> MovieSearchRequests =>
+        Requests.Where(request => PathOf(request) == MovieSearchPath).ToList();
+
+    /// <summary>Only the requests for one movie's details — what opening one match costs.</summary>
+    public IReadOnlyList<HttpRequestMessage> MovieDetailsRequests =>
+        Requests.Where(IsMovieDetailsRequest).ToList();
 
     /// <summary>What the next provider fetch gets back. Replace to change the answer mid-test.</summary>
     public Func<HttpResponseMessage> RespondToProviders { get; set; } = () => Json(DefaultProviders);
@@ -91,6 +105,45 @@ public sealed class FakeTmdb : HttpMessageHandler
     /// </summary>
     public void TimeOutOnDetails() => RespondToDetails = () => throw new TaskCanceledException();
 
+    /// <summary>What the next movie search gets back.</summary>
+    public Func<HttpResponseMessage> RespondToMovies { get; set; } = () => Json(DefaultMovies);
+
+    public void RespondToMoviesWith(string json) => RespondToMovies = () => Json(json);
+
+    public void FailMovies() =>
+        RespondToMovies = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+    /// <summary>
+    /// Makes the next movie search time out — what a TMDB that accepts the connection and then
+    /// says nothing costs, without a test having to wait out the real timeout.
+    /// </summary>
+    public void TimeOutOnMovies() => RespondToMovies = () => throw new TaskCanceledException();
+
+    /// <summary>What the next movie details fetch gets back.</summary>
+    public Func<HttpResponseMessage> RespondToMovieDetails { get; set; } =
+        () => Json(DefaultMovieDetails);
+
+    public void RespondToMovieDetailsWith(string json) => RespondToMovieDetails = () => Json(json);
+
+    public void FailMovieDetails() =>
+        RespondToMovieDetails = () => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+    /// <summary>What TMDB answers about a movie it lists no poster for.</summary>
+    public void RespondToMovieDetailsWithNoPoster() => RespondToMovieDetailsWith("""
+        { "id": 329865, "title": "Arrival", "overview": "", "poster_path": null }
+        """);
+
+    /// <summary>What TMDB answers for a movie id it has never heard of.</summary>
+    public void NotFoundOnMovieDetails() =>
+        RespondToMovieDetails = () => new HttpResponseMessage(HttpStatusCode.NotFound);
+
+    /// <summary>
+    /// Makes the next movie details fetch time out — what a TMDB that accepts the connection and
+    /// then says nothing costs, without a test having to wait out the real timeout.
+    /// </summary>
+    public void TimeOutOnMovieDetails() =>
+        RespondToMovieDetails = () => throw new TaskCanceledException();
+
     /// <summary>What the next image fetch gets back — a logo's bytes or a poster's.</summary>
     public Func<HttpResponseMessage> RespondToImages { get; set; } = () => Image(ImageBytes);
 
@@ -137,11 +190,13 @@ public sealed class FakeTmdb : HttpMessageHandler
     {
         if (IsImageRequest(request)) return RespondToImages;
         if (IsSeriesDetailsRequest(request)) return RespondToDetails;
+        if (IsMovieDetailsRequest(request)) return RespondToMovieDetails;
 
         return PathOf(request) switch
         {
             WatchProvidersPath => RespondToProviders,
             SeriesSearchPath => RespondToSeries,
+            MovieSearchPath => RespondToMovies,
             _ => () => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
     }
@@ -150,6 +205,9 @@ public sealed class FakeTmdb : HttpMessageHandler
 
     private static bool IsSeriesDetailsRequest(HttpRequestMessage request) =>
         PathOf(request)?.StartsWith(SeriesDetailsPrefix, StringComparison.Ordinal) == true;
+
+    private static bool IsMovieDetailsRequest(HttpRequestMessage request) =>
+        PathOf(request)?.StartsWith(MovieDetailsPrefix, StringComparison.Ordinal) == true;
 
     private static bool IsImageRequest(HttpRequestMessage request) =>
         request.RequestUri?.Host == "image.tmdb.org";
@@ -310,6 +368,74 @@ public sealed class FakeTmdb : HttpMessageHandler
               "first_air_date": "2011-04-17",
               "vote_average": 8.4,
               "adult": false
+            }
+          ],
+          "total_pages": 1,
+          "total_results": 2
+        }
+        """;
+
+    /// <summary>
+    /// Shaped like TMDB's own answer about one movie, runtime, budget and release date included,
+    /// so the tests can prove what the details carry and what they leave behind. The original
+    /// title differs from the title so that a test can tell the two apart.
+    /// </summary>
+    public const string DefaultMovieDetails = """
+        {
+          "adult": false,
+          "backdrop_path": "/yIZ1xendyqKvY3FGeeUYUd5X9Mm.jpg",
+          "budget": 47000000,
+          "genres": [ { "id": 878, "name": "Science Fiction" } ],
+          "id": 329865,
+          "original_language": "en",
+          "original_title": "Arrival (original)",
+          "overview": "Taking place after alien crafts land around the world, an expert linguist is recruited by the military to determine whether they come in peace or are a threat.",
+          "popularity": 45.2,
+          "poster_path": "/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+          "release_date": "2016-11-10",
+          "revenue": 100546139,
+          "runtime": 116,
+          "status": "Released",
+          "tagline": "Why are they here?",
+          "title": "Arrival",
+          "vote_average": 7.6,
+          "vote_count": 17654
+        }
+        """;
+
+    /// <summary>
+    /// Shaped like TMDB's own movie search answer, overviews, posters and paging included, so the
+    /// tests can prove that a search answers with the id and the title and nothing else.
+    /// </summary>
+    public const string DefaultMovies = """
+        {
+          "page": 1,
+          "results": [
+            {
+              "adult": false,
+              "backdrop_path": "/yIZ1xendyqKvY3FGeeUYUd5X9Mm.jpg",
+              "genre_ids": [878, 18, 9648],
+              "id": 329865,
+              "original_language": "en",
+              "original_title": "Arrival",
+              "overview": "Taking place after alien crafts land around the world…",
+              "popularity": 45.2,
+              "poster_path": "/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+              "release_date": "2016-11-10",
+              "title": "Arrival",
+              "video": false,
+              "vote_average": 7.6,
+              "vote_count": 17654
+            },
+            {
+              "adult": false,
+              "id": 438631,
+              "original_title": "Dune",
+              "overview": "Paul Atreides, a brilliant and gifted young man…",
+              "poster_path": "/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
+              "release_date": "2021-09-15",
+              "title": "Dune",
+              "vote_average": 7.8
             }
           ],
           "total_pages": 1,

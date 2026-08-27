@@ -4,15 +4,17 @@ import Foundation
 /// server is and one `fetch` does every `GET`, so each endpoint the app uses is a few lines
 /// on top of both: today `GET /providers?query=` for the Watch Providers a search matched,
 /// `GET /logos/{file}` for the bytes behind one, `GET /series?query=` for the Series Matches a
-/// search matched, `GET /series/{id}` for the Series Details behind one, and
-/// `GET /series/{id}/poster` for that series' poster.
+/// search matched, `GET /series/{id}` for the Series Details behind one,
+/// `GET /series/{id}/poster` for that series' poster, `GET /movies?query=` for the Movie
+/// Matches a search matched, and `GET /movies/{id}` for the Movie Details behind one.
 ///
-/// It conforms to the narrow protocols the rest of the app asks through — `LogoSearching`
-/// and `SeriesSearching` today, more as the BFF grows — so nothing outside this file depends
-/// on the client being one thing. This is the only part of the app that touches the network, and so the only
-/// part no stub stands in for, which is why it is kept to fetching and decoding: every rule
-/// about what a search then does lives beside the feature that asks, where it is tested.
-struct BffClient: LogoSearching, SeriesSearching {
+/// It conforms to the narrow protocols the rest of the app asks through — `LogoSearching`,
+/// `SeriesSearching` and `MovieSearching` today, more as the BFF grows — so nothing outside
+/// this file depends on the client being one thing. This is the only part of the app that
+/// touches the network, and so the only part no stub stands in for, which is why it is kept
+/// to fetching and decoding: every rule about what a search then does lives beside the feature
+/// that asks, where it is tested.
+struct BffClient: LogoSearching, SeriesSearching, MovieSearching {
     /// Where the BFF is served from — the one place the app is told that. The build tells
     /// it, through the `BFFBaseURL` key of `Info.plist`: `Config/Bff.xcconfig` commits the
     /// deployed address as the default, and `Config/Local.xcconfig` overrides it for a
@@ -71,6 +73,30 @@ struct BffClient: LogoSearching, SeriesSearching {
             return try JSONDecoder().decode(SeriesDetails.self, from: json)
         } catch {
             // What came back isn't a Series Details.
+            throw BffError.notUnderstood
+        }
+    }
+
+    func movies(matching text: String) async throws -> [MovieMatch] {
+        let json = try await fetchSearch(at: "movies", for: text)
+        do {
+            return try JSONDecoder().decode([MovieMatch].self, from: json)
+        } catch {
+            // What came back isn't a list of Movie Matches.
+            throw BffError.notUnderstood
+        }
+    }
+
+    func movieDetails(for id: Int) async throws -> MovieDetails {
+        // Asked by the id a Movie Match carried, and asked afresh every time, as a series' are.
+        let json = try await fetch(
+            baseUrl.appending(path: "movies").appending(path: String(id)),
+            ignoringWhatWasCached: true
+        )
+        do {
+            return try JSONDecoder().decode(MovieDetails.self, from: json)
+        } catch {
+            // What came back isn't a Movie Details.
             throw BffError.notUnderstood
         }
     }

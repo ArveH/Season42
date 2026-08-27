@@ -125,6 +125,23 @@ Match it was opened from, never stored: it is read, and what reaches the Library
 copied out of it by hand (ADR-0002).
 _Avoid_: series info, TMDB record, metadata
 
+**Movie Match**:
+A movie a search matched: an id and a title, and nothing else. What a search lists, so the user
+can tell which of several similar titles is theirs. Someone else's data, never stored — the id is
+TMDB's and only ever the thing the next question is asked with (ADR-0002). A Movie Match is to a
+Tracked Movie exactly what a Series Match is to a Tracked Series; they are separate terms because
+they are separate asks of the BFF, and a movie is titled where a series is named.
+_Avoid_: search result, TMDB movie, candidate
+
+**Movie Details**:
+What the user reads about the one movie they opened from a search: its title, its original title,
+what it is about, and whether there is a poster to be had. No seasons, which is the whole of what
+separates it from a Series Details: a movie is one thing to watch, so nothing about it is
+flattened and nothing about a Copy of it is invented. This is what a Movie Match's id is asked the
+next question with, and the only question there is to ask with it. Someone else's data like the
+Movie Match it was opened from, never stored (ADR-0002).
+_Avoid_: movie info, TMDB record, metadata
+
 **Copy**:
 Taking a Series Details into the form the search was opened over: its name becomes the Title, its
 overview becomes the Description, its seasons become the app's, flattened to what the app can hold
@@ -136,6 +153,11 @@ it lands, everything copied is the user's own, as editable as if they had typed 
 sooner: the Library holds what was copied, never a link back to where it came from (ADR-0002).
 Because the flatten invents episode counts, every invention is stated on the detail screen before
 Copy is tapped, as a Copy Note.
+
+Copying a Movie Details is the same act with less in it: the title becomes the Title and the
+overview becomes the Description, and that is all there is. No seasons to flatten means nothing
+invented and so no Copy Note, and the Streaming Service and the watched state are the user's alone
+as they are for a series. A Poster is the next thing a movie's Copy will take; today it takes none.
 _Avoid_: import, sync, add from TMDB
 
 **Copy Note**:

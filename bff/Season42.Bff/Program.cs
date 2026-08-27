@@ -25,6 +25,8 @@ builder.Services.AddHttpClient<TmdbApi>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddTransient<TmdbWatchProviders>();
 builder.Services.AddTransient<TmdbSeriesSearch>();
 builder.Services.AddTransient<TmdbSeriesDetails>();
+builder.Services.AddTransient<TmdbMovieSearch>();
+builder.Services.AddTransient<TmdbMovieDetails>();
 builder.Services.AddSingleton<WatchProviderRefresh>();
 builder.Services.AddSingleton<LogoStore>();
 builder.Services.AddSingleton<PosterStore>();
@@ -132,6 +134,54 @@ app.MapGet("/series/{id:int}/poster", async (
         app.Logger.LogWarning(exception, "TMDB could not serve the poster of the series {Id}.", id);
         return Results.Problem(
             "TMDB could not be asked for that poster.", statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+// The same two asks as the series routes above, for a movie. Nothing is kept here either, and
+// nothing about a movie is flattened on the way through: a movie is one thing to watch, so the
+// seasons — and the inventing the app has to own up to about them — have no counterpart here.
+app.MapGet("/movies", async (
+    string? query, TmdbMovieSearch tmdb, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(query))
+    {
+        return Results.Problem(
+            "Give a search text: /movies?query=arrival.", statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    try
+    {
+        return Results.Ok(await tmdb.SearchAsync(query, cancellationToken));
+    }
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not be asked for movies matching {Query}.", query);
+        return Results.Problem(
+            "TMDB could not be asked for movies.", statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+// One movie, by the id a Movie Match carried. The route reads an int, so anything that is not an
+// id never reaches TMDB at all — asking by title is what the search beside this is for.
+app.MapGet("/movies/{id:int}", async (
+    int id, TmdbMovieDetails tmdb, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var details = await tmdb.DetailsOfAsync(id, cancellationToken);
+
+        // An id TMDB has never heard of is the caller asking about something that isn't there,
+        // which is a different answer from an ask this server could not make at all.
+        return details is null
+            ? Results.Problem(
+                "TMDB knows no movie with that id.", statusCode: StatusCodes.Status404NotFound)
+            : Results.Ok(details);
+    }
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not be asked about the movie {Id}.", id);
+        return Results.Problem(
+            "TMDB could not be asked for movies.", statusCode: StatusCodes.Status502BadGateway);
     }
 });
 

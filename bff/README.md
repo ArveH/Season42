@@ -3,8 +3,8 @@
 An ASP.NET Core server whose only job is to hold the TMDB access token off the phone. It fetches
 the configured region's TV watch providers from TMDB on startup and every 24 hours, keeps the last
 good snapshot in memory and on disk, and serves matches from it (ADR-0007). It also searches TMDB
-for series and reads one series' details, which it keeps nothing of, and serves that series'
-poster, which it keeps.
+for series and for movies and reads one of either's details, which it keeps nothing of, and serves
+a series' poster, which it keeps.
 
 Projects: `Season42.Bff` (the server) and `Season42.Bff.Tests` (xUnit, driving the real endpoints
 through `WebApplicationFactory`). The solution file is `Season42.slnx` at the repo root.
@@ -428,4 +428,47 @@ asking at all.
 | --- | --- |
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no series with that id, or lists no poster for it | `404` |
+| TMDB refused, said nothing, or answered with something unreadable | `502` |
+
+### `GET /movies?query=<text>`
+
+Movies TMDB matched the text, in TMDB's own relevance order, each with the id to ask the next
+question with and the title to show. The series search above, for the other kind of Library Entry,
+and everything said there holds here: nothing is kept, nothing is consulted, and there is no `503`
+because there is no snapshot to have taken.
+
+```sh
+curl 'http://localhost:5265/movies?query=arrival'
+[{"id":329865,"title":"Arrival"}]
+```
+
+| Situation | Answer |
+| --- | --- |
+| A blank or missing `query` | `400`, with no TMDB call made |
+| Nothing matched | `200` with `[]` |
+| TMDB refused, said nothing, or answered with something unreadable | `502` |
+
+### `GET /movies/{id}`
+
+Everything the detail screen shows about the one movie a match was opened to: the titles, the
+overview, and whether there is a poster to ask for.
+
+```sh
+curl 'http://localhost:5265/movies/329865'
+{"title":"Arrival","originalTitle":"Arrival","overview":"Taking place after…","hasPoster":true}
+```
+
+There are no seasons, which is the whole of what separates this from the series details above: a
+movie is one thing to watch, so there is nothing for the app to flatten and nothing for it to own
+up to having invented. Nothing is kept here either, and the id is not answered back, because the
+app already has it from the match it opened.
+
+`hasPoster` is answered now though no route yet serves a movie's poster: it is a yes or a no,
+never TMDB's poster path, and it is what will let the app draw a placeholder without firing an ask
+it expects to be refused.
+
+| Situation | Answer |
+| --- | --- |
+| The id is not a number | `404`, with no TMDB call made |
+| TMDB knows no movie with that id | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
