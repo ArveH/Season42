@@ -45,31 +45,36 @@ private struct WatchingRow: View {
     let series: TrackedSeries
 
     var body: some View {
-        PosterRow(poster: series.poster) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(series.title)
-                    .font(.headline)
-                StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            // Only what the row says goes beside the Poster. What it offers spans the row
+            // under both, so the buttons keep the width they had before there was a
+            // thumbnail — at the largest text sizes they need every point of it.
+            PosterRow(poster: series.poster) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(series.title)
+                        .font(.headline)
+                    StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
-                HStack {
-                    if series.isAtLastKnownEpisode {
-                        endOfSeriesQuestion
-                    } else if let nextEpisode = series.nextEpisode {
-                        Button("Mark \(nextEpisode.shorthand) watched") {
-                            library.markNextEpisodeWatched(series)
-                        }
-                        .buttonStyle(.borderedProminent)
+            HStack {
+                if series.isAtLastKnownEpisode {
+                    endOfSeriesQuestion
+                } else if let nextEpisode = series.nextEpisode {
+                    Button("Mark \(nextEpisode.shorthand) watched") {
+                        library.markNextEpisodeWatched(series)
                     }
+                    .buttonStyle(.borderedProminent)
+                }
 
-                    if series.position != nil {
-                        Button("Un-watch", systemImage: "arrow.uturn.backward") {
-                            library.unwatchLastEpisode(series)
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.bordered)
+                if series.position != nil {
+                    Button("Un-watch", systemImage: "arrow.uturn.backward") {
+                        library.unwatchLastEpisode(series)
                     }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
                 }
             }
         }
