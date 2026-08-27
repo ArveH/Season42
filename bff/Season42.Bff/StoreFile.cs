@@ -3,7 +3,7 @@ namespace Season42.Bff;
 /// <summary>
 /// Writing one fetched file into a store, whole or not at all. The two stores that fill
 /// themselves from TMDB — <see cref="LogoStore"/> keyed on the path TMDB published,
-/// <see cref="PosterStore"/> keyed on the series id — differ in what they decide to write and
+/// <see cref="PosterStore"/> keyed on the entry's id — differ in what they decide to write and
 /// what they call it (ADR-0012), and not at all in how the bytes land.
 /// </summary>
 internal static class StoreFile

@@ -1,10 +1,13 @@
 # A Poster is adopted as bytes, and no TMDB id is kept
 
-A Tracked Series carries its Poster as image bytes on itself, exactly as a Streaming Service
+A Library Entry carries its Poster as image bytes on itself, exactly as a Streaming Service
 carries its Logo ([ADR-0007](0007-a-bff-fetches-provider-logos-the-app-keeps-the-bytes.md)). Copy
-writes them in along with the Title, the Description and the seasons; the form shows the adopted
-Poster with a Remove button; and the id the poster was fetched with is discarded with the rest of
-the Series Details.
+writes them in along with the Title, the Description and — for a series — the seasons; the form
+shows the adopted Poster with a Remove button; and the id the poster was fetched with is discarded
+with the rest of the details it was read from.
+
+Taken for a Tracked Series first and extended to a Tracked Movie unchanged: the two adopt on the
+same terms, and everything below is written of both.
 
 **Bytes, because the Library and Watching tabs must draw on a train.** They are the two screens
 the user reaches for most, and neither is a screen the BFF has any business being in. The app
@@ -77,5 +80,5 @@ The escape is the one the user already has for a wrong Logo: search again and co
 series TMDB advertises a poster for and then refuses is indistinguishable, on screen, from one
 it never had. Both draw the placeholder, which is the honest answer either way.
 
-Movies get the same treatment when they get posters, and the rows that draw them come after
-that: the shape of a Poster is settled here so neither has to settle it again.
+Movies adopt on these terms too, and the rows that draw a Poster come after that: the shape of a
+Poster was settled here so neither had to settle it again.

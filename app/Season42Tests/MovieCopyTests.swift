@@ -26,7 +26,9 @@ struct MovieCopyTests {
     /// A movie TMDB carries no overview for copies an empty Description rather than refusing:
     /// the title is what the user came for, and the Description is theirs to write.
     @Test func copyingAMovieWithNoOverviewCopiesAnEmptyDescription() {
-        let copy = MovieDetails(title: "Quiet", originalTitle: "", overview: "").copy(over: .new)
+        let quiet = MovieDetails(title: "Quiet", originalTitle: "", overview: "", hasPoster: false)
+
+        let copy = quiet.copy(over: .new)
 
         #expect(copy.title == "Quiet")
         #expect(copy.summary.isEmpty)
@@ -68,12 +70,16 @@ struct MovieCopyTests {
     /// The Streaming Service and the watched state are the user's alone, and a copy leaves them
     /// alone — so having set them is not a reason to be asked about a copy that cannot touch
     /// them. `MovieFormContents` holds neither, which is what makes that true by construction.
-    @Test func aCopyCarriesNothingButTheTitleAndTheDescription() {
+    /// The Poster is the copy's to carry, and none here: the detail screen drew none.
+    @Test func aCopyCarriesNothingButTheTitleTheDescriptionAndThePoster() {
         let copy = arrival.copy(over: .new)
 
         #expect(
             copy == MovieCopy(
-                title: "Arrival", summary: arrival.overview, overwritesTheForm: false))
+                title: "Arrival",
+                summary: arrival.overview,
+                poster: nil,
+                overwritesTheForm: false))
     }
 
     private var arrival: MovieDetails {
@@ -81,7 +87,8 @@ struct MovieCopyTests {
             title: "Arrival",
             originalTitle: "Arrival (original)",
             overview: "An expert linguist is recruited by the military to determine whether the "
-                + "visitors come in peace or are a threat."
+                + "visitors come in peace or are a threat.",
+            hasPoster: false
         )
     }
 }

@@ -17,10 +17,14 @@ struct TrackedMovieFormView: View {
 
     @State private var title: String
     @State private var summary: String
+    @State private var poster: Data?
     @State private var streamingService: StreamingService?
     @State private var isWatched: Bool
     @State private var failureMessage: String?
     @State private var isSearching = false
+
+    /// How tall the adopted Poster is drawn, scaled with the text beside it.
+    @ScaledMetric(relativeTo: .body) private var posterHeight = 120
 
     init(
         library: Library,
@@ -32,6 +36,7 @@ struct TrackedMovieFormView: View {
         self.movies = movies
         _title = State(initialValue: movie?.title ?? "")
         _summary = State(initialValue: movie?.summary ?? "")
+        _poster = State(initialValue: movie?.poster)
         _streamingService = State(initialValue: movie?.streamingService)
         _isWatched = State(initialValue: movie?.isWatched ?? false)
     }
@@ -50,6 +55,10 @@ struct TrackedMovieFormView: View {
                     }
                     TextField("Description", text: $summary, axis: .vertical)
                         .lineLimit(2...5)
+                }
+
+                if poster != nil {
+                    posterSection
                 }
 
                 Section("Where") {
@@ -93,6 +102,22 @@ struct TrackedMovieFormView: View {
         }
     }
 
+    /// The Poster in force, and the only way to be rid of one copied by mistake. Shown only
+    /// where there is one — there is nothing else to put in the section — and Remove takes the
+    /// Poster and nothing else with it, so a wrong copy is not a reason to lose the rest of
+    /// the form. The bytes are the entry's own, so this draws with no BFF anywhere.
+    private var posterSection: some View {
+        Section("Poster") {
+            HStack {
+                Poster(poster: poster, height: posterHeight)
+                    .accessibilityLabel(title)
+                Spacer()
+                Button("Remove", role: .destructive) { poster = nil }
+                    .buttonStyle(.borderless)
+            }
+        }
+    }
+
     private var isEditing: Bool { editing != nil }
 
     /// What the form is holding, for the search sheet to work out what a copy would land on
@@ -105,12 +130,15 @@ struct TrackedMovieFormView: View {
     /// Takes what the user copied off a Movie Details and closes the sheet. Everything copied
     /// is theirs from here — as editable as if they had typed it, and saved no sooner.
     ///
-    /// Only the two fields TMDB's answer speaks to are written. The Streaming Service and the
-    /// watched state are untouched, and there is nothing else for a copy to move: a movie has
-    /// no seasons and so no Position for copied ones to push around.
+    /// Only the fields TMDB's answer speaks to are written — the Poster among them, as the very
+    /// bytes the detail screen drew, and as nothing where that movie had none: a copy replaces
+    /// what the last one left, rather than leaving one movie's picture over another's title. The
+    /// Streaming Service and the watched state are untouched, and there is nothing else for a
+    /// copy to move: a movie has no seasons and so no Position for copied ones to push around.
     private func apply(_ copied: MovieCopy) {
         title = copied.title
         summary = copied.summary
+        poster = copied.poster
         isSearching = false
     }
 
@@ -121,6 +149,7 @@ struct TrackedMovieFormView: View {
                     editing,
                     title: title,
                     summary: summary,
+                    poster: poster,
                     streamingService: streamingService,
                     isWatched: isWatched
                 )
@@ -128,6 +157,7 @@ struct TrackedMovieFormView: View {
                 try library.addTrackedMovie(
                     title: title,
                     summary: summary,
+                    poster: poster,
                     streamingService: streamingService
                 )
             }

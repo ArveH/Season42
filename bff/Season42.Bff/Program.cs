@@ -119,7 +119,7 @@ app.MapGet("/series/{id:int}/poster", async (
 {
     try
     {
-        var bytes = await posters.ReadOrFetchAsync(id, cancellationToken);
+        var bytes = await posters.ReadOrFetchAsync(PosterSubject.Series, id, cancellationToken);
 
         // TMDB listing no poster and TMDB never having heard of the id are one answer here: there
         // is no poster to be had. The details the app already read say which of the two it is,
@@ -182,6 +182,33 @@ app.MapGet("/movies/{id:int}", async (
         app.Logger.LogWarning(exception, "TMDB could not be asked about the movie {Id}.", id);
         return Results.Problem(
             "TMDB could not be asked for movies.", statusCode: StatusCodes.Status502BadGateway);
+    }
+});
+
+// One movie's poster, on the same terms as a series' above and out of the same store: by the id
+// its details were read with, never by a path, so the route reading an int is the whole of its
+// validation. The store keeps the two apart by which kind of thing was asked about, because TMDB
+// numbers its movies and its series separately (ADR-0012).
+app.MapGet("/movies/{id:int}/poster", async (
+    int id, PosterStore posters, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var bytes = await posters.ReadOrFetchAsync(PosterSubject.Movie, id, cancellationToken);
+
+        // TMDB listing no poster and TMDB never having heard of the id are one answer here: there
+        // is no poster to be had. The details the app already read say which of the two it is,
+        // and say it before the app asks at all.
+        return bytes is null
+            ? Results.Problem(
+                "TMDB has no poster for that movie.", statusCode: StatusCodes.Status404NotFound)
+            : Results.File(bytes, PosterStore.ContentType);
+    }
+    catch (Exception exception) when (TmdbFailed(exception, cancellationToken))
+    {
+        app.Logger.LogWarning(exception, "TMDB could not serve the poster of the movie {Id}.", id);
+        return Results.Problem(
+            "TMDB could not be asked for that poster.", statusCode: StatusCodes.Status502BadGateway);
     }
 });
 

@@ -107,11 +107,14 @@ final class Library {
 
     /// Adds a Tracked Movie, unwatched — which is to say, a watchlist entry.
     ///
+    /// - Parameter poster: the Poster bytes copied off a search, or nil for a movie entered by
+    ///   hand — which is every movie until a copy brings one.
     /// - Throws: `LibraryError.movieTitleIsBlank` if there is no title; nothing is stored then.
     @discardableResult
     func addTrackedMovie(
         title: String,
         summary: String = "",
+        poster: Data? = nil,
         streamingService: StreamingService? = nil
     ) throws -> TrackedMovie {
         let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
@@ -119,6 +122,7 @@ final class Library {
         let movie = TrackedMovie(
             title: title,
             summary: summary.trimmed,
+            poster: poster,
             streamingService: streamingService,
             addedAt: now()
         )
@@ -250,6 +254,7 @@ final class Library {
         _ movie: TrackedMovie,
         title: String,
         summary: String,
+        poster: Data?,
         streamingService: StreamingService?,
         isWatched: Bool
     ) throws {
@@ -257,6 +262,7 @@ final class Library {
 
         movie.title = title
         movie.summary = summary.trimmed
+        movie.poster = poster
         movie.streamingService = streamingService
         if isWatched != movie.isWatched {
             setWatched(isWatched, on: movie)

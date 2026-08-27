@@ -1,7 +1,7 @@
 import Foundation
 
-/// What Copy would write into the movie form, worked out before it is tapped: a Title and a
-/// Description.
+/// What Copy would write into the movie form, worked out before it is tapped: a Title, a
+/// Description and the Poster.
 ///
 /// A value rather than something the detail screen does, for the same reason a `SeriesCopy` is
 /// one — every rule about copying lives in here, and a rule in a value is a rule with a test.
@@ -18,6 +18,15 @@ struct MovieCopy: Equatable, Sendable {
     /// What the movie is about, in TMDB's words. The Description, theirs to edit from there,
     /// and never a link back to where it came from (ADR-0002).
     let summary: String
+
+    /// The poster the detail screen drew, as bytes, or nil where it drew none. The very bytes
+    /// the user looked at — the poster is fetched once, so what they saw is what they keep —
+    /// and theirs from the moment they land, kept on the Tracked Movie itself so the Library
+    /// draws them with the BFF stopped, unreachable or never deployed (ADR-0013).
+    ///
+    /// Nil is an ordinary outcome, not a failure: TMDB has no poster, or the bytes would not
+    /// come. Either way everything else copies.
+    let poster: Data?
 
     /// Whether copying would take something the user has already put in the form, which is what
     /// makes Copy ask before it writes.
@@ -47,7 +56,15 @@ struct MovieFormContents: Equatable, Sendable {
 extension MovieDetails {
     /// What copying this into `form` would write. Nothing is dropped and nothing is invented on
     /// the way, so unlike a series' copy there is nothing to state first.
-    func copy(over form: MovieFormContents) -> MovieCopy {
-        MovieCopy(title: title, summary: overview, overwritesTheForm: form.isTypedInto)
+    ///
+    /// - Parameter poster: the bytes the detail screen is drawing, which are the bytes this copy
+    ///   keeps. Nil where there are none, which copies no Poster and costs nothing else.
+    func copy(over form: MovieFormContents, poster: Data? = nil) -> MovieCopy {
+        MovieCopy(
+            title: title,
+            summary: overview,
+            poster: poster,
+            overwritesTheForm: form.isTypedInto
+        )
     }
 }

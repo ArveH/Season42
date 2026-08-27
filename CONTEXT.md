@@ -63,7 +63,7 @@ tab — the `tv` symbol in secondary grey stands in for a Logo that isn't there.
 _Avoid_: icon, artwork, provider logo, image
 
 **Poster**:
-The picture of a Library Entry the user adopted with a Copy — a Tracked Series today — held on
+The picture of a Library Entry the user adopted with a Copy, held on
 the entry as bytes exactly as a Logo is held on a Streaming Service, and for the same reason: what
 the app has adopted must draw with the BFF stopped, unreachable or never deployed, which the
 Library and Watching tabs are about to need of it (ADR-0013). Once adopted it is theirs: nothing
@@ -95,12 +95,14 @@ deleting it costs fetches.
 _Avoid_: logo cache, image proxy
 
 **Poster Store**:
-Where the BFF keeps the poster images it has fetched, one file per series under the series' id —
-deliberately not under the path TMDB published it at, as the Logo Store is (ADR-0012). It fills
+Where the BFF keeps the poster images it has fetched, one file per series or movie under that
+entry's id — deliberately not under the path TMDB published it at, as the Logo Store is
+(ADR-0012). The id is only half the key: TMDB numbers its series and its movies apart, so the two
+are kept apart in the store as well and a shared number is no collision. It fills
 itself the way the Logo Store does and nothing in it expires either; what differs is the key, and
 what it costs. A hit is answered without asking TMDB anything at all, and only a miss pays a
-details call to find the poster and then the image itself. Nothing is remembered about a series
-TMDB has no poster for. Like the stores beside it, it holds nothing the user owns: deleting it
+details call to find the poster and then the image itself. Nothing is remembered about a series or
+a movie TMDB has no poster for. Like the stores beside it, it holds nothing the user owns: deleting it
 costs fetches.
 _Avoid_: poster cache, image proxy
 
@@ -135,7 +137,8 @@ _Avoid_: search result, TMDB movie, candidate
 
 **Movie Details**:
 What the user reads about the one movie they opened from a search: its title, its original title,
-what it is about, and whether there is a poster to be had. No seasons, which is the whole of what
+what it is about, and whether there is a poster to be had — a yes or a no and never TMDB's path
+to it, exactly as a Series Details answers it. No seasons, which is the whole of what
 separates it from a Series Details: a movie is one thing to watch, so nothing about it is
 flattened and nothing about a Copy of it is invented. This is what a Movie Match's id is asked the
 next question with, and the only question there is to ask with it. Someone else's data like the
@@ -154,10 +157,11 @@ sooner: the Library holds what was copied, never a link back to where it came fr
 Because the flatten invents episode counts, every invention is stated on the detail screen before
 Copy is tapped, as a Copy Note.
 
-Copying a Movie Details is the same act with less in it: the title becomes the Title and the
-overview becomes the Description, and that is all there is. No seasons to flatten means nothing
-invented and so no Copy Note, and the Streaming Service and the watched state are the user's alone
-as they are for a series. A Poster is the next thing a movie's Copy will take; today it takes none.
+Copying a Movie Details is the same act with less in it: the title becomes the Title, the overview
+becomes the Description, and the poster the detail screen drew becomes the Poster, on the same
+terms as a series' — the very bytes the user looked at. That is all there is. No seasons to flatten
+means nothing invented and so no Copy Note, and the Streaming Service and the watched state are
+the user's alone as they are for a series.
 _Avoid_: import, sync, add from TMDB
 
 **Copy Note**:

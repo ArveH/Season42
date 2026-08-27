@@ -1,14 +1,15 @@
 import Foundation
 
-/// Where a search for a movie gets its answers from. Two asks and no rules: which text to
-/// search for, what an empty answer means and what a fetch that failed shows are all decisions
-/// of `MovieSearch` — which is what lets every one of them be tested against a stub and leaves
-/// only `BffClient` needing a network.
+/// Where a search for a movie gets its answers from. Three asks and no rules: which text to
+/// search for, what an empty answer means, what a fetch that failed shows and what becomes of
+/// the poster bytes are all decisions of `MovieSearch` — which is what lets every one of them be
+/// tested against a stub and leaves only `BffClient` needing a network.
 ///
-/// Two asks and not one, because opening a match is the second half of searching: the search
-/// answers with ids, and an id is only good for asking the next question with. Two and not
-/// three, because a movie carries no Poster yet — that is what makes this smaller than
-/// `SeriesSearching` rather than a copy of it.
+/// Three asks and not one, because opening a match is the second half of searching: the search
+/// answers with ids, and an id is only good for asking the next two questions with — the
+/// details, and the poster the details said was there. The same three `SeriesSearching` asks,
+/// for the other kind of Library Entry, and separate from it because they are separate asks of
+/// the BFF.
 ///
 /// `Library` knows nothing of this. A search touches no store: the Library is the user's own
 /// and a Movie Match is someone else's data, so the two only ever meet when the user copies.
@@ -32,4 +33,12 @@ protocol MovieSearching: Sendable {
     ///   the user tapped a match that was served moments ago, so anything other than the details
     ///   is the same "couldn't ask" to them.
     func movieDetails(for id: Int) async throws -> MovieDetails
+
+    /// The poster image bytes of the movie with this id — the same id the details were read
+    /// with, because there is no path to ask with and the app never sees one (ADR-0012).
+    ///
+    /// - Throws: whatever went wrong reaching or reading them, a movie TMDB has no poster for
+    ///   included. A detail screen without its poster is still a detail screen, so this failing
+    ///   costs a picture and nothing else: everything else still copies.
+    func moviePoster(for id: Int) async throws -> Data
 }

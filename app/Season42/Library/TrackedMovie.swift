@@ -9,6 +9,12 @@ final class TrackedMovie {
     var title: String
     /// What the movie is about, as the user typed it.
     var summary: String
+
+    /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
+    /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
+    /// once copied, nothing refreshes it, and the Library tab draws it with the BFF stopped,
+    /// unreachable or never deployed (ADR-0013).
+    var poster: Data?
     /// Where the user watches it, or nil if they watch it nowhere they have registered.
     var streamingService: StreamingService?
     var addedAt: Date
@@ -21,6 +27,7 @@ final class TrackedMovie {
     init(
         title: String,
         summary: String,
+        poster: Data? = nil,
         streamingService: StreamingService?,
         addedAt: Date,
         isWatched: Bool = false,
@@ -28,6 +35,7 @@ final class TrackedMovie {
     ) {
         self.title = title
         self.summary = summary
+        self.poster = poster
         self.streamingService = streamingService
         self.addedAt = addedAt
         self.isWatched = isWatched
