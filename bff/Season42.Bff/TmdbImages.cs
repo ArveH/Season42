@@ -3,7 +3,7 @@ namespace Season42.Bff;
 /// <summary>
 /// The one place that talks to TMDB's image host. It hands back an image's bytes; deciding
 /// whether to ask at all belongs to the store that asked — <see cref="LogoStore"/> for a Watch
-/// Provider's logo, <see cref="PosterStore"/> for a series' poster.
+/// Provider's logo, <see cref="PosterStore"/> for a series' or a movie's poster.
 /// </summary>
 /// <remarks>
 /// The sizes live here together, one committed constant each, because a size is what the bytes
@@ -30,7 +30,7 @@ public sealed class TmdbImages(HttpClient http)
     public Task<byte[]> FetchLogoAsync(string file, CancellationToken cancellationToken) =>
         FetchAsync(LogoSize, file, cancellationToken);
 
-    /// <summary>The bytes of one series' poster, at <see cref="PosterSize"/>.</summary>
+    /// <summary>The bytes of one poster, at <see cref="PosterSize"/>.</summary>
     /// <param name="path">TMDB's poster path, leading slash and all.</param>
     /// <inheritdoc cref="FetchAsync" path="/exception"/>
     public Task<byte[]> FetchPosterAsync(string path, CancellationToken cancellationToken) =>

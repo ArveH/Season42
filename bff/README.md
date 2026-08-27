@@ -4,7 +4,7 @@ An ASP.NET Core server whose only job is to hold the TMDB access token off the p
 the configured region's TV watch providers from TMDB on startup and every 24 hours, keeps the last
 good snapshot in memory and on disk, and serves matches from it (ADR-0007). It also searches TMDB
 for series and for movies and reads one of either's details, which it keeps nothing of, and serves
-a series' poster, which it keeps.
+either's poster, which it keeps.
 
 Projects: `Season42.Bff` (the server) and `Season42.Bff.Tests` (xUnit, driving the real endpoints
 through `WebApplicationFactory`). The solution file is `Season42.slnx` at the repo root.
@@ -17,7 +17,7 @@ through `WebApplicationFactory`). The solution file is `Season42.slnx` at the re
 | --- | --- | --- |
 | `Tmdb:AccessToken` | *(empty)* | A TMDB API Read Access Token. Empty is a startup failure. |
 | `Tmdb:WatchRegion` | `NO` | The country whose TV watch providers are fetched. |
-| `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`), the logo bytes (`logos/`) and the poster bytes (`posters/`). Relative to the content root. |
+| `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`), the logo bytes (`logos/`) and the poster bytes (`posters/series/` and `posters/movies/`). Relative to the content root. |
 
 The token never belongs in `appsettings.json`. Set it with user-secrets:
 
@@ -411,8 +411,10 @@ curl -o severance.jpg 'http://localhost:5265/series/95396/poster'
 ```
 
 The first ask costs two TMDB calls — the details that say where the poster is, then the image
-itself — and writes the bytes into `posters/` under the store path, named after the **series
-id**. Every ask after that is served from there with no TMDB call at all, restarts included.
+itself — and writes the bytes into `posters/series/` under the store path, named after the
+**series id**. Every ask after that is served from there with no TMDB call at all, restarts
+included. The `series/` in the path is the other half of the key: TMDB numbers its series and its
+movies apart, so a movie's poster of the same id is a different file (ADR-0012).
 
 The id is the key on purpose, and it is what separates this store from the logo store beside it:
 there is no snapshot of posters to resolve an id against, so keying on TMDB's path would mean
@@ -463,12 +465,32 @@ movie is one thing to watch, so there is nothing for the app to flatten and noth
 up to having invented. Nothing is kept here either, and the id is not answered back, because the
 app already has it from the match it opened.
 
-`hasPoster` is answered now though no route yet serves a movie's poster: it is a yes or a no,
-never TMDB's poster path, and it is what will let the app draw a placeholder without firing an ask
-it expects to be refused.
+`hasPoster` is a yes or a no, never TMDB's poster path — the poster is asked for by this same id
+(ADR-0012) — and it is what lets the app draw a placeholder without firing an ask it expects to be
+refused.
 
 | Situation | Answer |
 | --- | --- |
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no movie with that id | `404` |
+| TMDB refused, said nothing, or answered with something unreadable | `502` |
+
+### `GET /movies/{id}/poster`
+
+The poster image of one movie, at size `w342`, on the same terms as the series poster above and
+out of the same store: a miss pays the details call that says where the poster is and then the
+image, every ask after that is served from disk, and nothing is remembered about a movie TMDB
+lists no poster for.
+
+```sh
+curl -o arrival.jpg 'http://localhost:5265/movies/329865/poster'
+```
+
+The bytes land in `posters/movies/` under the store path, named after the **movie id**. The two
+keyspaces are TMDB's own, so a series and a movie that share a number keep separate posters.
+
+| Situation | Answer |
+| --- | --- |
+| The id is not a number | `404`, with no TMDB call made |
+| TMDB knows no movie with that id, or lists no poster for it | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |

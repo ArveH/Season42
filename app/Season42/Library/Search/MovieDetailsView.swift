@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// What tapping a movie match pushes: its title, what it is called where it was made, what it
-/// is about, and the Copy that fills the form in with them. Back is the navigation bar's own,
+/// What tapping a movie match pushes: the movie's poster, its title, what it is called where it
+/// was made, what it is about, and the Copy that fills the form in with them. Back is the navigation bar's own,
 /// and the results are still listed underneath it, so trying a second match is one tap rather
 /// than a fresh search.
 ///
-/// Shorter than the series' detail screen by everything a movie hasn't got: no poster, no
-/// seasons, and so no notes — nothing is dropped or invented on the way into the form, so there
-/// is nothing to state before Copy is tapped.
+/// Shorter than the series' detail screen by everything a movie hasn't got: no seasons, and so
+/// no notes — nothing is dropped or invented on the way into the form, so there is nothing to
+/// state before Copy is tapped.
 ///
 /// Every rule about reading the details is `MovieSearch`'s — opening a match is the second half
 /// of the search, not a thing of its own.
@@ -31,6 +31,9 @@ struct MovieDetailsView: View {
     /// asked whether they meant it. Nil the rest of the time.
     @State private var pendingCopy: MovieCopy?
 
+    /// How tall the poster is drawn, scaled with the text around it.
+    @ScaledMetric(relativeTo: .body) private var posterHeight = 180
+
     var body: some View {
         Form {
             switch search.detailsState {
@@ -38,8 +41,9 @@ struct MovieDetailsView: View {
                 loadingSection
 
             case .loaded(let details):
+                posterSection
                 aboutSection(details)
-                copySection(details.copy(over: form))
+                copySection(details.copy(over: form, poster: search.poster))
 
             case .failed:
                 failedSection
@@ -62,7 +66,7 @@ struct MovieDetailsView: View {
             Button("Keep what I typed", role: .cancel) {}
         } message: { _ in
             Text(
-                "The title and the description on the form are replaced. "
+                "The title, the description and the poster on the form are replaced. "
                     + "Your streaming service and whether you have watched it are left alone."
             )
         }
@@ -89,6 +93,28 @@ struct MovieDetailsView: View {
                 systemImage: "exclamationmark.triangle"
             )
             .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The poster, or the stand-in where there is none to draw — TMDB has none, or the bytes
+    /// would not come. A poster still on its way spins in the same frame rather than showing
+    /// the stand-in, which would say "this movie has no poster" about one that has.
+    ///
+    /// The bytes drawn here are the bytes Copy keeps: the poster is fetched once, so what the
+    /// user looked at is what they end up with.
+    @ViewBuilder
+    private var posterSection: some View {
+        Section {
+            Group {
+                if search.posterState == .loading {
+                    ProgressView()
+                        .frame(width: posterHeight * 2 / 3, height: posterHeight)
+                } else {
+                    Poster(poster: search.poster, height: posterHeight)
+                        .accessibilityLabel(match.title)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -125,7 +151,7 @@ struct MovieDetailsView: View {
             }
         } footer: {
             Text(
-                "Fills in the title and the description, and leaves the rest to you. "
+                "Fills in the title, the description and the poster, and leaves the rest to you. "
                     + "Nothing is saved until you save the form."
             )
         }
@@ -145,6 +171,14 @@ struct MovieDetailsView: View {
 
 #Preview("One title only") {
     PreviewMovieDetailScreen(movies: PreviewMovieDetails(originalTitle: "", overview: ""))
+}
+
+#Preview("No poster") {
+    PreviewMovieDetailScreen(movies: PreviewMovieDetails(hasPoster: false))
+}
+
+#Preview("A poster that won't fetch") {
+    PreviewMovieDetailScreen(movies: PreviewMovieDetails(posterFails: true))
 }
 
 #Preview("Unreachable") {
@@ -178,11 +212,23 @@ private struct PreviewMovieDetails: MovieSearching {
     var overview = "Taking place after alien crafts land around the world, an expert linguist is "
         + "recruited by the military to determine whether they come in peace or are a threat."
     var fails = false
+    var hasPoster = true
+    var posterFails = false
 
     func movies(matching text: String) async throws -> [MovieMatch] { [] }
 
     func movieDetails(for id: Int) async throws -> MovieDetails {
         if fails { throw BffError.notServed(status: 502) }
-        return MovieDetails(title: "Arrival", originalTitle: originalTitle, overview: overview)
+        return MovieDetails(
+            title: "Arrival",
+            originalTitle: originalTitle,
+            overview: overview,
+            hasPoster: hasPoster
+        )
+    }
+
+    func moviePoster(for id: Int) async throws -> Data {
+        if posterFails { throw BffError.notServed(status: 502) }
+        return PreviewPoster.bytes(.systemTeal)
     }
 }

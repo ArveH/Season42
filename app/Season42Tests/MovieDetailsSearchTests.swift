@@ -151,7 +151,8 @@ struct MovieDetailsSearchTests {
             title: "Arrival",
             originalTitle: "Arrival (original)",
             overview: "An expert linguist is recruited by the military to determine whether the "
-                + "visitors come in peace or are a threat."
+                + "visitors come in peace or are a threat.",
+            hasPoster: false
         )
     }
 
@@ -159,7 +160,8 @@ struct MovieDetailsSearchTests {
         MovieDetails(
             title: "Dune",
             originalTitle: "Dune",
-            overview: "Paul Atreides leads nomadic tribes in a revolt against the galactic emperor."
+            overview: "Paul Atreides leads nomadic tribes in a revolt against the galactic emperor.",
+            hasPoster: false
         )
     }
 }

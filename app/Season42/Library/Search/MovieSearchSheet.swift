@@ -170,7 +170,8 @@ private struct PreviewMovies: MovieSearching {
         title: "Arrival",
         originalTitle: "Arrival",
         overview: "An expert linguist is recruited by the military to determine whether the "
-            + "visitors come in peace or are a threat."
+            + "visitors come in peace or are a threat.",
+        hasPoster: true
     )
 
     func movies(matching text: String) async throws -> [MovieMatch] {
@@ -181,5 +182,10 @@ private struct PreviewMovies: MovieSearching {
     func movieDetails(for id: Int) async throws -> MovieDetails {
         if fails { throw BffError.notServed(status: 502) }
         return details
+    }
+
+    func moviePoster(for id: Int) async throws -> Data {
+        if fails { throw BffError.notServed(status: 502) }
+        return PreviewPoster.bytes(.systemTeal)
     }
 }

@@ -6,7 +6,8 @@ import Foundation
 /// `GET /logos/{file}` for the bytes behind one, `GET /series?query=` for the Series Matches a
 /// search matched, `GET /series/{id}` for the Series Details behind one,
 /// `GET /series/{id}/poster` for that series' poster, `GET /movies?query=` for the Movie
-/// Matches a search matched, and `GET /movies/{id}` for the Movie Details behind one.
+/// Matches a search matched, `GET /movies/{id}` for the Movie Details behind one, and
+/// `GET /movies/{id}/poster` for that movie's poster.
 ///
 /// It conforms to the narrow protocols the rest of the app asks through — `LogoSearching`,
 /// `SeriesSearching` and `MovieSearching` today, more as the BFF grows — so nothing outside
@@ -110,6 +111,19 @@ struct BffClient: LogoSearching, SeriesSearching, MovieSearching {
         // behind them either way.
         return try await fetch(
             baseUrl.appending(path: "series").appending(path: String(id)).appending(path: "poster")
+        )
+    }
+
+    func moviePoster(for id: Int) async throws -> Data {
+        // Asked by the id the details were read with, never by a path, exactly as a series'
+        // poster is: the details carry a yes or a no and nothing the app could send becomes part
+        // of a filename (ADR-0012).
+        //
+        // Cached bytes are as good as fetched ones, as a logo's are: the user is about to keep
+        // whichever bytes they are shown as their own, and the BFF is holding the same picture
+        // behind them either way.
+        return try await fetch(
+            baseUrl.appending(path: "movies").appending(path: String(id)).appending(path: "poster")
         )
     }
 

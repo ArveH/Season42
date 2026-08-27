@@ -1,10 +1,14 @@
 # A poster is asked for by id, and the store keys on it
 
-The BFF serves series posters. `GET /series/{id:int}/poster` looks in a local store first; on a
-miss it asks TMDB for the series' details, reads the poster path out of them, fetches the image
-from TMDB's image host at size `w342`, writes it into the store under the id, and returns it. The
-details payload gains `hasPoster`, so the app knows whether there is anything to ask for before
-it asks.
+The BFF serves posters. `GET /series/{id:int}/poster` and `GET /movies/{id:int}/poster` look in a
+local store first; on a miss the route asks TMDB for that entry's details, reads the poster path
+out of them, fetches the image from TMDB's image host at size `w342`, writes it into the store
+under the id, and returns it. Both details payloads carry `hasPoster`, so the app knows whether
+there is anything to ask for before it asks.
+
+Taken for series first and extended to movies unchanged, which is what the id key made cheap:
+everything below is written of both, and the one thing the second route added is the paragraph
+after next.
 
 **A poster is asked for by id, never by a TMDB path.** The app never sees a poster path — the
 details payload carries a yes or a no, not the path — so there is no caller-supplied path to
@@ -24,6 +28,11 @@ no snapshot to resolve an id against, keying on the path would mean spending a d
 every hit just to learn what the file is called — and a store that costs a TMDB call per hit is
 not a store. Keyed on the id, a hit costs no TMDB call at all, and only a miss pays
 details-then-image.
+
+**The id is only half the key: the store keys on the kind of thing as well.** TMDB numbers its
+series and its movies in separate keyspaces, so 550 names one of each and their posters must not
+stand in for one another. The store keeps them in `posters/series/` and `posters/movies/`, spelled
+as the two routes are, and the id means what it means inside one of them.
 
 Nothing expires — but not for the logo store's reason, and the difference is the id key again. The
 logo store's bytes cannot go stale, because a rebranded provider arrives under a new path and the
@@ -72,7 +81,8 @@ user looks at is what they keep.
 ## Consequences
 
 The store directory holds three kinds of thing now — `watch-providers.json`, `logos/` and
-`posters/` — and all three are still a cache of someone else's data. Deleting it costs fetches and
+`posters/`, the last split by kind into `series/` and `movies/` — and all three are still a cache
+of someone else's data. Deleting it costs fetches and
 nothing else, which is what ADR-0007 promised about it.
 
 `w342` is baked into the bytes on disk rather than recorded beside them, as `w154` is for logos.
@@ -86,7 +96,7 @@ in either case.
 
 A miss costs two TMDB calls where a logo's costs one, and the extra one is on the authenticated
 API rather than the public image host. This is the price of the id key, and it is paid once per
-series for the life of the store.
+entry for the life of the store.
 
 The gates that make two simultaneous asks cost one fetch are reclaimed here, where the logo
 store's are kept. The logo store's keys come from the snapshot and so are bounded by it; a poster's

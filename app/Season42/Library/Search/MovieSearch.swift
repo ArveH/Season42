@@ -11,8 +11,9 @@ import Foundation
 /// of choosing which movie the user meant, and it is what a Movie Match's id exists to be asked
 /// with.
 ///
-/// The same shape as `SeriesSearch` with one thing missing: a movie carries no Poster yet, so
-/// there is no third ask and nothing to keep the bytes of.
+/// The same shape as `SeriesSearch`, poster and all: a movie's Poster is adopted on the same
+/// terms as a series', so opening a match reads the details and then fetches the picture the
+/// screen draws and Copy keeps.
 ///
 /// The text starts out as the form's Title and is not the form's Title: it is a copy, editable
 /// here and written back nowhere. Only copying a match ever reaches the form.
@@ -57,6 +58,22 @@ final class MovieSearch {
         case failed
     }
 
+    /// Where the opened match's poster has got to. Three cases and not an optional, because
+    /// "there is none" and "it hasn't arrived yet" are different things to draw: a stand-in
+    /// for the first would be a lie for the second, and the details already say which it is.
+    enum PosterState: Equatable {
+        /// There is no poster to draw — TMDB has none, or the bytes would not come. One case
+        /// for both: to the user they are the same missing picture, and there is nothing to
+        /// correct either way.
+        case none
+
+        /// TMDB has one and it is on its way.
+        case loading
+
+        /// The bytes, which are what the detail screen draws and what Copy keeps.
+        case adopted(Data)
+    }
+
     /// What the search is for. Pre-filled from the Title the sheet was opened over, and the
     /// user's to correct from there without the Title moving with it.
     var text: String
@@ -69,6 +86,20 @@ final class MovieSearch {
     private(set) var openedMatch: MovieMatch?
 
     private(set) var detailsState: DetailsState = .loading
+
+    /// Where the opened match's poster has got to. Fetched once, here: what the detail screen
+    /// draws is what Copy keeps, so there is one ask and not two.
+    ///
+    /// Reset the moment another match is opened, so a poster never outlives the movie it was
+    /// fetched for.
+    private(set) var posterState: PosterState = .none
+
+    /// The bytes to draw and to copy, and nil where there are none — which a poster still on
+    /// its way is too: nothing keeps what hasn't arrived.
+    var poster: Data? {
+        guard case .adopted(let bytes) = posterState else { return nil }
+        return bytes
+    }
 
     private let movies: any MovieSearching
 
@@ -109,19 +140,30 @@ final class MovieSearch {
         }
     }
 
-    /// Opens `match` and reads its details. The results are left exactly as they are, which is
-    /// what makes Back a return to them rather than a second search.
+    /// Opens `match`, reads its details, and fetches the poster if the details say there is
+    /// one. The results are left exactly as they are, which is what makes Back a return to them
+    /// rather than a second search.
     ///
-    /// Never throws: details that can't be read are a state the detail screen shows. A match
-    /// opened while an earlier one's answer is still owed makes it stale, and a stale answer is
-    /// dropped rather than shown under the wrong title.
+    /// Never throws: details that can't be read are a state the detail screen shows, and a
+    /// poster that can't be fetched is simply no poster — it costs a picture and stops nothing.
+    /// A match opened while an earlier one's answers are still owed makes them stale, and a
+    /// stale answer is dropped rather than shown under the wrong title.
     func open(_ match: MovieMatch) async {
         openedMatch = match
         detailsState = .loading
+        posterState = .none
         do {
             let details = try await movies.movieDetails(for: match.id)
             guard openedMatch == match else { return }
             detailsState = .loaded(details)
+
+            // Nothing to ask for where TMDB has no poster, which is what `hasPoster` is in the
+            // payload for: a placeholder is drawn without an ask that would only be refused.
+            guard details.hasPoster else { return }
+            posterState = .loading
+            let bytes = try? await movies.moviePoster(for: match.id)
+            guard openedMatch == match else { return }
+            posterState = bytes.map(PosterState.adopted) ?? .none
         } catch {
             guard openedMatch == match else { return }
             detailsState = .failed

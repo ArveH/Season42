@@ -180,6 +180,7 @@ struct EditingTests {
             movie,
             title: "Arrival",
             summary: "Linguistics, non-linearly.",
+            poster: nil,
             streamingService: try library.service("Netflix"),
             isWatched: true
         )
@@ -336,6 +337,7 @@ private extension Library {
         _ movie: TrackedMovie,
         title: String,
         summary: String = "",
+        poster: Data? = nil,
         streamingService: StreamingService? = nil,
         isWatched: Bool = false
     ) throws {
@@ -343,6 +345,7 @@ private extension Library {
             movie,
             title: title,
             summary: summary,
+            poster: poster,
             streamingService: streamingService,
             isWatched: isWatched
         )

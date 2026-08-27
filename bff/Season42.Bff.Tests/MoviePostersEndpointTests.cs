@@ -3,17 +3,18 @@ using System.Net;
 namespace Season42.Bff.Tests;
 
 /// <summary>
-/// The poster of one series, asked for by the id a Series Match carried. Unlike the logo route
-/// beside it, there is no snapshot to check an ask against — so what makes this route safe is
-/// that a poster is never asked for by a TMDB path: the app has none to send (ADR-0012).
+/// The poster of one movie, asked for by the id a Movie Match carried. The series poster route
+/// beside it on the same terms and out of the same store, so what these prove of a movie is what
+/// <see cref="PostersEndpointTests"/> proves of a series — with one thing added that neither
+/// proves alone: TMDB numbers its movies and its series apart, so an id is only half a key.
 /// </summary>
-public class PostersEndpointTests
+public class MoviePostersEndpointTests
 {
-    /// <summary>The id of Severance in <see cref="FakeTmdb.DefaultSeriesDetails"/>.</summary>
-    private const int KnownSeries = 95396;
+    /// <summary>The id of Arrival in <see cref="FakeTmdb.DefaultMovieDetails"/>.</summary>
+    private const int KnownMovie = 329865;
 
     /// <summary>The file TMDB's poster path in that answer names.</summary>
-    private const string KnownPosterFile = "lFf6LLrQjYldcZItzOkGmMMigP7.jpg";
+    private const string KnownPosterFile = "x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg";
 
     [Fact]
     public async Task Poster_NotYetInTheStore_IsFetchedFromTmdbAndReturned()
@@ -21,7 +22,7 @@ public class PostersEndpointTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var response = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("image/jpeg", response.Content.Headers.ContentType?.MediaType);
@@ -29,8 +30,8 @@ public class PostersEndpointTests
     }
 
     /// <summary>
-    /// A miss pays twice — the details that say where the poster is, then the poster itself.
-    /// It is the whole reason a hit is worth having.
+    /// A miss pays twice — the details that say where the poster is, then the poster itself — and
+    /// it is TMDB's movie half that is asked, not the series half the route beside this asks.
     /// </summary>
     [Fact]
     public async Task Poster_NotYetInTheStore_IsAskedForAtTheOneSizeTheAppKeeps()
@@ -38,9 +39,10 @@ public class PostersEndpointTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        await client.GetAsync($"/series/{KnownSeries}/poster");
+        await client.GetAsync($"/movies/{KnownMovie}/poster");
 
-        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Single(factory.Tmdb.MovieDetailsRequests);
+        Assert.Empty(factory.Tmdb.SeriesDetailsRequests);
         var request = Assert.Single(factory.Tmdb.ImageRequests);
         Assert.Equal(
             $"https://image.tmdb.org/t/p/{TmdbImages.PosterSize}/{KnownPosterFile}",
@@ -57,14 +59,14 @@ public class PostersEndpointTests
         using var factory = new BffFactory();
         var client = factory.CreateClient();
 
-        var first = await client.GetAsync($"/series/{KnownSeries}/poster");
-        var second = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var first = await client.GetAsync($"/movies/{KnownMovie}/poster");
+        var second = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
         Assert.Equal(
             await first.Content.ReadAsByteArrayAsync(), await second.Content.ReadAsByteArrayAsync());
         Assert.Single(factory.Tmdb.ImageRequests);
-        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Single(factory.Tmdb.MovieDetailsRequests);
     }
 
     [Fact]
@@ -74,20 +76,42 @@ public class PostersEndpointTests
 
         using (var first = new BffFactory(storePath: storePath))
         {
-            var response = await first.CreateClient().GetAsync($"/series/{KnownSeries}/poster");
+            var response = await first.CreateClient().GetAsync($"/movies/{KnownMovie}/poster");
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.True(File.Exists(first.PosterPathOf(PosterSubject.Series, KnownSeries)));
+            Assert.True(File.Exists(first.PosterPathOf(PosterSubject.Movie, KnownMovie)));
             // Never under the path TMDB published it at: that is the logo store's key, not this one.
             Assert.False(File.Exists(Path.Combine(first.PosterDirectory, KnownPosterFile)));
         }
 
         using var restarted = new BffFactory(storePath: storePath);
-        var restartedResponse = await restarted.CreateClient().GetAsync($"/series/{KnownSeries}/poster");
+        var restartedResponse = await restarted.CreateClient().GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.OK, restartedResponse.StatusCode);
         Assert.Empty(restarted.Tmdb.ImageRequests);
-        Assert.Empty(restarted.Tmdb.SeriesDetailsRequests);
+        Assert.Empty(restarted.Tmdb.MovieDetailsRequests);
+    }
+
+    /// <summary>
+    /// An id is only half a key. TMDB numbers its movies and its series separately, so the same
+    /// number names two different things and their posters must not stand in for one another.
+    /// </summary>
+    [Fact]
+    public async Task Poster_OfAMovieAndOfASeriesWithTheSameId_AreKeptApart()
+    {
+        var tmdb = new FakeTmdb();
+        using var factory = new BffFactory(tmdb);
+        var client = factory.CreateClient();
+
+        await client.GetAsync($"/series/{KnownMovie}/poster");
+        await client.GetAsync($"/movies/{KnownMovie}/poster");
+
+        // Each paid for its own miss: the movie's ask was not answered out of the series' file.
+        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Single(factory.Tmdb.MovieDetailsRequests);
+        Assert.Equal(2, factory.Tmdb.ImageRequests.Count);
+        Assert.True(File.Exists(factory.PosterPathOf(PosterSubject.Series, KnownMovie)));
+        Assert.True(File.Exists(factory.PosterPathOf(PosterSubject.Movie, KnownMovie)));
     }
 
     /// <summary>
@@ -102,18 +126,17 @@ public class PostersEndpointTests
         var held = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         factory.Tmdb.HoldAnswers = held;
 
-        var first = client.GetAsync($"/series/{KnownSeries}/poster");
+        var first = client.GetAsync($"/movies/{KnownMovie}/poster");
         // The second ask is made while the first is still unanswered — otherwise it would simply
         // be a store hit, and would prove nothing about two fetches at once.
-        await FakeTmdb.WaitForAsync(() => factory.Tmdb.SeriesDetailsRequests.Count == 1);
-        var second = client.GetAsync($"/series/{KnownSeries}/poster");
+        await FakeTmdb.WaitForAsync(() => factory.Tmdb.MovieDetailsRequests.Count == 1);
+        var second = client.GetAsync($"/movies/{KnownMovie}/poster");
 
         // And it is given every chance to reach TMDB before the first is answered: the fake
         // records a request before it holds it, so an ungated second ask would already be
-        // counted here. Without this the first could win the race and the test would quietly
-        // become the store-hit test beside it.
+        // counted here.
         await Task.Delay(250);
-        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Single(factory.Tmdb.MovieDetailsRequests);
         held.SetResult();
 
         foreach (var response in await Task.WhenAll(first, second))
@@ -123,7 +146,7 @@ public class PostersEndpointTests
         }
 
         Assert.Single(factory.Tmdb.ImageRequests);
-        Assert.Single(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Single(factory.Tmdb.MovieDetailsRequests);
     }
 
     /// <summary>
@@ -131,31 +154,31 @@ public class PostersEndpointTests
     /// per render, so remembering a "no" would save nothing and could be wrong by the next ask.
     /// </summary>
     [Fact]
-    public async Task Poster_OfASeriesTmdbHasNoneFor_IsNotFoundEveryTime()
+    public async Task Poster_OfAMovieTmdbHasNoneFor_IsNotFoundEveryTime()
     {
         var tmdb = new FakeTmdb();
-        tmdb.RespondToDetailsWithNoPoster();
+        tmdb.RespondToMovieDetailsWithNoPoster();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var first = await client.GetAsync($"/series/{KnownSeries}/poster");
-        var second = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var first = await client.GetAsync($"/movies/{KnownMovie}/poster");
+        var second = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.NotFound, first.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, second.StatusCode);
         Assert.Empty(factory.Tmdb.ImageRequests);
-        Assert.Equal(2, factory.Tmdb.SeriesDetailsRequests.Count);
+        Assert.Equal(2, factory.Tmdb.MovieDetailsRequests.Count);
     }
 
     [Fact]
     public async Task Poster_OfAnUnknownId_IsNotFound()
     {
         var tmdb = new FakeTmdb();
-        tmdb.NotFoundOnDetails();
+        tmdb.NotFoundOnMovieDetails();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/series/404404/poster");
+        var response = await client.GetAsync("/movies/404404/poster");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Empty(factory.Tmdb.ImageRequests);
@@ -166,14 +189,14 @@ public class PostersEndpointTests
     public async Task Poster_WithTmdbUnreachable_IsABadGateway()
     {
         var tmdb = new FakeTmdb();
-        tmdb.FailDetails();
+        tmdb.FailMovieDetails();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var response = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
-        Assert.False(File.Exists(factory.PosterPathOf(PosterSubject.Series, KnownSeries)));
+        Assert.False(File.Exists(factory.PosterPathOf(PosterSubject.Movie, KnownMovie)));
     }
 
     /// <summary>
@@ -188,10 +211,10 @@ public class PostersEndpointTests
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var response = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
-        Assert.False(File.Exists(factory.PosterPathOf(PosterSubject.Series, KnownSeries)));
+        Assert.False(File.Exists(factory.PosterPathOf(PosterSubject.Movie, KnownMovie)));
     }
 
     /// <summary>
@@ -202,11 +225,11 @@ public class PostersEndpointTests
     public async Task Poster_WithTmdbSayingNothing_IsABadGateway()
     {
         var tmdb = new FakeTmdb();
-        tmdb.TimeOutOnDetails();
+        tmdb.TimeOutOnMovieDetails();
         using var factory = new BffFactory(tmdb);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/series/{KnownSeries}/poster");
+        var response = await client.GetAsync($"/movies/{KnownMovie}/poster");
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
@@ -217,9 +240,9 @@ public class PostersEndpointTests
     /// need an allowlist for: the route reads an int, so a path never reaches the store at all.
     /// </summary>
     [Theory]
-    [InlineData("/series/severance/poster")]
-    [InlineData("/series/..%2f..%2fappsettings.json/poster")]
-    [InlineData("/series/%2e%2e%2f%2e%2e%2fappsettings.json/poster")]
+    [InlineData("/movies/arrival/poster")]
+    [InlineData("/movies/..%2f..%2fappsettings.json/poster")]
+    [InlineData("/movies/%2e%2e%2f%2e%2e%2fappsettings.json/poster")]
     public async Task Poster_OfSomethingThatIsNotAnId_IsRefusedWithoutTouchingTheFilesystem(string url)
     {
         using var factory = new BffFactory();
@@ -228,25 +251,8 @@ public class PostersEndpointTests
         var response = await client.GetAsync(url);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(factory.Tmdb.SeriesDetailsRequests);
+        Assert.Empty(factory.Tmdb.MovieDetailsRequests);
         Assert.Empty(factory.Tmdb.ImageRequests);
         Assert.False(Directory.Exists(factory.PosterDirectory));
-    }
-
-    /// <summary>
-    /// The snapshot is the watch providers' story, and the poster route is not built on it. A
-    /// server that has never reached TMDB for providers still serves posters perfectly well.
-    /// </summary>
-    [Fact]
-    public async Task Poster_WithNoProviderSnapshot_IsStillServed()
-    {
-        var tmdb = new FakeTmdb();
-        tmdb.FailProviders();
-        using var factory = new BffFactory(tmdb);
-        var client = factory.CreateClient();
-
-        var response = await client.GetAsync($"/series/{KnownSeries}/poster");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
