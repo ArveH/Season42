@@ -79,9 +79,9 @@ struct LibraryView: View {
 
     private var entries: [LibraryEntry] { library.entries(matching: filter) }
 
-    /// A row, tappable on its text to edit what it names. The movie row keeps its own
-    /// watched button, so the tap sits on the text rather than the whole row — nesting
-    /// one tappable thing inside another is what a row like that can't have.
+    /// A row, tappable to edit what it names. The movie row keeps its own watched button,
+    /// so the tap sits on the Poster and the text beside it rather than on the whole row —
+    /// nesting one tappable thing inside another is what a row like that can't have.
     @ViewBuilder
     private func row(for entry: LibraryEntry) -> some View {
         switch entry {
@@ -166,19 +166,20 @@ private struct TrackedSeriesRow: View {
     let edit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(series.title)
-                .font(.headline)
-            StreamingServiceSegment(subtitle: subtitle, service: series.streamingService)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let nextEpisodeDate = series.nextEpisodeDate {
-                Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
+        PosterRow(poster: series.poster) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(series.title)
+                    .font(.headline)
+                StreamingServiceSegment(subtitle: subtitle, service: series.streamingService)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let nextEpisodeDate = series.nextEpisodeDate {
+                    Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
         .onTapGesture(perform: edit)
         .padding(.vertical, 2)
@@ -199,14 +200,15 @@ private struct TrackedMovieRow: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(movie.title)
-                    .font(.headline)
-                StreamingServiceSegment(subtitle: subtitle, service: movie.streamingService)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            PosterRow(poster: movie.poster) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(movie.title)
+                        .font(.headline)
+                    StreamingServiceSegment(subtitle: subtitle, service: movie.streamingService)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
             .onTapGesture(perform: edit)
 

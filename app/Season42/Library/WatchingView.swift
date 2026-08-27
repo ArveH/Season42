@@ -46,11 +46,18 @@ private struct WatchingRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(series.title)
-                .font(.headline)
-            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            // Only what the row says goes beside the Poster. What it offers spans the row
+            // under both, so the buttons keep the width they had before there was a
+            // thumbnail — at the largest text sizes they need every point of it.
+            PosterRow(poster: series.poster) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(series.title)
+                        .font(.headline)
+                    StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             HStack {
                 if series.isAtLastKnownEpisode {
@@ -96,16 +103,18 @@ private struct WaitingRow: View {
     let series: TrackedSeries
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(series.title)
-                .font(.headline)
-            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let nextEpisodeDate = series.nextEpisodeDate {
-                Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
+        PosterRow(poster: series.poster) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(series.title)
+                    .font(.headline)
+                StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let nextEpisodeDate = series.nextEpisodeDate {
+                    Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)
