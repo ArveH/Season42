@@ -45,29 +45,31 @@ private struct WatchingRow: View {
     let series: TrackedSeries
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(series.title)
-                .font(.headline)
-            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        PosterRow(poster: series.poster) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(series.title)
+                    .font(.headline)
+                StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
 
-            HStack {
-                if series.isAtLastKnownEpisode {
-                    endOfSeriesQuestion
-                } else if let nextEpisode = series.nextEpisode {
-                    Button("Mark \(nextEpisode.shorthand) watched") {
-                        library.markNextEpisodeWatched(series)
+                HStack {
+                    if series.isAtLastKnownEpisode {
+                        endOfSeriesQuestion
+                    } else if let nextEpisode = series.nextEpisode {
+                        Button("Mark \(nextEpisode.shorthand) watched") {
+                            library.markNextEpisodeWatched(series)
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
-                }
 
-                if series.position != nil {
-                    Button("Un-watch", systemImage: "arrow.uturn.backward") {
-                        library.unwatchLastEpisode(series)
+                    if series.position != nil {
+                        Button("Un-watch", systemImage: "arrow.uturn.backward") {
+                            library.unwatchLastEpisode(series)
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.bordered)
                     }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
                 }
             }
         }
@@ -96,16 +98,18 @@ private struct WaitingRow: View {
     let series: TrackedSeries
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(series.title)
-                .font(.headline)
-            StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let nextEpisodeDate = series.nextEpisodeDate {
-                Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
+        PosterRow(poster: series.poster) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(series.title)
+                    .font(.headline)
+                StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let nextEpisodeDate = series.nextEpisodeDate {
+                    Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)

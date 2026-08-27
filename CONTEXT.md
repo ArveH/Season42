@@ -66,14 +66,16 @@ _Avoid_: icon, artwork, provider logo, image
 The picture of a Library Entry the user adopted with a Copy, held on
 the entry as bytes exactly as a Logo is held on a Streaming Service, and for the same reason: what
 the app has adopted must draw with the BFF stopped, unreachable or never deployed, which the
-Library and Watching tabs are about to need of it (ADR-0013). Once adopted it is theirs: nothing
+Library and Watching tabs need of it (ADR-0013). Once adopted it is theirs: nothing
 refreshes it, and no TMDB identifier is kept beside it, so re-adopting means searching again.
 Theirs to be rid of, too — the form shows the adopted Poster with a Remove that takes the Poster
 and nothing else with it, as the adopted Logo has. An entry may carry none, and a Poster that
 would not fetch costs a picture and nothing else: everything else still copies. Where a Poster
 slot is drawn and there is none to draw, the `photo` symbol in secondary grey stands in — a
 different symbol from the `tv` that stands in for a missing Logo, so that where the two are drawn
-together "no poster" and "no logo" never look alike.
+together "no poster" and "no logo" never look alike. Every row that lists a Library Entry leads
+with the slot — both Library rows, and the Watching tab's Watching and Waiting rows — so a column
+of rows lines up whether or not there is a Poster to draw.
 _Avoid_: cover, artwork, image, thumbnail
 
 **Watch Provider**:
