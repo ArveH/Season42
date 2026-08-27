@@ -23,9 +23,9 @@ protocol MovieSearching: Sendable {
     /// Everything the app shows about the movie with this id — the id a Movie Match carried,
     /// which is the only thing it is ever good for.
     ///
-    /// Named for what it is about rather than as a plain `details(for:)`, because `BffClient`
-    /// answers both this and `SeriesSearching`'s, and two asks that differ only in what they
-    /// hand back is a thing to read twice at every call site.
+    /// Named for what it is about rather than as a plain `details(for:)`, as `SeriesSearching`'s
+    /// `seriesDetails(for:)` is: `BffClient` answers both, and two asks that differ only in what
+    /// they hand back are a thing to read twice at every call site.
     ///
     /// - Throws: whatever went wrong reaching or reading the answer, an id the BFF has no movie
     ///   for included. Unlike a search, there is no empty answer to tell apart from a failure:

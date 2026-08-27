@@ -183,12 +183,12 @@ private struct PreviewSeries: SeriesSearching {
         return matches
     }
 
-    func details(for id: Int) async throws -> SeriesDetails {
+    func seriesDetails(for id: Int) async throws -> SeriesDetails {
         if fails { throw BffError.notServed(status: 502) }
         return details
     }
 
-    func poster(for id: Int) async throws -> Data {
+    func seriesPoster(for id: Int) async throws -> Data {
         if fails { throw BffError.notServed(status: 502) }
         return PreviewPoster.bytes(.systemIndigo)
     }

@@ -67,7 +67,7 @@ final class StubSeries: SeriesSearching {
         return answers[text] ?? served
     }
 
-    func details(for id: Int) async throws -> SeriesDetails {
+    func seriesDetails(for id: Int) async throws -> SeriesDetails {
         opened.append(id)
         await waitIfHeld(at: Self.gate(forDetailsOf: id))
         if fails { throw failure }
@@ -77,7 +77,7 @@ final class StubSeries: SeriesSearching {
         return details
     }
 
-    func poster(for id: Int) async throws -> Data {
+    func seriesPoster(for id: Int) async throws -> Data {
         postersAsked.append(id)
         await waitIfHeld(at: Self.gate(forPosterOf: id))
         if fails || posterFails { throw failure }

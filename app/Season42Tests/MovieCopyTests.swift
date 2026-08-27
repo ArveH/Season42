@@ -71,7 +71,9 @@ struct MovieCopyTests {
     @Test func aCopyCarriesNothingButTheTitleAndTheDescription() {
         let copy = arrival.copy(over: .new)
 
-        #expect(copy == MovieCopy(title: "Arrival", summary: arrival.overview, overwritesTheForm: false))
+        #expect(
+            copy == MovieCopy(
+                title: "Arrival", summary: arrival.overview, overwritesTheForm: false))
     }
 
     private var arrival: MovieDetails {

@@ -62,7 +62,7 @@ struct BffClient: LogoSearching, SeriesSearching, MovieSearching {
         }
     }
 
-    func details(for id: Int) async throws -> SeriesDetails {
+    func seriesDetails(for id: Int) async throws -> SeriesDetails {
         // Asked by the id a Series Match carried, and asked afresh every time: a series that
         // has just gained a season is exactly the one a user is likely to be looking at.
         let json = try await fetch(
@@ -101,7 +101,7 @@ struct BffClient: LogoSearching, SeriesSearching, MovieSearching {
         }
     }
 
-    func poster(for id: Int) async throws -> Data {
+    func seriesPoster(for id: Int) async throws -> Data {
         // Asked by the id the details were read with, never by a path: the details carry a yes
         // or a no and nothing the app could send becomes part of a filename (ADR-0012).
         //

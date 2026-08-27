@@ -151,7 +151,7 @@ final class SeriesSearch {
         detailsState = .loading
         posterState = .none
         do {
-            let details = try await series.details(for: match.id)
+            let details = try await series.seriesDetails(for: match.id)
             guard openedMatch == match else { return }
             detailsState = .loaded(details)
 
@@ -159,7 +159,7 @@ final class SeriesSearch {
             // payload for: a placeholder is drawn without an ask that would only be refused.
             guard details.hasPoster else { return }
             posterState = .loading
-            let bytes = try? await series.poster(for: match.id)
+            let bytes = try? await series.seriesPoster(for: match.id)
             guard openedMatch == match else { return }
             posterState = bytes.map(PosterState.adopted) ?? .none
         } catch {
