@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// What tapping a movie match pushes: the movie's poster, its title, what it is called where it
-/// was made, what it is about, and the Copy that fills the form in with them. Back is the navigation bar's own,
-/// and the results are still listed underneath it, so trying a second match is one tap rather
-/// than a fresh search.
+/// was made, what it is about, and the Copy that fills the form in with them. Back is the
+/// navigation bar's own, and the results are still listed underneath it, so trying a second match
+/// is one tap rather than a fresh search.
 ///
 /// Shorter than the series' detail screen by everything a movie hasn't got: no seasons, and so
 /// no notes — nothing is dropped or invented on the way into the form, so there is nothing to

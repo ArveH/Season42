@@ -26,7 +26,9 @@ struct MovieCopyTests {
     /// A movie TMDB carries no overview for copies an empty Description rather than refusing:
     /// the title is what the user came for, and the Description is theirs to write.
     @Test func copyingAMovieWithNoOverviewCopiesAnEmptyDescription() {
-        let copy = MovieDetails(title: "Quiet", originalTitle: "", overview: "", hasPoster: false).copy(over: .new)
+        let quiet = MovieDetails(title: "Quiet", originalTitle: "", overview: "", hasPoster: false)
+
+        let copy = quiet.copy(over: .new)
 
         #expect(copy.title == "Quiet")
         #expect(copy.summary.isEmpty)

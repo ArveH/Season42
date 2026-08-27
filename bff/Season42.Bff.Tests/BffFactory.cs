@@ -39,7 +39,7 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// of, never under TMDB's path.
     /// </summary>
     public string PosterPathOf(PosterSubject subject, int id) =>
-        Path.Combine(PosterDirectory, PosterStore.FileNameOf(subject, id));
+        Path.Combine(PosterDirectory, PosterStore.PathOf(subject, id));
 
     /// <summary>Runs a refresh on demand — what the daily timer would otherwise have to wait for.</summary>
     public Task RefreshAsync() =>

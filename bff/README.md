@@ -414,7 +414,9 @@ The first ask costs two TMDB calls — the details that say where the poster is,
 itself — and writes the bytes into `posters/series/` under the store path, named after the
 **series id**. Every ask after that is served from there with no TMDB call at all, restarts
 included. The `series/` in the path is the other half of the key: TMDB numbers its series and its
-movies apart, so a movie's poster of the same id is a different file (ADR-0012).
+movies apart, so a movie's poster of the same id is a different file (ADR-0012). Posters written
+flat at `posters/{id}.jpg` by an earlier version are simply no longer read: they are a cache, and
+what they cost is one refetch each.
 
 The id is the key on purpose, and it is what separates this store from the logo store beside it:
 there is no snapshot of posters to resolve an id against, so keying on TMDB's path would mean

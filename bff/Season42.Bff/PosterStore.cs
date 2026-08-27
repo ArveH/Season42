@@ -61,10 +61,10 @@ public sealed class PosterStore
     }
 
     /// <summary>
-    /// What one entry's poster is called in the store, under <see cref="DirectoryName"/>: which
-    /// kind of thing it is a poster of, then its id, and nothing of TMDB's.
+    /// Where one entry's poster sits inside <see cref="DirectoryName"/>: which kind of thing it
+    /// is a poster of, then its id, and nothing of TMDB's.
     /// </summary>
-    public static string FileNameOf(PosterSubject subject, int id) =>
+    public static string PathOf(PosterSubject subject, int id) =>
         Path.Combine(FolderOf(subject), $"{id}.jpg");
 
     /// <summary>Which of the two keyspaces a poster is kept in, spelled as the routes spell it.</summary>
@@ -86,7 +86,7 @@ public sealed class PosterStore
     public async Task<byte[]?> ReadOrFetchAsync(
         PosterSubject subject, int id, CancellationToken cancellationToken)
     {
-        var path = Path.Combine(_directory, FileNameOf(subject, id));
+        var path = Path.Combine(_directory, PathOf(subject, id));
         if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
 
         var gate = Enter(subject, id);

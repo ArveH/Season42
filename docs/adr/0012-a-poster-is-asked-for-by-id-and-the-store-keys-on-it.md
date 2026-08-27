@@ -85,6 +85,12 @@ The store directory holds three kinds of thing now — `watch-providers.json`, `
 of someone else's data. Deleting it costs fetches and
 nothing else, which is what ADR-0007 promised about it.
 
+The posters the first version of this store wrote — flat, at `posters/{id}.jpg`, before the kind
+was part of the key — are not read any more and not moved. They are a cache of someone else's
+data, so what they cost is the fetches that fill `posters/series/` again, and deleting `posters/`
+is the same escape it has always been. Writing a migration for a directory whose whole promise is
+that losing it costs only fetches would be the more expensive answer.
+
 `w342` is baked into the bytes on disk rather than recorded beside them, as `w154` is for logos.
 Changing the size is a deletion of `posters/` rather than a migration — and so, for the same
 directory, is picking up a series' new poster.
