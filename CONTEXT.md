@@ -38,11 +38,51 @@ The season and episode of a Tracked Series the user has most recently watched.
 _Avoid_: progress, bookmark
 
 **Watched At**:
-The moment the user last marked an episode of a Tracked Series watched. Stamped by each advance of the Position, and the sole basis for the Watching tab's "most recently watched" order. An un-watch corrects the Position but leaves the stamp alone. Carried in code as `lastWatchedAt`. A Tracked Movie has the same idea in `watchedAt`: when it was last marked watched, likewise untouched by an un-mark.
-_Avoid_: last seen, watch history
+The moment the user last moved through a Tracked Series. Stamped both by an advance of the
+Position and by taking one back, because both are the user working on that series: the question
+the stamp answers is "when did I last touch this", not "when did I last see an episode"
+(ADR-0014). One of the two Watching Orders they can choose between, and no longer the only order
+there is. Carried in code as `lastWatchedAt`, which is now narrower than what it holds.
+
+A Tracked Movie's `watchedAt` is a different idea wearing a similar name: when the movie was
+watched, a fact about the film rather than a record of progress, and left alone by an un-mark as
+it always was. The two parted company when a series' stamp became the latter.
+_Avoid_: last seen, watch history, last updated
+
+**Watching Order**:
+How the Watching tab lists the series the user is watching: by Watched At or by Title, whichever
+of the two they picked, remembered between launches and shown as the two of them side by side so
+the one in force is readable without tapping. Taken as a snapshot and held still — marking an
+episode watched, taking one back, or editing a series moves nothing on screen. It is re-taken
+only when the user picks an order, or arrives on the tab from another tab; a sheet opened over
+the tab and closed again is not an arrival (ADR-0014). Says nothing about the Waiting listing
+below it, which is by Next Episode Date and is not the user's to reorder.
+_Avoid_: sort, sort order, last updated
+
+**Lapsed Row**:
+A Tracked Series still drawn in the Watching listing though its Status has stopped being
+Watching — the visible cost of holding the order still, and taken deliberately: whoever answers
+Finished by mistake undoes it on the row they mis-tapped rather than hunting for the series in
+the Library. It draws dimmed, says its new Status where the Position was, and offers Edit and
+nothing else, there being no next episode to mark on a series the user has said they are done
+with. Setting the Status back to Watching un-lapses the row where it stands. A series deleted
+from the Library is never one of these and never lingers: position is what is frozen, existence
+never is (ADR-0014).
+_Avoid_: stale row, ghost, orphan
+
+**Appearance**:
+Whether the app draws light, dark, or however the device is drawing — the user's own choice, made
+on the Settings tab and remembered between launches, and following the device until they make
+one. Not the Library's to hold: it is a preference about the app, not something the user tracks
+(ADR-0005).
+_Avoid_: theme, dark mode, colour scheme
 
 **Next Episode Date**:
-A user-entered, optional date on a Tracked Series recording when the next episode becomes available.
+A user-entered, optional date on a Tracked Series recording when the next episode becomes
+available. Drawn on every row that lists the series — both Library rows and both of the Watching
+tab's — because when the next one lands is as much a reason to look at a series the user is
+part-way through as one they are waiting on. Never a past-or-future judgement: a date that has
+gone by is still what the row says.
 
 **Streaming Service**:
 One of the services the user has registered, kept as a list they add to, rename and delete
