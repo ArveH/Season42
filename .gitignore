@@ -4,3 +4,4 @@ DerivedData/
 app/Config/Local.xcconfig
 .idea/
 .env
+*.DotSettings.user
