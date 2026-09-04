@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct Season42App: App {
     private let library: Library
+    private let settings = AppSettings()
 
     init() {
         do {
@@ -16,7 +17,7 @@ struct Season42App: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView(library: library)
+            RootTabView(library: library, settings: settings)
         }
     }
 }

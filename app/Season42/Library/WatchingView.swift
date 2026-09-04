@@ -106,7 +106,7 @@ private struct WatchingRow: View {
                     Button("Mark \(nextEpisode.shorthand) watched") {
                         library.markNextEpisodeWatched(series)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .prominentButtonStyle()
                 }
 
                 if series.position != nil {
