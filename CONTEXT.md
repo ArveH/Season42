@@ -21,7 +21,7 @@ A series the user has entered into the Library, including seasons, episode count
 _Avoid_: show, subscription, my series
 
 **Tracked Movie**:
-A movie the user has entered into the Library. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie), held as `isWatched`. Marking one watched stamps the date; un-marking corrects the state and leaves the stamp alone, as un-watching an episode of a Tracked Series does.
+A movie the user has entered into the Library. Carries only a watched/unwatched state (a watchlist entry is simply an unwatched Tracked Movie), held as `isWatched`. Marking one watched stamps the date; un-marking corrects the state and leaves the stamp alone — unlike taking back an episode of a Tracked Series, which stamps its Watched At (ADR-0014).
 
 **Description**:
 What a Tracked Series or Tracked Movie is about, typed by the user or copied in from a search

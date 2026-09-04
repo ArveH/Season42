@@ -55,10 +55,8 @@ struct WatchingView: View {
                 TrackedSeriesFormView(library: library, editing: series)
             }
         }
-        // Arriving on the tab from another tab re-takes the snapshot (ADR-0014). The stack
-        // appears when the tab is selected and not again when a sheet over it closes, so
-        // the form's dismissal — a common path now that every row has an Edit button —
-        // leaves the order where it was.
+        // The stack appears when the tab is selected and not again when a sheet over it
+        // closes, which is exactly the "arrival" `retake` asks for.
         .onAppear(perform: listing.retake)
     }
 

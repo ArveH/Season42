@@ -33,7 +33,8 @@ final class WatchingListing {
     /// the series themselves. Identifiers are re-resolved against the Library on every
     /// read, so a series deleted while the listing is held still simply fails to resolve
     /// and drops out, where holding the model object would mean drawing or crashing on a
-    /// deleted one. Position is what is frozen; existence never is.
+    /// deleted one. Position is what is frozen; existence never is. Every Library
+    /// mutation saves, so the identifiers are permanent by the time they are taken.
     private var snapshot: [PersistentIdentifier] = []
 
     init(library: Library, defaults: UserDefaults = .standard) {
@@ -47,8 +48,7 @@ final class WatchingListing {
     /// The series the user is watching, in the order the snapshot holds them.
     var series: [TrackedSeries] {
         let watching = Dictionary(
-            library.watching.map { ($0.persistentModelID, $0) },
-            uniquingKeysWith: { first, _ in first }
+            uniqueKeysWithValues: library.watching.map { ($0.persistentModelID, $0) }
         )
         return snapshot.compactMap { watching[$0] }
     }
