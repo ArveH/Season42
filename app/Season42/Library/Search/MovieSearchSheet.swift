@@ -46,7 +46,7 @@ struct MovieSearchSheet: View {
             Form {
                 searchSection
                 resultsSection
-                attributionSection
+                TmdbAttribution()
             }
             .navigationDestination(for: MovieMatch.self) { match in
                 MovieDetailsView(match: match, search: search, form: form, onCopy: onCopy)
@@ -124,15 +124,6 @@ struct MovieSearchSheet: View {
                 )
                 .foregroundStyle(.secondary)
             }
-        }
-    }
-
-    /// The attribution TMDB's terms require, in every state of the search: a section of its
-    /// own rather than a footer on the results, because in the idle state there is no results
-    /// section to hang it from, and the wording is owed regardless.
-    private var attributionSection: some View {
-        Section {
-            TmdbAttribution()
         }
     }
 

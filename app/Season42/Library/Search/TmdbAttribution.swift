@@ -3,7 +3,9 @@ import SwiftUI
 /// What TMDB's terms ask of a screen that shows its data: the mark, and the wording that says
 /// the details and posters are TMDB's and that the app is not endorsed by it. Drawn under the
 /// results of both search sheets, whatever state the search is in — the wording is owed for
-/// the data being asked for, not only for data that arrived.
+/// the data being asked for, not only for data that arrived. A `Section` of its own rather
+/// than a footer on the results, because an idle search has no results section to hang it
+/// from; the sheets drop it straight into their `Form`.
 ///
 /// The mark is bundled in the asset catalogue rather than fetched, on ADR-0013's argument for
 /// a Poster: an attribution that went missing exactly when the BFF was unreachable would be
@@ -21,24 +23,26 @@ struct TmdbAttribution: View {
         + "This product uses the TMDB API but is not endorsed or certified by TMDB."
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(Self.markName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44)
-                .accessibilityLabel("TMDB")
-            Text(Self.wording)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        Section {
+            HStack(alignment: .top, spacing: 12) {
+                Image(Self.markName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44)
+                    .accessibilityLabel("TMDB")
+                Text(Self.wording)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
 
 #Preview("Light") {
-    List { TmdbAttribution() }
+    Form { TmdbAttribution() }
 }
 
 #Preview("Dark") {
-    List { TmdbAttribution() }
+    Form { TmdbAttribution() }
         .preferredColorScheme(.dark)
 }

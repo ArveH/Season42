@@ -13,7 +13,7 @@ struct TmdbAttributionTests {
         #expect(TmdbAttribution.wording.contains("provided by TMDB"))
     }
 
-    @Test func theWordingCarriesTheDisclaimerTheTermsRequire() {
+    @Test func theWordingCarriesTheSentenceTheTermsRequire() {
         #expect(TmdbAttribution.wording.contains("uses the TMDB API but is not endorsed or certified by TMDB"))
     }
 }
