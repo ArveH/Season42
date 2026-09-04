@@ -78,6 +78,15 @@ The Watching listing can now disagree with the Library about what is in it, for 
 user stays on the tab. That is the point, and the dimming is what keeps the disagreement honest:
 a Lapsed Row never claims to still be Watching, and never offers a next episode to mark.
 
+The freeze cuts the other way too. A series set to Watching from a Waiting row leaves the
+Waiting listing at once — that listing is live — and is not in the snapshot, so left alone it
+would vanish from the tab, and an only series would leave the tab showing its empty state over a
+Library that holds a Watching series. It is appended below the snapshot instead, drawn as any
+Watching row, several joiners in the order in force. Nothing above it moves, which is all the
+freeze asks. It is not adopted into the snapshot: that would be a write on read, and the row set
+back to Waiting simply returns to the Waiting listing on the same screen, where the mis-tap is
+undone. The next re-take sorts it in.
+
 `lastWatchedAt` no longer means what its name says, and the glossary carries the discrepancy
 rather than the code being renamed around it. Anything that comes to want "when did the user last
 see an episode" — a history, a streak, a stat — will have to record that separately, because this

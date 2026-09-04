@@ -12,6 +12,8 @@ import SwiftData
 /// and editing a series all leave every row where it is. So does changing its Status: a
 /// series whose Status stops being Watching stays in the listing as a Lapsed Row until the
 /// next re-take sweeps it, so a mis-tapped Finished is undone on the row it happened on.
+/// A series whose Status becomes Watching while the tab is held still is appended below
+/// the snapshot rather than left off the tab, and the next re-take sorts it in.
 @MainActor
 @Observable
 final class WatchingListing {
@@ -47,16 +49,29 @@ final class WatchingListing {
         retake()
     }
 
-    /// The series the snapshot holds, in its order: the ones the user is watching, and any
-    /// Lapsed Rows among them. Resolved against every Tracked Series rather than only the
+    /// The series the snapshot holds, in its order — the ones the user is watching, and any
+    /// Lapsed Rows among them — followed by every Watching series the snapshot does not
+    /// hold. The snapshot is resolved against every Tracked Series rather than only the
     /// Watching ones, because a series whose Status has changed since the snapshot was
     /// taken is still listed — it lapses rather than leaving, however the Status changed
     /// (ADR-0014). A deleted series is not among them: it fails to resolve and is gone.
+    ///
+    /// The tail is the mirror case: a series whose Status became Watching while the tab was
+    /// held still, from the Edit sheet on a Waiting row. Left off, it would vanish from the
+    /// tab altogether — gone from the Waiting listing at once and not yet in the snapshot —
+    /// so it is appended, in the order in force, where nothing above it has to move. Like
+    /// a Lapsed Row it is derived and never stored, and unlike one it is not held: set back
+    /// to Waiting it returns to the Waiting listing at once, and the next re-take sorts it
+    /// in with the rest.
     var series: [TrackedSeries] {
         let tracked = Dictionary(
             uniqueKeysWithValues: library.trackedSeries.map { ($0.persistentModelID, $0) }
         )
-        return snapshot.compactMap { tracked[$0] }
+        let held = Set(snapshot)
+        let joined = library.watching
+            .filter { !held.contains($0.persistentModelID) }
+            .sorted(by: comparator)
+        return snapshot.compactMap { tracked[$0] } + joined
     }
 
     /// Whether a listed series is a Lapsed Row: still drawn because the snapshot holds it,
@@ -81,11 +96,15 @@ final class WatchingListing {
     /// button on every row, coming back from the form to a re-sorted list would be a
     /// smaller version of the defect the freeze exists to fix (ADR-0014).
     func retake() {
-        let sorted = switch order {
-        case .lastWatched: library.watching.sorted(by: Self.byLastWatched)
-        case .title: library.watching.sorted(by: Self.byTitle)
+        snapshot = library.watching.sorted(by: comparator).map(\.persistentModelID)
+    }
+
+    /// How the order in force sorts two series.
+    private var comparator: (TrackedSeries, TrackedSeries) -> Bool {
+        switch order {
+        case .lastWatched: Self.byLastWatched
+        case .title: Self.byTitle
         }
-        snapshot = sorted.map(\.persistentModelID)
     }
 
     /// Most recently watched first. A Watched At stamp beats none, and series the stamps
