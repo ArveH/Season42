@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The one place a row draws where its Library Entry is watched. The Watching tab's
-/// series row and both Library rows use it, so where the Streaming Service reads one way
+/// The one place a row draws where its Library Entry is watched. Both of the Watching
+/// tab's rows and both Library rows use it, so where the Streaming Service reads one way
 /// it reads that way everywhere.
 ///
 /// A service the user has adopted a Logo onto draws as that Logo; one with none draws as

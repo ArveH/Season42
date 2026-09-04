@@ -72,9 +72,10 @@ struct WatchingView: View {
     }
 }
 
-/// A series the user is watching: where they got to, when the next episode lands if they've
-/// recorded it, and what they can do about it — mark the next episode watched, or say where the series stands once there is no next
-/// episode, take a watch back, and edit the series.
+/// A series the user is watching: where they got to, when the next episode lands if
+/// they've recorded it, and what they can do about it — mark the next episode watched, or
+/// say where the series stands once there is no next episode, take a watch back, and edit
+/// the series.
 private struct WatchingRow: View {
     let library: Library
     let series: TrackedSeries

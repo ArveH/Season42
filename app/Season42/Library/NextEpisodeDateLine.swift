@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The one line every row that lists a Tracked Series says its Next Episode Date on —
-/// both Library rows' series row and both of the Watching tab's — so the date reads the
+/// the Library's series row and both of the Watching tab's rows — so the date reads the
 /// same way everywhere it is drawn.
 ///
 /// Draws nothing at all, not an empty line, for a series with no date. Never judges the
