@@ -21,7 +21,7 @@ struct WatchingView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if listing.series.isEmpty && library.waiting.isEmpty {
+                if listing.series.isEmpty && listing.waiting.isEmpty {
                     ContentUnavailableView(
                         "Nothing on the go",
                         systemImage: "play.circle",
@@ -32,17 +32,21 @@ struct WatchingView: View {
                         if !listing.series.isEmpty {
                             Section {
                                 ForEach(listing.series) { series in
-                                    WatchingRow(library: library, series: series) {
-                                        editing = series
+                                    if listing.isLapsed(series) {
+                                        LapsedRow(series: series) { editing = series }
+                                    } else {
+                                        WatchingRow(library: library, series: series) {
+                                            editing = series
+                                        }
                                     }
                                 }
                             } header: {
                                 orderPicker
                             }
                         }
-                        if !library.waiting.isEmpty {
+                        if !listing.waiting.isEmpty {
                             Section("Waiting") {
-                                ForEach(library.waiting) { series in
+                                ForEach(listing.waiting) { series in
                                     WaitingRow(series: series) { editing = series }
                                 }
                             }
@@ -148,6 +152,34 @@ private struct WatchingRow: View {
             ? AnyLayout(VStackLayout(alignment: .leading))
             : AnyLayout(HStackLayout())
         return layout { content() }
+    }
+}
+
+/// A Lapsed Row: a series the snapshot still holds though its Status has stopped being
+/// Watching. Dimmed, saying its new Status where the Position was, and offering Edit and
+/// nothing else — there is no next episode to mark on a series the user has just said they
+/// are done with, and Edit is where a mis-tapped Finished is undone (ADR-0014).
+private struct LapsedRow: View {
+    let series: TrackedSeries
+    let edit: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PosterRow(poster: series.poster) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(series.title)
+                        .font(.headline)
+                    StreamingServiceSegment(subtitle: series.status.title, service: series.streamingService)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    NextEpisodeDateLine(date: series.nextEpisodeDate)
+                }
+            }
+            .opacity(0.5)
+
+            EditSeriesButton(edit: edit)
+        }
+        .padding(.vertical, 4)
     }
 }
 
