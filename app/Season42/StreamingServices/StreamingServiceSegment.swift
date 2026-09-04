@@ -15,7 +15,9 @@ struct StreamingServiceSegment: View {
     /// Where the entry is watched, or nil when the user has named nowhere.
     let service: StreamingService?
 
-    @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 16
+    /// Tall enough to make out at a glance and still one line of the subtitle; raised here
+    /// and nowhere else, so Library rows and Watching rows can't come to disagree.
+    @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 24
 
     var body: some View {
         // Drawn through the Logo slot rather than by hand, so the one Logo in the app that

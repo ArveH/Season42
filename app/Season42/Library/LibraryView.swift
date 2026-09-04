@@ -173,11 +173,7 @@ private struct TrackedSeriesRow: View {
                 StreamingServiceSegment(subtitle: subtitle, service: series.streamingService)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if let nextEpisodeDate = series.nextEpisodeDate {
-                    Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                NextEpisodeDateLine(date: series.nextEpisodeDate)
             }
         }
         .contentShape(.rect)
