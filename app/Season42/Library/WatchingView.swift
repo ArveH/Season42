@@ -55,6 +55,9 @@ struct WatchingView: View {
                 TrackedSeriesFormView(library: library, editing: series)
             }
         }
+        // The stack appears when the tab is selected and not again when a sheet over it
+        // closes, which is exactly the "arrival" `retake` asks for.
+        .onAppear(perform: listing.retake)
     }
 
     /// The two Watching Orders side by side, so the one in force is readable without

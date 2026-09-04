@@ -42,11 +42,13 @@ struct WatchingListingTests {
         library.markNextEpisodeWatched(severance)
         clock.advance()
         library.markNextEpisodeWatched(andor)
+        listing.retake()
 
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
 
         clock.advance()
         library.markNextEpisodeWatched(severance)
+        listing.retake()
 
         #expect(listing.series.map(\.title) == ["Severance", "Andor"])
     }
@@ -63,6 +65,7 @@ struct WatchingListingTests {
 
         clock.advance()
         library.markNextEpisodeWatched(severance)
+        listing.retake()
 
         #expect(listing.series.map(\.title) == ["Severance", "Newer", "Older"])
     }
@@ -126,6 +129,120 @@ struct WatchingListingTests {
         listing.order = .title
 
         #expect(listing.series.map(\.title) == ["Bear", "Severance", "The Bear"])
+    }
+
+    // MARK: - Held still
+
+    @Test func markingAnEpisodeWatchedLeavesEveryRowInPlace() throws {
+        let defaults = try TestDefaults()
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        clock.advance()
+        library.markNextEpisodeWatched(andor)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+
+        clock.advance()
+        library.markNextEpisodeWatched(severance)
+
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+    }
+
+    @Test func takingAWatchBackLeavesEveryRowInPlace() throws {
+        let defaults = try TestDefaults()
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        clock.advance()
+        library.markNextEpisodeWatched(severance)
+        clock.advance()
+        library.markNextEpisodeWatched(andor)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+
+        clock.advance()
+        library.unwatchLastEpisode(severance)
+
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+    }
+
+    @Test func editingASeriesLeavesEveryRowInPlace() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        listing.order = .title
+        #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
+
+        try library.updateTrackedSeries(
+            fargo,
+            title: "Aargo",
+            summary: "",
+            poster: nil,
+            seasons: [10],
+            status: .watching,
+            position: nil,
+            streamingService: nil,
+            nextEpisodeDate: nil
+        )
+
+        #expect(listing.series.map(\.title) == ["Andor", "Aargo"])
+    }
+
+    @Test func pickingAnOrderRetakesTheSnapshot() throws {
+        let defaults = try TestDefaults()
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        clock.advance()
+        library.markNextEpisodeWatched(andor)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        clock.advance()
+        library.markNextEpisodeWatched(severance)
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+
+        listing.order = .title
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+
+        listing.order = .lastWatched
+        #expect(listing.series.map(\.title) == ["Severance", "Andor"])
+    }
+
+    @Test func arrivingOnTheTabRetakesTheSnapshot() throws {
+        let defaults = try TestDefaults()
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        clock.advance()
+        library.markNextEpisodeWatched(andor)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        clock.advance()
+        library.markNextEpisodeWatched(severance)
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+
+        listing.retake()
+
+        #expect(listing.series.map(\.title) == ["Severance", "Andor"])
+    }
+
+    @Test func aSeriesDeletedWhileHeldStillDropsOutAndTheRestKeepTheirPlaces() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(listing.series.map(\.title) == ["Severance", "Andor", "Fargo"])
+
+        library.delete(.series(andor))
+
+        #expect(listing.series.map(\.title) == ["Severance", "Fargo"])
     }
 
     // MARK: - Where the choice is kept
