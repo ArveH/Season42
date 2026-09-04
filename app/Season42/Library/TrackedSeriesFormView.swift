@@ -71,6 +71,8 @@ struct TrackedSeriesFormView: View {
                         .lineLimit(2...5)
                 }
 
+                streamingServiceSection
+
                 if poster != nil {
                     posterSection
                 }
@@ -116,8 +118,7 @@ struct TrackedSeriesFormView: View {
                     }
                 }
 
-                Section("Where and when") {
-                    StreamingServicePicker(library: library, selection: $streamingService)
+                Section("Next episode") {
                     Toggle("Next episode date", isOn: $hasNextEpisodeDate)
                     if hasNextEpisodeDate {
                         DatePicker(
@@ -159,6 +160,15 @@ struct TrackedSeriesFormView: View {
             // Keep the Position inside the seasons and episodes entered so far.
             .onChange(of: seasons) { _, _ in position = seasons.clamping(position) }
             .onChange(of: position.season) { _, _ in position = seasons.clamping(position) }
+        }
+    }
+
+    /// Where the user watches this, asked while they are still thinking about what it is —
+    /// under the Title, not at the foot of the form. The movie form asks in the same place, so
+    /// a series and a movie never disagree about where the service lives.
+    private var streamingServiceSection: some View {
+        Section("Streaming Service") {
+            StreamingServicePicker(library: library, selection: $streamingService)
         }
     }
 
