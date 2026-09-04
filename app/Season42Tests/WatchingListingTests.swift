@@ -358,6 +358,16 @@ struct WatchingListingTests {
         #expect(library.watching.isEmpty)
     }
 
+    @Test func aSeriesTheSnapshotNeverHeldIsNotALapsedRow() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        #expect(!listing.isLapsed(fargo))
+        #expect(listing.waiting.map(\.title) == ["Fargo"])
+    }
+
     // MARK: - Where the choice is kept
 
     @Test func theChosenOrderSurvivesAnAppRelaunch() throws {

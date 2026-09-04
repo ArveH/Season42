@@ -2,10 +2,10 @@ import Foundation
 import SwiftData
 
 /// The Watching listing: the Tracked Series the Library says the user is watching, in the
-/// Watching Order the user picked. Every rule about that order lives here — which of the
-/// two is in force, how each one sorts, where the choice is kept, and when the listing is
-/// allowed to move — and none of it in `Library`, which hands the series over unsorted and
-/// has no say in how they are listed.
+/// Watching Order the user picked, with the Waiting listing below it. Every rule about that
+/// order lives here — which of the two is in force, how each one sorts, where the choice is
+/// kept, when the listing is allowed to move, and which rows have lapsed — and none of it
+/// in `Library`, which hands the series over unsorted and has no say in how they are listed.
 ///
 /// The order is held still (ADR-0014). It is taken as a snapshot and re-taken only when the
 /// user picks an order or arrives on the tab; marking an episode watched, taking one back
@@ -64,7 +64,7 @@ final class WatchingListing {
     /// written when a row lapses, and setting the Status back to Watching is the whole of
     /// un-lapsing it.
     func isLapsed(_ series: TrackedSeries) -> Bool {
-        series.status != .watching
+        series.status != .watching && snapshot.contains(series.persistentModelID)
     }
 
     /// The Waiting listing below the Watching one: the Library's, in the Library's order,

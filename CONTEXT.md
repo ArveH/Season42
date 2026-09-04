@@ -65,7 +65,8 @@ Watching — the visible cost of holding the order still, and taken deliberately
 Finished by mistake undoes it on the row they mis-tapped rather than hunting for the series in
 the Library. It draws dimmed, says its new Status where the Position was, and offers Edit and
 nothing else, there being no next episode to mark on a series the user has said they are done
-with. Setting the Status back to Watching un-lapses the row where it stands. A series deleted
+with. One that lapsed to Waiting is drawn there and not again in the Waiting listing below, until
+a re-take sweeps it there. Setting the Status back to Watching un-lapses the row where it stands. A series deleted
 from the Library is never one of these and never lingers: position is what is frozen, existence
 never is (ADR-0014).
 _Avoid_: stale row, ghost, orphan
