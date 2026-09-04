@@ -21,7 +21,7 @@ enum Appearance: String, CaseIterable {
     }
 
     /// What to hand `preferredColorScheme` at the root: nil for System, so the device
-    /// decides, and a fixed scheme for the other two, so no screen is left drawing the
+    /// decides, and light or dark for the other two, so no screen is left drawing the
     /// other way.
     var colorScheme: ColorScheme? {
         switch self {
