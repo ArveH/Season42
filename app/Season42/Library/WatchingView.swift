@@ -3,7 +3,9 @@ import SwiftUI
 /// The Watching tab: the series the user is actively into, in the Watching Order they
 /// picked, each one tap away from its next episode, with the ones they're waiting to come
 /// back listed below. Every rule about what a tap does lives in `Library` and every rule
-/// about the order in `WatchingListing`; this view only names things and calls them.
+/// about the order in `WatchingListing`, which also holds the tab's own Library Filter
+/// and hands both listings over already narrowed; this view only names things and calls
+/// them.
 ///
 /// Every row also opens the same form the Library tab opens for its series, so the user
 /// never goes to the Library tab to find a series they are already looking at.
@@ -21,12 +23,14 @@ struct WatchingView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if listing.series.isEmpty && listing.waiting.isEmpty {
+                if listing.isEmpty {
                     ContentUnavailableView(
                         "Nothing on the go",
                         systemImage: "play.circle",
                         description: Text("Series you set to Watching or Waiting show up here.")
                     )
+                } else if listing.series.isEmpty && listing.waiting.isEmpty {
+                    noMatches
                 } else {
                     List {
                         if !listing.series.isEmpty {
@@ -55,6 +59,7 @@ struct WatchingView: View {
                 }
             }
             .navigationTitle("Watching")
+            .searchable(text: $listing.filter.searchText, prompt: "Search titles")
             .sheet(item: $editing) { series in
                 TrackedSeriesFormView(library: library, editing: series)
             }
@@ -62,6 +67,20 @@ struct WatchingView: View {
         // The stack appears when the tab is selected and not again when a sheet over it
         // closes, which is exactly the "arrival" `retake` asks for.
         .onAppear(perform: listing.retake)
+    }
+
+    /// Every series the tab lists is still there — the search is simply hiding all of
+    /// them — so this says so rather than reading like an empty tab, and offers the one
+    /// way out.
+    private var noMatches: some View {
+        ContentUnavailableView {
+            Label("No series match", systemImage: "magnifyingglass")
+        } description: {
+            Text("No Watching or Waiting series has a title containing what you typed.")
+        } actions: {
+            Button("Clear") { listing.filter = LibraryFilter() }
+                .buttonStyle(.bordered)
+        }
     }
 
     /// The two Watching Orders side by side, so the one in force is readable without
