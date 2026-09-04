@@ -368,6 +368,93 @@ struct WatchingListingTests {
         #expect(listing.waiting.map(\.title) == ["Fargo"])
     }
 
+    // MARK: - Joined rows
+
+    @Test func aWaitingSeriesSetToWatchingJoinsTheListingAtTheBottom() throws {
+        let defaults = try TestDefaults()
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let severance = try library.addTrackedSeries(
+            title: "Severance", seasons: [9], status: .watching
+        )
+        clock.advance()
+        library.markNextEpisodeWatched(severance)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(listing.series.map(\.title) == ["Severance", "Andor"])
+
+        library.setStatus(.watching, on: fargo)
+
+        #expect(listing.series.map(\.title) == ["Severance", "Andor", "Fargo"])
+        #expect(!listing.isLapsed(fargo))
+        #expect(listing.waiting.isEmpty)
+    }
+
+    @Test func twoJoinersAreAppendedInTheOrderInForce() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let severance = try library.addTrackedSeries(
+            title: "Severance", seasons: [9], status: .waiting
+        )
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        listing.order = .title
+
+        library.setStatus(.watching, on: severance)
+        library.setStatus(.watching, on: fargo)
+
+        #expect(listing.series.map(\.title) == ["Andor", "Fargo", "Severance"])
+    }
+
+    @Test func aJoinedRowSetBackToWaitingReturnsToTheWaitingListingAtOnce() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        library.setStatus(.watching, on: fargo)
+        #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
+
+        library.setStatus(.waiting, on: fargo)
+
+        #expect(listing.series.map(\.title) == ["Andor"])
+        #expect(!listing.isLapsed(fargo))
+        #expect(listing.waiting.map(\.title) == ["Fargo"])
+    }
+
+    @Test func retakingTheSnapshotSortsJoinersIn() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        listing.order = .title
+        library.setStatus(.watching, on: andor)
+        #expect(listing.series.map(\.title) == ["Severance", "Andor"])
+
+        listing.retake()
+
+        #expect(listing.series.map(\.title) == ["Andor", "Severance"])
+    }
+
+    @Test func joiningWritesNothingToTheLibrary() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        library.setStatus(.watching, on: fargo)
+        #expect(listing.series.map(\.title) == ["Fargo"])
+
+        // A fresh listing lists it too, but only because the Library says it is Watching:
+        // the join itself left nothing behind but the Status change the user asked for.
+        let another = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(another.series.map(\.title) == ["Fargo"])
+        #expect(!another.isLapsed(fargo))
+    }
+
     // MARK: - Where the choice is kept
 
     @Test func theChosenOrderSurvivesAnAppRelaunch() throws {
