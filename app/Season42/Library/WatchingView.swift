@@ -1,16 +1,22 @@
 import SwiftUI
 
-/// The Watching tab: the series the user is actively into, most recently watched first,
-/// each one tap away from its next episode, with the ones they're waiting to come back
-/// listed below. Every rule about order and about what a tap does lives in `Library`;
-/// this view only names things and calls it.
+/// The Watching tab: the series the user is actively into, in the Watching Order they
+/// picked, each one tap away from its next episode, with the ones they're waiting to come
+/// back listed below. Every rule about what a tap does lives in `Library` and every rule
+/// about the order in `WatchingListing`; this view only names things and calls them.
 struct WatchingView: View {
     let library: Library
+    @State private var listing: WatchingListing
+
+    init(library: Library) {
+        self.library = library
+        _listing = State(initialValue: WatchingListing(library: library))
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if library.watching.isEmpty && library.waiting.isEmpty {
+                if listing.series.isEmpty && library.waiting.isEmpty {
                     ContentUnavailableView(
                         "Nothing on the go",
                         systemImage: "play.circle",
@@ -18,11 +24,13 @@ struct WatchingView: View {
                     )
                 } else {
                     List {
-                        if !library.watching.isEmpty {
+                        if !listing.series.isEmpty {
                             Section {
-                                ForEach(library.watching) { series in
+                                ForEach(listing.series) { series in
                                     WatchingRow(library: library, series: series)
                                 }
+                            } header: {
+                                orderPicker
                             }
                         }
                         if !library.waiting.isEmpty {
@@ -37,6 +45,20 @@ struct WatchingView: View {
             }
             .navigationTitle("Watching")
         }
+    }
+
+    /// The two Watching Orders side by side, so the one in force is readable without
+    /// tapping anything (ADR-0014). Heads the Watching section and not the list, because
+    /// it says nothing about the Waiting listing below it.
+    private var orderPicker: some View {
+        Picker("Order", selection: $listing.order) {
+            ForEach(WatchingOrder.allCases, id: \.self) { order in
+                Text(order.label).tag(order)
+            }
+        }
+        .pickerStyle(.segmented)
+        .textCase(nil)
+        .padding(.bottom, 8)
     }
 }
 

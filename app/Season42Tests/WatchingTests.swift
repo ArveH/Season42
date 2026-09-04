@@ -3,8 +3,9 @@ import Testing
 @testable import Season42
 
 /// The Watching tab's rules, tested at the model facade: what a "watched it" tap does to
-/// a Position, what an un-watch undoes, when the app asks Finished-or-Waiting, and the
-/// order the tab lists series in. The view itself stays thin and untested.
+/// a Position, what an un-watch undoes, when the app asks Finished-or-Waiting, and which
+/// series the Library hands the tab. The order they are listed in is `WatchingListing`'s
+/// and tested in its own suite. The view itself stays thin and untested.
 ///
 /// `nextEpisode`, `previousEpisode` and `isAtLastKnownEpisode` are read here on the series
 /// the facade hands back: they are derived, read-only state the facade offers about a
@@ -243,37 +244,19 @@ struct WatchingTests {
         #expect(library.watching.map(\.title) == ["Watching"])
     }
 
-    @Test func theMostRecentlyWatchedSeriesIsListedFirst() throws {
+    @Test func theLibraryHandsTheWatchingSeriesOverInNoOrderOfItsOwn() throws {
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
-        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-
-        clock.advance()
-        library.markNextEpisodeWatched(severance)
-        clock.advance()
-        library.markNextEpisodeWatched(andor)
-
-        #expect(library.watching.map(\.title) == ["Andor", "Severance"])
-
-        clock.advance()
-        library.markNextEpisodeWatched(severance)
-
-        #expect(library.watching.map(\.title) == ["Severance", "Andor"])
-    }
-
-    @Test func seriesNotWatchedYetAreListedBelowTheOnesWithAWatchedAtStamp() throws {
-        let clock = TestClock()
-        let library = try Library.inMemory(now: clock.now)
-        let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        try library.addTrackedSeries(title: "Older", seasons: [12], status: .watching)
+        let older = try library.addTrackedSeries(title: "Older", seasons: [9], status: .watching)
         clock.advance()
         try library.addTrackedSeries(title: "Newer", seasons: [12], status: .watching)
 
         clock.advance()
-        library.markNextEpisodeWatched(severance)
+        library.markNextEpisodeWatched(older)
 
-        #expect(library.watching.map(\.title) == ["Severance", "Newer", "Older"])
+        // Most recently added first, as `trackedSeries` is — a watch moves nothing here.
+        // How the Watching tab orders them is `WatchingListing`'s, and tested there.
+        #expect(library.watching.map(\.title) == ["Newer", "Older"])
     }
 
     // MARK: - Persistence
