@@ -4,9 +4,14 @@ import SwiftUI
 /// picked, each one tap away from its next episode, with the ones they're waiting to come
 /// back listed below. Every rule about what a tap does lives in `Library` and every rule
 /// about the order in `WatchingListing`; this view only names things and calls them.
+///
+/// Every row also opens the same form the Library tab opens for its series, so the user
+/// never goes to the Library tab to find a series they are already looking at.
 struct WatchingView: View {
     let library: Library
     @State private var listing: WatchingListing
+    /// The series whose form is up, or nil when none is.
+    @State private var editing: TrackedSeries?
 
     init(library: Library) {
         self.library = library
@@ -27,7 +32,9 @@ struct WatchingView: View {
                         if !listing.series.isEmpty {
                             Section {
                                 ForEach(listing.series) { series in
-                                    WatchingRow(library: library, series: series)
+                                    WatchingRow(library: library, series: series) {
+                                        editing = series
+                                    }
                                 }
                             } header: {
                                 orderPicker
@@ -36,7 +43,7 @@ struct WatchingView: View {
                         if !library.waiting.isEmpty {
                             Section("Waiting") {
                                 ForEach(library.waiting) { series in
-                                    WaitingRow(series: series)
+                                    WaitingRow(series: series) { editing = series }
                                 }
                             }
                         }
@@ -44,6 +51,9 @@ struct WatchingView: View {
                 }
             }
             .navigationTitle("Watching")
+            .sheet(item: $editing) { series in
+                TrackedSeriesFormView(library: library, editing: series)
+            }
         }
     }
 
@@ -65,6 +75,7 @@ struct WatchingView: View {
 private struct WatchingRow: View {
     let library: Library
     let series: TrackedSeries
+    let edit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -98,6 +109,8 @@ private struct WatchingRow: View {
                     .labelStyle(.iconOnly)
                     .buttonStyle(.bordered)
                 }
+
+                EditSeriesButton(edit: edit)
             }
         }
         .padding(.vertical, 4)
@@ -120,26 +133,45 @@ private struct WatchingRow: View {
 }
 
 /// A series the user is waiting to come back: where they got to, and when the next
-/// episode lands if they've recorded it. There is nothing to tap until it's back.
+/// episode lands if they've recorded it. Nothing to mark watched until it's back, but
+/// the row can be edited — which is exactly where a wrong Next Episode Date gets noticed.
 private struct WaitingRow: View {
     let series: TrackedSeries
+    let edit: () -> Void
 
     var body: some View {
-        PosterRow(poster: series.poster) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(series.title)
-                    .font(.headline)
-                StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let nextEpisodeDate = series.nextEpisodeDate {
-                    Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
+        VStack(alignment: .leading, spacing: 8) {
+            PosterRow(poster: series.poster) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(series.title)
+                        .font(.headline)
+                    StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+                    if let nextEpisodeDate = series.nextEpisodeDate {
+                        Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
+
+            EditSeriesButton(edit: edit)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
+    }
+}
+
+/// The pencil that opens the series' form, the same on both kinds of row. Icon-only so it
+/// keeps its width at the largest text sizes, where a Watching row's buttons need every
+/// point of it; the label is still read out.
+private struct EditSeriesButton: View {
+    let edit: () -> Void
+
+    var body: some View {
+        Button("Edit", systemImage: "pencil", action: edit)
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
     }
 }
 
