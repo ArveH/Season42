@@ -282,23 +282,11 @@ final class Library {
 
     // MARK: - Watching
 
-    /// What the Watching tab lists: series with status Watching, most recently watched
-    /// first. Ones the user hasn't started come last, most recently added first.
+    /// The Tracked Series whose Status is Watching, most recently added first as
+    /// `trackedSeries` is and sorted no further: how the Watching tab lists them is
+    /// `WatchingListing`'s to decide, not the Library's.
     var watching: [TrackedSeries] {
-        trackedSeries
-            .filter { $0.status == .watching }
-            .sorted { series, other in
-                switch (series.lastWatchedAt, other.lastWatchedAt) {
-                case let (watched?, otherWatched?) where watched != otherWatched:
-                    watched > otherWatched
-                case (.some, nil):
-                    true
-                case (nil, .some):
-                    false
-                default:
-                    series.addedAt > other.addedAt
-                }
-            }
+        trackedSeries.filter { $0.status == .watching }
     }
 
     /// Advances the Position by one episode and stamps the watch, rolling over into the
