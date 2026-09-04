@@ -21,7 +21,9 @@ final class TrackedMovie {
     /// Whether the user has seen it. An unwatched movie is a watchlist entry.
     var isWatched: Bool
     /// When the user last marked the movie watched, or nil if they never have. Un-marking
-    /// leaves it alone, so a movie can be unwatched and still remember when it was seen.
+    /// leaves it alone, so a movie can be unwatched and still remember when it was seen —
+    /// unlike a Tracked Series' Watched At, which an un-watch now stamps: this one is a
+    /// fact about the film, and nothing orders by it (ADR-0014).
     var watchedAt: Date?
 
     init(

@@ -300,11 +300,16 @@ final class Library {
     }
 
     /// Steps the Position back one episode, across a season boundary where needed, and
-    /// back to nothing-watched at the very first episode. The watched-at stamp is left
-    /// alone: correcting a mistap shouldn't move the series down the Watching list.
+    /// back to nothing-watched at the very first episode, and stamps Watched At as an
+    /// advance does: the stamp says when the user last moved through the series, and this
+    /// is moving through it. The stamp used to be left alone so a mistap would not move the
+    /// series down the Watching list; the held-still Watching Order made that impossible,
+    /// and the old rule was leaving a series stamped with a watch the user had taken back
+    /// (ADR-0014).
     func unwatchLastEpisode(_ series: TrackedSeries) {
         guard series.position != nil else { return }
         series.position = series.previousEpisode
+        series.lastWatchedAt = now()
         save()
     }
 

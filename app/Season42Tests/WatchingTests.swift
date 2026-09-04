@@ -218,6 +218,37 @@ struct WatchingTests {
         #expect(series.position == nil)
     }
 
+    /// The stamp says when the user last moved through the series, and taking a watch back
+    /// is moving through it. Under a held-still Watching Order (ADR-0014) nothing moves on
+    /// screen because of it, and the old rule that left the stamp alone left the series
+    /// stamped with a watch the user had taken back.
+    @Test func unwatchingStampsTheWatchedAtDate() throws {
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9, 10],
+            status: .watching,
+            position: Position(season: 2, episode: 5)
+        )
+        clock.advance()
+
+        library.unwatchLastEpisode(series)
+
+        #expect(series.lastWatchedAt == clock.date)
+    }
+
+    @Test func unwatchingASeriesWithNothingWatchedLeavesTheStampAlone() throws {
+        let clock = TestClock()
+        let library = try Library.inMemory(now: clock.now)
+        let series = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        clock.advance()
+
+        library.unwatchLastEpisode(series)
+
+        #expect(series.lastWatchedAt == nil)
+    }
+
     @Test func unwatchingATapThatEndedTheSeriesPutsTheQuestionAway() throws {
         let library = try Library.inMemory()
         let series = try library.addTrackedSeries(

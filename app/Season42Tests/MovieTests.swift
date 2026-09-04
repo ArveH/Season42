@@ -89,7 +89,9 @@ struct MovieTests {
     }
 
     /// The stamp says when the user last saw the movie, not whether they have — so
-    /// un-marking corrects the watched state and leaves the date it was seen behind.
+    /// un-marking corrects the watched state and leaves the date it was seen behind. A
+    /// Tracked Series' stamp parted company with this one when an un-watch began stamping
+    /// it (ADR-0014); this pins that a movie's did not follow.
     @Test func unmarkingAMovieKeepsTheDateItWasWatched() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })

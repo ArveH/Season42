@@ -22,7 +22,9 @@ final class TrackedSeries {
     var streamingService: StreamingService?
     var nextEpisodeDate: Date?
     var addedAt: Date
-    /// When the user last marked an episode watched, or nil if they never have.
+    /// Watched At: when the user last moved through the series, by marking an episode
+    /// watched or by taking one back, or nil if they never have. Narrower than the name now
+    /// says — it is not when an episode was last seen (ADR-0014).
     var lastWatchedAt: Date?
 
     init(
