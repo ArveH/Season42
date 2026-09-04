@@ -13,7 +13,13 @@ One thing in the Library, whichever kind it is — a Tracked Series or a Tracked
 _Avoid_: item, record
 
 **Library Filter**:
-How the user has narrowed the Library listing: a search text matched against titles, a Status, and a kind of Library Entry (series or movies). The parts combine, and an untouched filter narrows nothing. Because only a Tracked Series has a Status, filtering by one leaves no movies in the listing.
+How the user has narrowed a listing of Library Entries: a search text matched against titles, a
+Status, and a kind of Library Entry (series or movies). The parts combine, and an untouched filter
+narrows nothing. The Library tab holds one, and so does the Watching tab, each its own: the
+Watching tab's offers the search text alone for now, and narrows both of its listings as a view
+over them, hiding rows that don't match and moving or re-taking nothing, since the Watching Order
+is held still (ADR-0014). Because only a Tracked Series has a Status, filtering by one leaves no
+movies in the listing.
 _Avoid_: query, search criteria
 
 **Tracked Series**:

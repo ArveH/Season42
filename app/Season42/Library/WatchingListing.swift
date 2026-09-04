@@ -14,6 +14,11 @@ import SwiftData
 /// next re-take sweeps it, so a mis-tapped Finished is undone on the row it happened on.
 /// A series whose Status becomes Watching while the tab is held still is appended below
 /// the snapshot rather than left off the tab, and the next re-take sorts it in.
+///
+/// The tab's Library Filter lives here too, its own and not the Library tab's. It narrows
+/// both listings as a view over them: rows that don't match are hidden, nothing moves,
+/// nothing is re-taken and nothing is written, so clearing the text shows the same rows
+/// in the same places.
 @MainActor
 @Observable
 final class WatchingListing {
@@ -33,6 +38,14 @@ final class WatchingListing {
     /// The key the choice is remembered under.
     static let orderKey = "watchingOrder"
 
+    /// How the user has narrowed the tab: the Watching tab's own Library Filter, of which
+    /// the tab offers the search text alone for now. Settable, so the view binds the
+    /// search bar straight to it and holds no filter of its own. Not remembered between
+    /// launches — a search is something the user is doing, not a preference — and left
+    /// alone by a re-take, since picking an order or arriving on the tab is not clearing
+    /// a search.
+    var filter = LibraryFilter()
+
     /// The snapshot: which series are listed and in what order, as identifiers rather than
     /// the series themselves. Identifiers are re-resolved against the Library on every
     /// read, so a series deleted while the listing is held still simply fails to resolve
@@ -49,6 +62,24 @@ final class WatchingListing {
         retake()
     }
 
+    /// The Watching listing as the tab draws it: `held` narrowed by the filter. A Lapsed
+    /// Row and a joined row match like any other, on their title.
+    var series: [TrackedSeries] {
+        held.filter { filter.matches(.series($0)) }
+    }
+
+    /// The Waiting listing as the tab draws it: `heldWaiting` narrowed by the filter.
+    var waiting: [TrackedSeries] {
+        heldWaiting.filter { filter.matches(.series($0)) }
+    }
+
+    /// Whether there is nothing to list at all, whatever the filter says: no Watching
+    /// series, no Waiting series and no Lapsed Row. What "Nothing on the go" keys off,
+    /// as against a filter that happens to hide every row.
+    var isEmpty: Bool {
+        held.isEmpty && heldWaiting.isEmpty
+    }
+
     /// The series the snapshot holds, in its order — the ones the user is watching, and any
     /// Lapsed Rows among them — followed by every Watching series the snapshot does not
     /// hold. The snapshot is resolved against every Tracked Series rather than only the
@@ -63,13 +94,13 @@ final class WatchingListing {
     /// a Lapsed Row it is derived and never stored, and unlike one it is not held: set back
     /// to Waiting it returns to the Waiting listing at once, and the next re-take sorts it
     /// in with the rest.
-    var series: [TrackedSeries] {
+    private var held: [TrackedSeries] {
         let tracked = Dictionary(
             uniqueKeysWithValues: library.trackedSeries.map { ($0.persistentModelID, $0) }
         )
-        let held = Set(snapshot)
+        let heldIDs = Set(snapshot)
         let joined = library.watching
-            .filter { !held.contains($0.persistentModelID) }
+            .filter { !heldIDs.contains($0.persistentModelID) }
             .sorted(by: comparator)
         return snapshot.compactMap { tracked[$0] } + joined
     }
@@ -85,9 +116,9 @@ final class WatchingListing {
     /// The Waiting listing below the Watching one: the Library's, in the Library's order,
     /// less any series the snapshot still holds. A row that has just lapsed to Waiting is
     /// drawn once, where it stands, and not again below until a re-take sweeps it there.
-    var waiting: [TrackedSeries] {
-        let held = Set(snapshot)
-        return library.waiting.filter { !held.contains($0.persistentModelID) }
+    private var heldWaiting: [TrackedSeries] {
+        let heldIDs = Set(snapshot)
+        return library.waiting.filter { !heldIDs.contains($0.persistentModelID) }
     }
 
     /// Re-takes the snapshot from what the Library holds now, in the order in force. The
