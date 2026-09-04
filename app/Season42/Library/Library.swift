@@ -282,8 +282,9 @@ final class Library {
 
     // MARK: - Watching
 
-    /// The Tracked Series whose Status is Watching, in no order the Watching tab should
-    /// rely on: how they are listed is `WatchingListing`'s to decide, not the Library's.
+    /// The Tracked Series whose Status is Watching, most recently added first as
+    /// `trackedSeries` is and sorted no further: how the Watching tab lists them is
+    /// `WatchingListing`'s to decide, not the Library's.
     var watching: [TrackedSeries] {
         trackedSeries.filter { $0.status == .watching }
     }
