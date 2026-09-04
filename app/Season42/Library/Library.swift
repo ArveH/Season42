@@ -313,8 +313,9 @@ final class Library {
         save()
     }
 
-    /// Sets the status the user picked — including the answer to Finished-or-Waiting,
-    /// which is what takes a series off the Watching tab.
+    /// Sets the status the user picked — including the answer to Finished-or-Waiting. That
+    /// takes a series out of `watching`, and not off the Watching tab: the row lapses where
+    /// it stands until the listing is re-taken, which is `WatchingListing`'s to decide.
     func setStatus(_ status: WatchStatus, on series: TrackedSeries) {
         series.status = status
         save()

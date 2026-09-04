@@ -2,14 +2,16 @@ import Foundation
 import SwiftData
 
 /// The Watching listing: the Tracked Series the Library says the user is watching, in the
-/// Watching Order the user picked. Every rule about that order lives here — which of the
-/// two is in force, how each one sorts, where the choice is kept, and when the listing is
-/// allowed to move — and none of it in `Library`, which hands the series over unsorted and
-/// has no say in how they are listed.
+/// Watching Order the user picked, with the Waiting listing below it. Every rule about that
+/// order lives here — which of the two is in force, how each one sorts, where the choice is
+/// kept, when the listing is allowed to move, and which rows have lapsed — and none of it
+/// in `Library`, which hands the series over unsorted and has no say in how they are listed.
 ///
 /// The order is held still (ADR-0014). It is taken as a snapshot and re-taken only when the
 /// user picks an order or arrives on the tab; marking an episode watched, taking one back
-/// and editing a series all leave every row where it is.
+/// and editing a series all leave every row where it is. So does changing its Status: a
+/// series whose Status stops being Watching stays in the listing as a Lapsed Row until the
+/// next re-take sweeps it, so a mis-tapped Finished is undone on the row it happened on.
 @MainActor
 @Observable
 final class WatchingListing {
@@ -45,12 +47,32 @@ final class WatchingListing {
         retake()
     }
 
-    /// The series the user is watching, in the order the snapshot holds them.
+    /// The series the snapshot holds, in its order: the ones the user is watching, and any
+    /// Lapsed Rows among them. Resolved against every Tracked Series rather than only the
+    /// Watching ones, because a series whose Status has changed since the snapshot was
+    /// taken is still listed — it lapses rather than leaving, however the Status changed
+    /// (ADR-0014). A deleted series is not among them: it fails to resolve and is gone.
     var series: [TrackedSeries] {
-        let watching = Dictionary(
-            uniqueKeysWithValues: library.watching.map { ($0.persistentModelID, $0) }
+        let tracked = Dictionary(
+            uniqueKeysWithValues: library.trackedSeries.map { ($0.persistentModelID, $0) }
         )
-        return snapshot.compactMap { watching[$0] }
+        return snapshot.compactMap { tracked[$0] }
+    }
+
+    /// Whether a listed series is a Lapsed Row: still drawn because the snapshot holds it,
+    /// though its Status is no longer Watching. Derived and never stored — nothing is
+    /// written when a row lapses, and setting the Status back to Watching is the whole of
+    /// un-lapsing it.
+    func isLapsed(_ series: TrackedSeries) -> Bool {
+        series.status != .watching && snapshot.contains(series.persistentModelID)
+    }
+
+    /// The Waiting listing below the Watching one: the Library's, in the Library's order,
+    /// less any series the snapshot still holds. A row that has just lapsed to Waiting is
+    /// drawn once, where it stands, and not again below until a re-take sweeps it there.
+    var waiting: [TrackedSeries] {
+        let held = Set(snapshot)
+        return library.waiting.filter { !held.contains($0.persistentModelID) }
     }
 
     /// Re-takes the snapshot from what the Library holds now, in the order in force. The

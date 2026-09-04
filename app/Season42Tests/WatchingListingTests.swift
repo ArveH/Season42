@@ -245,6 +245,129 @@ struct WatchingListingTests {
         #expect(listing.series.map(\.title) == ["Severance", "Fargo"])
     }
 
+    // MARK: - Lapsed Rows
+
+    @Test func answeringFinishedLeavesTheRowInPlaceLapsed() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        library.setStatus(.finished, on: andor)
+
+        #expect(listing.series.map(\.title) == ["Severance", "Andor", "Fargo"])
+        #expect(listing.isLapsed(andor))
+        #expect(listing.series.filter(listing.isLapsed).map(\.title) == ["Andor"])
+    }
+
+    @Test func answeringWaitingLapsesTheRowAndKeepsItOutOfTheWaitingListing() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(listing.waiting.map(\.title) == ["Fargo"])
+
+        library.setStatus(.waiting, on: andor)
+
+        #expect(listing.series.map(\.title) == ["Andor"])
+        #expect(listing.isLapsed(andor))
+        #expect(listing.waiting.map(\.title) == ["Fargo"])
+    }
+
+    @Test func changingTheStatusInTheEditFormLapsesTheRowTheSameWay() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        try library.updateTrackedSeries(
+            andor,
+            title: "Andor",
+            summary: "",
+            poster: nil,
+            seasons: [12],
+            status: .dropped,
+            position: nil,
+            streamingService: nil,
+            nextEpisodeDate: nil
+        )
+
+        #expect(listing.series.map(\.title) == ["Andor"])
+        #expect(listing.isLapsed(andor))
+    }
+
+    @Test func settingTheStatusBackToWatchingUnLapsesTheRowWhereItStands() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        library.setStatus(.finished, on: andor)
+
+        library.setStatus(.watching, on: andor)
+
+        #expect(listing.series.map(\.title) == ["Severance", "Andor", "Fargo"])
+        #expect(!listing.isLapsed(andor))
+    }
+
+    @Test func retakingTheSnapshotSweepsLapsedRowsOut() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        library.setStatus(.waiting, on: andor)
+        #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
+
+        listing.retake()
+
+        #expect(listing.series.map(\.title) == ["Fargo"])
+        #expect(listing.waiting.map(\.title) == ["Andor"])
+    }
+
+    @Test func aLapsedRowThatIsDeletedDropsOutAtOnce() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        library.setStatus(.finished, on: andor)
+
+        library.delete(.series(andor))
+
+        #expect(listing.series.map(\.title) == ["Fargo"])
+    }
+
+    @Test func lapsingWritesNothingToTheLibrary() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        library.setStatus(.finished, on: andor)
+        #expect(listing.isLapsed(andor))
+
+        // A second listing over the same Library knows nothing of the lapse: the row is
+        // derived from this listing's snapshot, and nothing about it was stored.
+        let another = WatchingListing(library: library, defaults: defaults.suite)
+        #expect(another.series.isEmpty)
+        #expect(library.watching.isEmpty)
+    }
+
+    @Test func aSeriesTheSnapshotNeverHeldIsNotALapsedRow() throws {
+        let defaults = try TestDefaults()
+        let library = try Library.inMemory()
+        let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
+        let listing = WatchingListing(library: library, defaults: defaults.suite)
+
+        #expect(!listing.isLapsed(fargo))
+        #expect(listing.waiting.map(\.title) == ["Fargo"])
+    }
+
     // MARK: - Where the choice is kept
 
     @Test func theChosenOrderSurvivesAnAppRelaunch() throws {
