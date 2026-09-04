@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The one place a row draws where its Library Entry is watched. The Watching tab's
-/// series row and both Library rows use it, so where the Streaming Service reads one way
+/// The one place a row draws where its Library Entry is watched. Both of the Watching
+/// tab's rows and both Library rows use it, so where the Streaming Service reads one way
 /// it reads that way everywhere.
 ///
 /// A service the user has adopted a Logo onto draws as that Logo; one with none draws as
@@ -15,7 +15,9 @@ struct StreamingServiceSegment: View {
     /// Where the entry is watched, or nil when the user has named nowhere.
     let service: StreamingService?
 
-    @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 16
+    /// Tall enough to make out at a glance and still one line of the subtitle; raised here
+    /// and nowhere else, so Library rows and Watching rows can't come to disagree.
+    @ScaledMetric(relativeTo: .subheadline) private var logoHeight = 24
 
     var body: some View {
         // Drawn through the Logo slot rather than by hand, so the one Logo in the app that

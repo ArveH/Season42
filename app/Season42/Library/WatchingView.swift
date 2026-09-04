@@ -72,9 +72,10 @@ struct WatchingView: View {
     }
 }
 
-/// A series the user is watching: where they got to, and what they can do about it —
-/// mark the next episode watched, or say where the series stands once there is no next
-/// episode, take a watch back, and edit the series.
+/// A series the user is watching: where they got to, when the next episode lands if
+/// they've recorded it, and what they can do about it — mark the next episode watched, or
+/// say where the series stands once there is no next episode, take a watch back, and edit
+/// the series.
 private struct WatchingRow: View {
     let library: Library
     let series: TrackedSeries
@@ -88,12 +89,13 @@ private struct WatchingRow: View {
             // under both, so the buttons keep the width they had before there was a
             // thumbnail — at the largest text sizes they need every point of it.
             PosterRow(poster: series.poster) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(series.title)
                         .font(.headline)
                     StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                    NextEpisodeDateLine(date: series.nextEpisodeDate)
                 }
             }
 
@@ -162,11 +164,7 @@ private struct WaitingRow: View {
                     StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    if let nextEpisodeDate = series.nextEpisodeDate {
-                        Text("Next episode \(nextEpisodeDate.formatted(date: .abbreviated, time: .omitted))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    NextEpisodeDateLine(date: series.nextEpisodeDate)
                 }
             }
 
