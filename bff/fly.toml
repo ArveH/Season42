@@ -1,0 +1,69 @@
+# The BFF as a Fly.io app: one machine in Stockholm, asleep until somebody searches, with a volume
+# holding everything it has fetched from TMDB.
+#
+# The image this deploys is the one the Dockerfile beside this file builds, and the move off Azure
+# Container Apps did not change a line of it (ADR-0015). It listens on plain HTTP on 8080 and holds
+# no certificate because fly-proxy terminates TLS at the edge, which is the same arrangement the
+# Container Apps edge provided and the same reason ADR-0010 gave for the image carrying none.
+
+# ONE MACHINE IS LOAD-BEARING, NOT A COST DECISION — and nothing in this file enforces it, because
+# Fly has no key for it: the count is however many machines have been created. watch-providers.json
+# is rewritten wholesale every 24 hours by every machine independently, so a second one exercises a
+# path that never has been. (The other half of the old Azure reasoning has retired: the volume
+# below is a local filesystem, not an SMB share, so File.Move really is an atomic rename now.)
+# Before running `fly scale count` above 1, revisit the snapshot-write path.
+
+app = "season42-bff"
+primary_region = "arn"
+
+[build]
+  # Only used by a local `fly deploy` run from this directory. CI never builds through flyctl: it
+  # builds and pushes the image itself so the tag is the commit SHA, then deploys by reference.
+  dockerfile = "Dockerfile"
+
+[env]
+  # Points the Logo Store, the Poster Store and the Watch Provider snapshot at the mount below.
+  # Without this they would fall back to `store` relative to the content root — inside the image,
+  # on the disk that goes when the machine does.
+  Tmdb__LogoStorePath = "/store"
+
+# The same absolute path the Azure Files share was mounted at, so nothing in the server had to be
+# told the store had moved. What lives here is a cache: losing it costs fetches and nothing else
+# (ADR-0008). It is durable anyway because the machine stops when nobody is searching, and a
+# container-local store would be emptied on a schedule no one chose (ADR-0010).
+[[mounts]]
+  source = "store"
+  destination = "/store"
+
+[http_service]
+  # The Dockerfile already sets ASPNETCORE_HTTP_PORTS to 8080. This is a restatement, not a choice.
+  internal_port = 8080
+  force_https = true
+
+  # Scale to zero, the counterpart of the Container App's minReplicas 0. A cold start pays the
+  # awaited first TMDB fetch, and a search is the only thing a stopped BFF costs.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Liveness, not readiness — the same distinction the Container App's probe drew. /health answers
+  # for the host and says nothing about the snapshot, so a BFF that has never reached TMDB keeps
+  # answering searches honestly with 503 instead of being pulled out of rotation entirely
+  # (ADR-0010).
+  [[http_service.checks]]
+    path = "/health"
+    # THIS NUMBER IS NOT THE ONE THE CONTAINER APP USED, and it must not be lowered to it. The
+    # Watch Provider refresh is a hosted service, so its first fetch from TMDB is awaited before
+    # /health answers anything at all, bounded by a 15-second timeout in Program.cs. The old
+    # probe's 10-second initial delay would fail every cold start here.
+    grace_period = "30s"
+    interval = "30s"
+    timeout = "5s"
+    method = "get"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  # Not Fly's 256 MB default: that is not enough headroom for the .NET host, and an out-of-memory
+  # kill on an image that ships no shell is a bad place to be debugging from.
+  memory = "512mb"

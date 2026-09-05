@@ -1,9 +1,8 @@
 // Where the app looks for the BFF.
 //
-// The committed default is the deployed address (bff/README.md, ADR-0010). The
-// generated segment belongs to the Container Apps environment and is stable for
-// its life, so it is safe to commit; it changes only if that environment is
-// recreated. To point a build somewhere else — a BFF on your own machine, say —
+// The committed default is the deployed address (bff/README.md, ADR-0015): the
+// Fly app's own hostname, which is the app's for as long as it exists, so it is
+// safe to commit. To point a build somewhere else — a BFF on your own machine, say —
 // override this in Local.xcconfig (gitignored); Local.xcconfig.example carries
 // the line to copy.
 //
@@ -15,4 +14,4 @@
 
 SLASH = /
 
-BFF_BASE_URL = https:$(SLASH)$(SLASH)season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io
+BFF_BASE_URL = https:$(SLASH)$(SLASH)season42-bff.fly.dev
