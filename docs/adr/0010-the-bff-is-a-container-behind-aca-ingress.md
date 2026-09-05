@@ -1,5 +1,17 @@
 # The BFF is a container behind ACA ingress, and the store it was told to throw away is mounted
 
+**Status: superseded by [ADR-0015](0015-the-bff-moves-to-fly-io.md).** Only the hosting provider
+is superseded. Everything below about the *container* — that it holds no certificate, that it
+ships no shell, that `/health` is liveness and not readiness, and that its store is durable
+because the thing scales to zero — is still current, and ADR-0015 inherits it rather than
+restating it. Read this one for the reasoning and that one for where it now runs.
+
+Two things below are now false rather than merely relocated. The token does not reach the
+container as an ACA secret populated from a GitHub secret: it is a Fly secret, set once by hand and
+out of CI entirely. And the mounted store is a Fly Volume on a local filesystem rather than an
+Azure Files share over SMB, which retires the `File.Move` half of the argument for a single
+replica — the other half, the wholesale snapshot rewrite, still stands. ADR-0015 has both.
+
 The BFF becomes an image: a multi-stage build on the .NET SDK, published onto the chiseled ASP.NET
 runtime, listening on plain HTTP on `:8080`. It is deployed to Azure Container Apps, and everything
 the app or a person addresses is `https://`.

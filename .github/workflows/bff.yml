@@ -2,12 +2,10 @@
 # gate. Nothing here builds or tests the iOS app — that needs a macOS runner and the code-signing
 # setup, which is its own fight.
 #
-# Azure authentication is an OIDC federated credential on an app registration scoped to the main
-# branch, created by scripts/azure-setup.sh. Two credentials are registered for that one branch:
-# GitHub is moving the token's `sub` claim from `repo:<owner>/<repo>:ref:refs/heads/main` to an
-# immutable-id form, `repo:<owner>@<id>/<repo>@<id>:ref:refs/heads/main`, and either may be
-# presented. There is no client secret: a pull request cannot authenticate to Azure, and does not
-# try.
+# Fly authentication is an app-scoped deploy token held as a repository secret. Fly offers no
+# GitHub OIDC federation for deploys, so unlike the Azure arrangement this replaced there is a
+# long-lived credential — scoped to the one app, and to nothing else in the organisation
+# (ADR-0015). A pull request cannot read it, and does not try.
 
 name: BFF
 
@@ -15,10 +13,10 @@ on:
   pull_request:
   push:
     branches: [main]
-    # An app-only or docs-only commit does not redeploy.
+    # An app-only or docs-only commit does not redeploy. fly.toml lives under bff/, so the
+    # deployment config is covered by the first entry rather than needing one of its own.
     paths:
       - 'bff/**'
-      - 'infra/**'
       - 'Season42.slnx'
       - '.github/**'
   workflow_dispatch:
@@ -26,9 +24,8 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time, and never a cancelled one: an interrupted `az deployment group create`
-# leaves the resource group half-updated. Pull request runs are only tests, so a superseded one is
-# worth cancelling.
+# One deploy at a time, and never a cancelled one: an interrupted deploy can leave the machine
+# updated but unreleased. Pull request runs are only tests, so a superseded one is worth cancelling.
 concurrency:
   group: bff-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -45,7 +42,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       # No test reaches the network: the TMDB handler is faked at the composition root, so this
-      # needs no token and no Azure.
+      # needs no token and no Fly.
       - run: dotnet test Season42.slnx
 
   deploy:
@@ -54,101 +51,54 @@ jobs:
     # Pull requests deploy nothing. They also hold no credential that would let them.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    # No `environment:` here, deliberately. A job that names one gets an OIDC subject of
-    # `repo:<owner>/<repo>:environment:<name>`, which the federated credential — scoped to
-    # `ref:refs/heads/main` — does not match, and the login would fail.
-    permissions:
-      contents: read
-      # OIDC. Without this azure/login fails in a way that reads like a bad credential rather than
-      # a missing permission.
-      id-token: write
     env:
-      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       APP_NAME: season42-bff
-    # Secrets and variables reach the run steps below as environment variables rather than as
-    # `${{ }}` spliced into the script: a value with a quote or a backtick in it would otherwise
-    # become shell.
     steps:
       - uses: actions/checkout@v7
 
-      - uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # Pinned to a major version like every other action here. Fly's own docs say `@master`;
+      # `v1` tracks the same commit and does not hand a third party a moving target.
+      - uses: superfly/flyctl-actions/setup-flyctl@v1
 
-      # The registry belongs to the deployment template, and the template's own first run — the
-      # hand-run under "The deployment" in bff/README.md — is what brings it into being. CI does
-      # not create it: a workflow that provisions the substrate it deploys onto is a much scarier
-      # thing than one that finds it already there. The resource group holds exactly one registry,
-      # which is why picking the first is safe.
-      - name: Find the registry
-        id: registry
-        run: |
-          set -euo pipefail
-          login_server=$(az acr list -g "$RESOURCE_GROUP" --query "[0].loginServer" -o tsv)
-          if [ -z "$login_server" ]; then
-            echo "No container registry in $RESOURCE_GROUP. Deploy infra/main.bicep by hand once" >&2
-            echo "to create it — see \"The deployment\" in bff/README.md." >&2
-            exit 1
-          fi
-          echo "login-server=$login_server" >> "$GITHUB_OUTPUT"
-
-      # The SHA tag is what makes the revision list mean anything: every revision points at an
-      # image traceable to a commit, and a rollback is picking an older tag. `latest` is a
-      # convenience and nothing depends on it.
+      # The image is built and pushed here rather than by `flyctl deploy` building it, so that the
+      # tag is the commit SHA. That tag is what makes the release list mean anything: every release
+      # points at an image traceable to a commit, and a rollback is deploying an older tag.
+      # `latest` is a convenience and nothing depends on it.
+      # The token reaches the steps that need it as an environment variable rather than as a
+      # `${{ }}` spliced into the script: a value with a quote or a backtick in it would otherwise
+      # become shell. It is not set at job level, so `checkout` never sees it.
       - name: Build and push the image
         id: image
         env:
-          LOGIN_SERVER: ${{ steps.registry.outputs.login-server }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           set -euo pipefail
-          repository="$LOGIN_SERVER/$APP_NAME"
-          az acr login --name "${LOGIN_SERVER%%.*}"
+          repository="registry.fly.io/$APP_NAME"
+          flyctl auth docker
           docker build -t "$repository:$GITHUB_SHA" -t "$repository:latest" bff
           docker push "$repository:$GITHUB_SHA"
           docker push "$repository:latest"
           echo "reference=$repository:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
-      # The image parameter is passed every time. Leaving it at its default would put the
-      # Container Apps placeholder image back. `appName` is left at the template's default, which
-      # is the same `season42-bff` the image repository above is named for.
+      # `--image` deploys the reference just pushed and skips building entirely. The TMDB access
+      # token is not passed here: it is a Fly secret set once by hand, because setting one restarts
+      # the app and it changes about once a year (ADR-0015).
       - name: Deploy
-        id: deployment
         env:
-          CONTAINERAPP_ENV: ${{ vars.AZURE_CONTAINERAPP_ENV }}
-          LOCATION: ${{ vars.AZURE_LOCATION }}
-          TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
           set -euo pipefail
-          args=(
-            -g "$RESOURCE_GROUP" -f infra/main.bicep -n "bff-$GITHUB_SHA"
-            -p containerAppEnvironmentName="$CONTAINERAPP_ENV"
-            -p tmdbAccessToken="$TMDB_ACCESS_TOKEN"
-            -p image="$IMAGE"
-          )
-          # The template defaults location to the resource group's region, which is right whenever
-          # the Container Apps environment sits there — which is how scripts/azure-setup.sh creates
-          # it. Passing the recorded region says so out loud rather than relying on it, and a
-          # Container App cannot be created outside its environment's region anyway.
-          if [ -n "$LOCATION" ]; then
-            args+=(-p location="$LOCATION")
-          fi
-          fqdn=$(az deployment group create "${args[@]}" --query properties.outputs.fqdn.value -o tsv)
-          echo "fqdn=https://$fqdn" >> "$GITHUB_OUTPUT"
-          echo "Deployed $IMAGE to https://$fqdn"
+          flyctl deploy --config bff/fly.toml --app "$APP_NAME" --image "$IMAGE"
+          echo "Deployed $IMAGE to https://$APP_NAME.fly.dev"
 
-      # The deployed BFF answering a real search is the only proof the revision is serving. It is
-      # given room to be slow: the app scales to zero, so this request may be waiting on a cold
-      # start and the awaited first TMDB fetch, and the edge has been seen to answer 504 before
-      # the container was ready (ADR-0010).
+      # The deployed BFF answering a real search is the only proof the release is serving. It is
+      # given room to be slow: the machine stops when nobody is searching, so this request may be
+      # waiting on a cold start and the awaited first TMDB fetch (ADR-0015).
       - name: Ask the deployed BFF for a Watch Provider
-        env:
-          BASE_URL: ${{ steps.deployment.outputs.fqdn }}
         run: |
           set -euo pipefail
-          url="$BASE_URL/providers?query=net"
+          url="https://$APP_NAME.fly.dev/providers?query=net"
           for attempt in $(seq 1 10); do
             # curl writes the status to stdout either way; the fallback is for the exit code,
             # which set -e would otherwise take the whole step down with.

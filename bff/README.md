@@ -59,15 +59,16 @@ overridden this way: `Tmdb:WatchRegion` becomes `-e Tmdb__WatchRegion=SE`, the c
 double underscore.
 
 The container listens on plain HTTP on `:8080` and holds no certificate. That is deliberate: TLS
-terminates at the Container Apps edge, which hands the container plain HTTP on the internal network
-(ADR-0010). A `docker run` on a public host would be publishing cleartext.
+terminates at the fly-proxy edge, which hands the container plain HTTP (ADR-0010 for why, ADR-0015
+for where). A `docker run` on a public host would be publishing cleartext.
 
 It starts with an empty store and fills it — the container mounts nothing, so the snapshot, the
 logos and the posters live inside it and go when it goes. Durable storage arrives with the
 deployment.
 
-There is no shell in the image, so `docker exec` gets you nothing. `docker logs` and the endpoints
-are the way in.
+There is no shell in the image, so `docker exec` gets you nothing — and neither does
+`fly ssh console` against the deployed one, for the same reason. `docker logs`, `fly logs` and the
+endpoints are the way in.
 
 ## Test
 
@@ -77,135 +78,109 @@ dotnet test Season42.slnx      # from the repo root
 
 No test reaches the network: the TMDB HTTP handler is faked at the composition root.
 
-## One-time Azure setup
+## One-time Fly setup
 
-Before anything can be deployed, a subscription needs a resource group and a Container Apps
-environment to deploy *into*, and CI needs an identity to deploy *with*. Those are provisioned
-once and are not owned by the deployment template — re-running a template that owns the substrate
-it deploys onto is a much riskier operation than re-running one that does not.
+Five commands, run once. There is deliberately **no setup script** for this, in bash or anything
+else: the Azure wizard this replaced earned its length by walking an Entra directory-permissions
+minefield where two stages could fail on rights rather than on anything being wrong, and none of
+that exists here (ADR-0015).
+
+**Only some of these are safe to re-run.** `fly apps create` refuses if the app exists, and both
+`fly secrets set` and `gh secret set` overwrite, which is what you want. **`fly volumes create` is
+the exception: it does not refuse a name it already has, it creates a second volume** — and a
+second volume on a single-machine app is a machine that may come back attached to an empty store.
+Run `fly volumes list` before it, and leave the confirmation prompt in place rather than passing
+`--yes`.
 
 ```sh
-./scripts/azure-setup.sh
+fly apps create season42-bff --org personal
+
+# The Logo Store, the Poster Store and the snapshot. Mounted at /store, which is what
+# Tmdb__LogoStorePath in bff/fly.toml points at. Check `fly volumes list` first — running this
+# twice makes two volumes rather than refusing.
+fly volumes create store --app season42-bff --region arn --size 1
+
+# Set once, not per deploy: setting a Fly secret restarts the app, and this changes about
+# once a year. The colon in Tmdb:AccessToken is written as a double underscore.
+fly secrets set Tmdb__AccessToken="<your TMDB API Read Access Token>" --app season42-bff
+
+# CI's credential. Scoped to this one app and able to do nothing else in the organisation.
+gh secret set FLY_API_TOKEN --body "$(fly tokens create deploy --app season42-bff --name github-actions)"
+
+# The first deploy, which creates the machine. Every one after this is CI's.
+cd bff && fly deploy
 ```
 
-An interactive wizard, safe to re-run: every stage checks for what it is about to create and
-leaves it alone if it is already there. It walks eight stages — confirming the subscription,
-registering the Azure resource providers, creating the resource group and the Container Apps
-environment, capturing the TMDB access token, registering an Entra identity with a federated
-credential scoped to this repository's `main` branch, granting that identity its two roles on the
-resource group, and handing the values to GitHub.
-
-The two roles are Contributor, which covers the deployment, and Role Based Access Control
-Administrator, which exists only because the template hands the container app's identity AcrPull
-on the registry — a role assignment, which Contributor may not write. It is granted under a
-condition allowing AcrPull and nothing else, so CI cannot use it to widen its own access.
-
-It captures nothing you have to edit into it beforehand, and it stores no credential in the repo:
-values land in `.env` (gitignored) and in GitHub Actions secrets and variables.
+**Check the volume is mounted, because nothing else will.** `fly volumes list` shows it attached,
+but the stronger check is `fly machine status <id> --display-config`, which prints the machine's
+resolved `mounts` and `env` together: the mount's path and `Tmdb__LogoStorePath` must be the same
+`/store`. A volume attached at a path the server is not writing to looks exactly like a working
+deployment from outside. This is the one thing about the deployment that no
+test covers: an unmounted store simply re-fetches on the next cold start, silently, and there is no
+shell in the image to look with. What that failure costs is fetches (ADR-0008), which is why it is
+accepted rather than engineered around (ADR-0015).
 
 | Where | Name | What it is |
 | --- | --- | --- |
-| Secret | `AZURE_CLIENT_ID` | The Entra app registration CI authenticates as |
-| Secret | `AZURE_TENANT_ID` | The directory that app lives in |
-| Secret | `AZURE_SUBSCRIPTION_ID` | The subscription everything is created in |
-| Secret | `TMDB_ACCESS_TOKEN` | Reaches the container as an ACA secret at deploy time |
-| Variable | `AZURE_RESOURCE_GROUP` | Where the deployment template puts everything |
-| Variable | `AZURE_LOCATION` | The region, `norwayeast` by default |
-| Variable | `AZURE_CONTAINERAPP_ENV` | The environment the app runs in |
+| GitHub secret | `FLY_API_TOKEN` | The app-scoped deploy token CI authenticates with |
+| Fly secret | `Tmdb__AccessToken` | Reaches the container as an environment variable |
 
-**No long-lived credential exists anywhere.** CI authenticates by OIDC federated credential, which
-is why there is no client secret in GitHub; the deployed app pulls its image with a managed
-identity, which is why there is no registry password in Azure. The federated credential is scoped
-to `main`, so a pull request cannot use it — pull requests run the tests and never reach Azure.
-
-Two stages can fail on permissions rather than on anything being wrong: registering an Entra
-application, and granting a role. The wizard says so plainly when it happens and prints the exact
-command for someone with the rights to run, rather than failing with a raw CLI error.
-
-The registry, the storage account and its file share are **not** created here. They are the
-deployed app's own dependencies, they change when the app changes, and the deployment template
-owns them.
+**There is one long-lived credential**, and there did not use to be: Fly offers no GitHub OIDC
+federation for deploys, so the federated credential the Azure deployment used has no counterpart.
+The trade is recorded in ADR-0015. Rotating it is `fly tokens create deploy` and updating the one
+repository secret. A pull request cannot read it and does not try.
 
 ## The deployment
 
-`infra/main.bicep` is everything the BFF needs in Azure that the setup above did not create: a
-container registry, a storage account with a file share for the store, and the Container App
-itself. It is **parameterised on the resource group and the Container Apps environment**, and owns
-neither — those are the substrate, and a template that owns the ground it stands on is a much
-scarier thing to re-run than one that does not.
+`bff/fly.toml` is the whole of it — there is no separate substrate to provision and nothing owns
+anything the app does not. What it says, and why:
 
-| Parameter | Default | What it is |
-| --- | --- | --- |
-| `containerAppEnvironmentName` | *(required)* | The environment to deploy into — the `AZURE_CONTAINERAPP_ENV` variable |
-| `tmdbAccessToken` | *(required, secure)* | Becomes the ACA secret behind `Tmdb__AccessToken` |
-| `location` | the resource group's region | Where the registry, storage account and app are created. Has to be the environment's region, and the default is right whenever the environment sits in its own resource group's region — which is how `scripts/azure-setup.sh` creates it |
-| `appName` | `season42-bff` | Names the Container App, its identity, and the image repository |
-| `image` | the Container Apps placeholder | The image the app runs |
+- **One machine, `shared-cpu-1x` with 512 MB.** Not Fly's 256 MB default: the .NET host wants the
+  headroom, and an out-of-memory kill on an image with no shell is a bad place to debug from.
+- **One machine is load-bearing, not a cost decision**, and nothing in `fly.toml` enforces it
+  because Fly has no key for it — the count is however many machines exist. The snapshot is
+  rewritten wholesale every 24 hours by every machine independently, so the second one exercises a
+  path that never has been. `fly.toml` says so where someone about to run `fly scale count` will
+  read it.
+- **A 1 GB volume mounted at `/store`**, with `Tmdb__LogoStorePath` pointing at it, so fetched
+  logos, posters and the snapshot survive the machine stopping. It is a local filesystem rather
+  than the SMB share this replaced, so a write into place really is an atomic rename now. It pins
+  the machine to a physical host and is not replicated; what is in it is a cache (ADR-0008).
+- **`force_https` with the container on plain HTTP on 8080.** TLS terminates at the fly-proxy edge
+  and the container holds no certificate (ADR-0010 for why, ADR-0015 for where). The Dockerfile
+  already sets `ASPNETCORE_HTTP_PORTS` to 8080, which is Fly's default internal port, so `fly.toml`
+  restates it rather than choosing it.
+- **`auto_stop_machines` with `min_machines_running = 0`.** The machine stops when nobody is
+  searching and starts on the next request. A cold start pays the awaited first TMDB fetch, and a
+  search is the only thing a stopped BFF costs.
+- **`/health` is an HTTP check with a 30-second grace period**, and that number is not the one the
+  Container App's probe used. The Watch Provider refresh is a hosted service, so its first fetch
+  from TMDB is awaited before `/health` answers anything, bounded at 15 seconds in `Program.cs`.
+  The old 10-second initial delay would fail every cold start. It is liveness only; nothing is
+  wired as readiness, for the reason ADR-0010 gives.
 
-```sh
-set -a && . ./.env && set +a          # the values scripts/azure-setup.sh wrote
-
-az deployment group create \
-  -g "$AZURE_RESOURCE_GROUP" -f infra/main.bicep \
-  -p containerAppEnvironmentName="$AZURE_CONTAINERAPP_ENV" \
-  -p tmdbAccessToken="$TMDB_ACCESS_TOKEN" \
-  -p image="$REGISTRY_LOGIN_SERVER/season42-bff:$TAG"
-```
-
-**The `image` default is a bootstrap, not a value to leave alone.** The registry does not exist
-until this template has created it, so the first deployment has nothing of ours to pull and runs
-the placeholder image Container Apps ships. Every deployment after that passes the image it just
-pushed — which is what the deploy workflow does — and a deployment that leaves the parameter at
-its default puts the placeholder back.
-
-The template outputs `fqdn`, `registryLoginServer`, `registryName` and `containerAppName`. The
-registry and storage account names are derived from a hash of the resource group rather than asked
-for, because both have to be globally unique; read them from the outputs rather than guessing.
-
-What it creates, and why it looks the way it does:
-
-- **The registry** has its admin user off, and no credential for it exists anywhere. The Container
-  App pulls with a user-assigned managed identity holding `AcrPull` on the registry. The identity
-  is user-assigned rather than system-assigned so that it exists — and holds the role — before the
-  app that pulls with it is created.
-- **The file share** is mounted at `/store`, and `Tmdb__LogoStorePath` points at it, so fetched
-  logos and the snapshot survive a revision restart. It is the smallest share Azure Files sells,
-  which is already far more than one region's logos need. Mounting Azure Files needs a storage
-  account key — the one credential here with no managed-identity form — and the template reads it
-  at deploy time rather than storing it anywhere.
-- **Ingress is external on port 8080 with `allowInsecure: false`**. TLS terminates at the edge and
-  the container is handed plain HTTP (ADR-0010). What that setting does is answer an `http://`
-  request with a `301` to the `https://` address — it does not refuse the connection, and Container
-  Apps offers nothing that does. So the guarantee is not "cleartext is refused" but "nothing is
-  ever *served* over cleartext": the only thing that crosses an `http://` connection is a bodyless
-  redirect. Turning the setting on would let plain HTTP reach the container, which is the thing
-  being prevented.
-- **`/health` is wired as a liveness probe** and nothing is wired as a readiness probe, for the
-  reason ADR-0010 gives.
-- **Scale is min 0, max 1.** Zero means a cold start pays the awaited first TMDB fetch, which is
-  the accepted trade. One is load-bearing rather than a cost decision, and the Bicep says so where
-  someone about to raise it will read it: the snapshot-write path assumes a single writer.
+**Deploys are not zero-downtime**, and that is a property rather than an oversight: one machine
+holding one volume cannot hand over to a second machine, because the volume cannot attach twice. It
+is a few seconds, against an app that is usually asleep anyway.
 
 ### The deployed address
 
 ```
-https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io
+https://season42-bff.fly.dev
 ```
 
-That is the generated `*.azurecontainerapps.io` hostname, and it is the app's default base URL —
-committed in `app/Config/Bff.xcconfig`, which the build hands to the app through its `Info.plist`.
-The generated segment belongs to the Container Apps environment and is stable for its life; it
-changes only if the environment is recreated — at which point this section and `Bff.xcconfig` are
-the two places that name it.
+That is the app's own Fly hostname and it is the app's for as long as the app exists — committed as
+the default base URL in `app/Config/Bff.xcconfig`, which the build hands to the app through its
+`Info.plist`. If it ever changes, this section and `Bff.xcconfig` are the two places that name it.
 
-**The first request after an idle period can time out.** Nothing is running at min 0, so that
-request waits for a container to start *and* for the TMDB fetch that start awaits — long enough
-that the edge has been seen to answer `504` before the container was ready. The next request is
+**The first request after an idle period can be slow.** Nothing is running, so that request waits
+for a machine to start *and* for the TMDB fetch that start awaits. fly-proxy holds the connection
+while the machine boots rather than refusing it, so what this costs is a wait. The next request is
 served normally. That is the cost of scaling to zero, and a search is the only thing it is charged
 against.
 
 ```sh
-curl 'https://season42-bff.livelyocean-b2b153fc.norwayeast.azurecontainerapps.io/providers?query=net'
+curl 'https://season42-bff.fly.dev/providers?query=net'
 ```
 
 ## CI
@@ -216,50 +191,35 @@ which is a separate fight and not one worth blocking a deployment on.
 
 | Trigger | What it does |
 | --- | --- |
-| Pull request | `dotnet test Season42.slnx`, and nothing else. Reaches no Azure |
-| Push to `main` | The same tests, gating build → push → deploy. A red test never reaches Azure |
+| Pull request | `dotnet test Season42.slnx`, and nothing else. Reaches no Fly |
+| Push to `main` | The same tests, gating build → push → deploy. A red test never reaches Fly |
 | `workflow_dispatch` | The same as a push, for a manual redeploy of `main` |
 
-The push trigger is path-filtered to `bff/**`, `infra/**`, `Season42.slnx` and `.github/**`, so a
-commit touching only `app/` deploys nothing. Pull requests are not filtered — the tests take
-seconds, and a filter there only buys the chance of merging something untested.
+The push trigger is path-filtered to `bff/**`, `Season42.slnx` and `.github/**`, so a commit
+touching only `app/` deploys nothing. `fly.toml` lives under `bff/`, so the deployment config needs
+no filter entry of its own. Pull requests are not filtered — the tests take seconds, and a filter
+there only buys the chance of merging something untested.
 
-It reads exactly what `scripts/azure-setup.sh` wrote and nothing else — the secrets
-`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `TMDB_ACCESS_TOKEN`, and the
-variables `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION` and `AZURE_CONTAINERAPP_ENV`. A fresh clone is
-wired up by running that script; the table under [One-time Azure setup](#one-time-azure-setup) is
-the whole list. Two names it does *not* ask for: the registry is found in the resource group,
-which holds exactly one, and the app is the template's default `season42-bff`, which also names
-the image repository.
+It reads one secret, `FLY_API_TOKEN`, and no variables at all. The app name is the workflow's own
+`season42-bff`, which is also the image repository and the hostname.
 
-**Authentication is an OIDC federated credential**, so no client secret exists in GitHub. Two
-things follow, and both are load-bearing:
+**The image is built and pushed here rather than by `flyctl deploy` building it**, so that the tag
+is the commit SHA. That tag is what does the work: every release points at an image traceable to a
+commit, so the release list means something and a rollback is deploying an older tag. `latest` is
+convenience; nothing depends on it. The deploy step then passes `--image`, which skips building
+entirely.
 
-- The deploy job asks for `id-token: write`. Without it `azure/login` fails in a way that reads
-  like a bad credential rather than a missing permission.
-- The deploy job names no `environment:`. A job that names one gets an OIDC subject of
-  `repo:<owner>/<repo>:environment:<name>`, and the credential is scoped to
-  `ref:refs/heads/main` — so naming an environment would break the login. A credential for any
-  other ref is a second federated credential, never a widening of this one.
+**The TMDB token is not passed at deploy time.** It is a Fly secret set once by hand, because
+setting one restarts the app and it changes about once a year — so it is out of CI's blast radius
+altogether (ADR-0015).
 
-**Images are tagged with the git SHA and with `latest`**, and it is the SHA tag that is doing the
-work: every Container Apps revision points at an image traceable to a commit, so the revision list
-means something and a rollback is a redeploy of an older tag. `latest` is convenience; nothing
-depends on it.
-
-**The registry has to exist before CI's first run**, because the deployment template is what
-creates it and the workflow does not run that template until it has an image to pass. So the
-first deployment is the hand-run under [The deployment](#the-deployment); every run after it is
-CI's. A workflow that provisioned the substrate it deploys onto would be a much scarier thing
-than one that finds it already there, so it refuses with that instruction rather than creating
-anything. Every deploy passes the image it just pushed, because leaving that parameter at its
-default puts the placeholder back.
-
-A run ends by asking the deployed BFF for `/providers?query=net` over HTTPS. That request is
-given ten tries at fifteen-second spacing, because the app scales to zero and the first request
-after a deploy is waiting on a cold start and the awaited first TMDB fetch — the edge has been
-seen to answer `504` before the container was ready. A run is green when the address in
-[The deployed address](#the-deployed-address) has answered with real Watch Providers.
+A run ends by asking the deployed BFF for `/providers?query=net` over HTTPS. That request is given
+ten tries at fifteen-second spacing, because the machine stops when nobody is searching and the
+first request after a deploy is waiting on a cold start and the awaited first TMDB fetch. A run is
+green when the address in [The deployed address](#the-deployed-address) has answered with real
+Watch Providers. **This is the only thing that proves the deployment**, and it proves a great deal
+of it at once: the image built and pushed, the machine booted, the token present, TLS at the edge,
+the snapshot fetched. What it does not prove is the volume — see the setup section above.
 
 ## The app talking to it
 
