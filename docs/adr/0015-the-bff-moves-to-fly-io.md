@@ -68,9 +68,10 @@ of CI's blast radius.
 - **A custom domain.** Rejected for now: the generated `.fly.dev` hostname is the same shape of
   thing as the generated `.azurecontainerapps.io` hostname it replaces, and it is one committed
   default either way.
-- **A Fly setup wizard, mirroring `scripts/azure-setup.sh`.** Rejected: that script earned its
-  length by walking an Entra directory-permissions minefield where two stages could fail on rights
-  rather than on anything being wrong. Fly's setup is five idempotent `flyctl` commands with no
+- **A Fly setup wizard, mirroring the Azure one** (`scripts/azure-setup.sh`, deleted along with the
+  estate it provisioned, and reachable in git history). Rejected: that script earned its length by
+  walking an Entra directory-permissions minefield where two stages could fail on rights rather
+  than on anything being wrong. Fly's setup is five idempotent `flyctl` commands with no
   dashboard and no directory, and a wizard nobody re-runs rots faster than a README section does.
 
 ## Consequences
