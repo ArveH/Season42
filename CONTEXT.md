@@ -64,10 +64,10 @@ only when the user picks an order, arrives on the tab from another tab, or pulls
 down, the way many iPhone lists refresh; a sheet opened over the tab and closed again is not an
 arrival (ADR-0014). The pull is the one re-take the user can ask for without leaving the tab or
 changing the order, and it is a re-take and nothing more: there is nothing to fetch, the search
-text stays, and a listing with no rows to pull offers no pull. A series whose Status becomes Watching
-while the tab is held still — edited to it from a Waiting row — is appended below the snapshot
-as an ordinary Watching row, several of them in the order in force, and is not part of the
-snapshot: set back to Waiting it returns to the Waiting listing at once rather than lapsing, and
+text stays, and a listing with no rows to pull offers no pull. A series whose Status becomes
+Watching while the tab is held still — edited to it from a Waiting row — is appended below the
+snapshot as an ordinary Watching row, several of them in the order in force, and is not part of
+the snapshot: set back to Waiting it returns to the Waiting listing at once rather than lapsing, and
 the next re-take sorts it in. Says nothing about the Waiting listing
 below it, which is by Next Episode Date and is not the user's to reorder.
 _Avoid_: sort, sort order, last updated
