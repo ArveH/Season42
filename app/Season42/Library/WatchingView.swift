@@ -56,6 +56,9 @@ struct WatchingView: View {
                             }
                         }
                     }
+                    // Pulling the listing down is the third re-take (ADR-0014). It hangs on
+                    // the List and not the Group, so the two empty states offer no pull.
+                    .refreshable { listing.retake() }
                 }
             }
             .navigationTitle("Watching")

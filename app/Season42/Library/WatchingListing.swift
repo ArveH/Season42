@@ -8,12 +8,13 @@ import SwiftData
 /// in `Library`, which hands the series over unsorted and has no say in how they are listed.
 ///
 /// The order is held still (ADR-0014). It is taken as a snapshot and re-taken only when the
-/// user picks an order or arrives on the tab; marking an episode watched, taking one back
-/// and editing a series all leave every row where it is. So does changing its Status: a
-/// series whose Status stops being Watching stays in the listing as a Lapsed Row until the
-/// next re-take sweeps it, so a mis-tapped Finished is undone on the row it happened on.
-/// A series whose Status becomes Watching while the tab is held still is appended below
-/// the snapshot rather than left off the tab, and the next re-take sorts it in.
+/// user picks an order, arrives on the tab, or pulls the listing down; marking an episode
+/// watched, taking one back and editing a series all leave every row where it is. So does
+/// changing its Status: a series whose Status stops being Watching stays in the listing as a
+/// Lapsed Row until the next re-take sweeps it, so a mis-tapped Finished is undone on the
+/// row it happened on. A series whose Status becomes Watching while the tab is held still
+/// is appended below the snapshot rather than left off the tab, and the next re-take sorts
+/// it in.
 ///
 /// The tab's Library Filter lives here too, its own and not the Library tab's. It narrows
 /// both listings as a view over them: rows that don't match are hidden, nothing moves,
@@ -27,7 +28,7 @@ final class WatchingListing {
 
     /// Which Watching Order is in force. A preference about a listing rather than the
     /// user's own data, so it is kept in `UserDefaults` and never in the Library store
-    /// (ADR-0005). Picking one is one of the two moments the snapshot is re-taken.
+    /// (ADR-0005). Picking one is one of the three moments the snapshot is re-taken.
     var order: WatchingOrder {
         didSet {
             defaults.set(order.rawValue, forKey: Self.orderKey)
@@ -122,10 +123,11 @@ final class WatchingListing {
     }
 
     /// Re-takes the snapshot from what the Library holds now, in the order in force. The
-    /// view calls this when the user arrives on the tab from another tab — and not when a
-    /// sheet opened over the tab closes again, which is not an arrival: with an Edit
-    /// button on every row, coming back from the form to a re-sorted list would be a
-    /// smaller version of the defect the freeze exists to fix (ADR-0014).
+    /// view calls this when the user arrives on the tab from another tab, and when they
+    /// pull the listing down — and not when a sheet opened over the tab closes again,
+    /// which is not an arrival: with an Edit button on every row, coming back from the
+    /// form to a re-sorted list would be a smaller version of the defect the freeze exists
+    /// to fix (ADR-0014).
     func retake() {
         snapshot = library.watching.sorted(by: comparator).map(\.persistentModelID)
     }
