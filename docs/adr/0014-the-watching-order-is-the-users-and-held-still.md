@@ -95,3 +95,15 @@ field has stopped answering it.
 The chosen order lives outside the Library, in the app's preferences. It is not a Library Entry
 and the store that holds the user's own things (ADR-0005) is not where a preference about a
 listing belongs. The Appearance choice lands in the same place for the same reason.
+
+## Addendum, 2026-09-08: a pull re-takes the snapshot too
+
+"Nothing else re-takes it" left the user with no way to ask for a fresh listing on the tab
+itself: a listing full of Lapsed Rows could only be swept by picking the other order or by a
+detour through another tab. Pulling the listing down now re-takes the snapshot, the third moment
+beside picking an order and arriving, and the only one the user asks for outright. It is the
+gesture every iPhone list has taught them means "sort this out now", which is exactly what a
+deliberate re-take is, and it changes nothing about the freeze: rows still hold still under a
+tap, a sheet closing is still not an arrival, and the search text and the Waiting listing are
+untouched by it. There is nothing to fetch, so the platform's spinner shows for as long as the
+instant re-take takes and no longer.

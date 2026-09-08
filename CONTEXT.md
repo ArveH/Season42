@@ -60,8 +60,11 @@ How the Watching tab lists the series the user is watching: by Watched At or by 
 of the two they picked, remembered between launches and shown as the two of them side by side so
 the one in force is readable without tapping. Taken as a snapshot and held still — marking an
 episode watched, taking one back, or editing a series moves nothing on screen. It is re-taken
-only when the user picks an order, or arrives on the tab from another tab; a sheet opened over
-the tab and closed again is not an arrival (ADR-0014). A series whose Status becomes Watching
+only when the user picks an order, arrives on the tab from another tab, or pulls the listing
+down, the way many iPhone lists refresh; a sheet opened over the tab and closed again is not an
+arrival (ADR-0014). The pull is the one re-take the user can ask for without leaving the tab or
+changing the order, and it is a re-take and nothing more: there is nothing to fetch, the search
+text stays, and a listing with no rows to pull offers no pull. A series whose Status becomes Watching
 while the tab is held still — edited to it from a Waiting row — is appended below the snapshot
 as an ordinary Watching row, several of them in the order in force, and is not part of the
 snapshot: set back to Waiting it returns to the Waiting listing at once rather than lapsing, and

@@ -58,6 +58,11 @@ struct WatchingView: View {
                     }
                 }
             }
+            // Pulling the list down is the third moment the snapshot is re-taken, and the one
+            // the user can ask for without leaving the tab or changing the order. The re-take
+            // is local and instant, so the native spinner shows for as long as it takes and
+            // no longer (ADR-0014).
+            .refreshable { listing.retake() }
             .navigationTitle("Watching")
             .searchable(text: $listing.filter.searchText, prompt: "Search titles")
             .sheet(item: $editing) { series in
