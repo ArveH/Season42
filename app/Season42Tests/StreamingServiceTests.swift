@@ -160,7 +160,56 @@ struct StreamingServiceTests {
         try library.addTrackedMovie(title: "Okja", streamingService: service)
         try library.addTrackedMovie(title: "Dune")
 
-        #expect(service.entryCount == 2)
+        #expect(library.entryCount(of: service) == 2)
+    }
+
+    @Test func aServiceNothingNamesCountsNone() throws {
+        let library = try Library.inMemory()
+        let service = try library.addStreamingService(name: "Netflix")
+        try library.addTrackedMovie(title: "Dune")
+
+        #expect(library.entryCount(of: service) == 0)
+    }
+
+    @Test func namingAServiceOnAnEntryThatHadNoneCountsIt() throws {
+        let library = try Library.inMemory()
+        let service = try library.addStreamingService(name: "Netflix")
+        let movie = try library.addTrackedMovie(title: "Okja")
+
+        try library.edit(movie, title: "Okja", streamingService: service)
+
+        #expect(library.entryCount(of: service) == 1)
+    }
+
+    @Test func aDeletedEntryStopsBeingCounted() throws {
+        let library = try Library.inMemory()
+        let service = try library.addStreamingService(name: "Netflix")
+        let movie = try library.addTrackedMovie(title: "Okja", streamingService: service)
+
+        library.delete(.movie(movie))
+
+        #expect(library.entryCount(of: service) == 0)
+    }
+
+    /// The count is drawn by a view, and a view redraws only what it is told has changed.
+    /// Every assertion above is a number, and a number was never what was wrong: naming a
+    /// service is written on the entry, so the tab went on showing `0 entries` until the app
+    /// was relaunched while all of them passed (#106). This asks the other question — was
+    /// the reader of the count told? — and it is the one that fails if the count goes back
+    /// to being read off the service's own relationships.
+    @Test func addingAnEntryOnAServiceTellsAReaderOfItsCount() throws {
+        let library = try Library.inMemory()
+        let service = try library.addStreamingService(name: "Netflix")
+        let probe = ObservationProbe()
+
+        withObservationTracking {
+            _ = library.entryCount(of: service)
+        } onChange: {
+            probe.tell()
+        }
+        try library.addTrackedMovie(title: "Okja", streamingService: service)
+
+        #expect(probe.wasTold)
     }
 
     // MARK: - The Logo
@@ -246,7 +295,7 @@ struct StreamingServiceTests {
             streamingService: service
         )
 
-        #expect(service.entryCount == 1)
+        #expect(library.entryCount(of: service) == 1)
         library.deleteStreamingService(service)
 
         #expect(library.streamingServices.isEmpty)

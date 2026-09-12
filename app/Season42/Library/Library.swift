@@ -180,10 +180,24 @@ final class Library {
 
     /// Removes a Streaming Service. Entries that named it are left naming none rather
     /// than deleted: cancelling a subscription says nothing about what the user tracks
-    /// (ADR-0006). The UI is what tells them how many first — `entryCount` counts them.
+    /// (ADR-0006). The UI is what tells them how many first — `entryCount(of:)` counts them.
     func deleteStreamingService(_ service: StreamingService) {
         context.delete(service)
         save()
+    }
+
+    /// How many Library Entries name this Streaming Service: what the Streaming Services
+    /// tab shows beside it, and what the delete confirmation counts before it un-sets them.
+    ///
+    /// Counted off the Library's own listings rather than read back through the service's
+    /// `series` and `movies`. Both hold the same number, but naming a service is written on
+    /// the entry, and a view reading it from the service's side is never told that anything
+    /// changed — so the tab went on drawing `0 entries` until the app was relaunched. These
+    /// listings are re-taken on every write, so a count read through the Library is a count
+    /// the reader is told about (ADR-0018).
+    func entryCount(of service: StreamingService) -> Int {
+        trackedSeries.filter { $0.streamingService === service }.count
+            + trackedMovies.filter { $0.streamingService === service }.count
     }
 
     /// The name as it should be stored.

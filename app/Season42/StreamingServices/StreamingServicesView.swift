@@ -85,6 +85,9 @@ struct StreamingServicesView: View {
     /// A row, tappable on its text to rename what it names, showing how many entries name
     /// this service — which is what makes the delete warning below unsurprising.
     ///
+    /// The count is asked of the Library rather than read off the service, so that the row
+    /// is redrawn when an entry starts or stops naming it (ADR-0018).
+    ///
     /// The Logo is drawn beside the name rather than instead of it, as the rows elsewhere
     /// do: this is the tab where services are managed, so the name has to stay readable.
     private func row(for service: StreamingService) -> some View {
@@ -95,7 +98,7 @@ struct StreamingServicesView: View {
                 .accessibilityHidden(true)
             Text(service.name)
             Spacer()
-            Text("^[\(service.entryCount) entry](inflect: true)")
+            Text("^[\(library.entryCount(of: service)) entry](inflect: true)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -110,7 +113,7 @@ struct StreamingServicesView: View {
     /// Returns a `Text` rather than a `String` so the count stays in a string literal:
     /// joining one together first would leave the inflection markup to be read as text.
     private func deletionWarning(for service: StreamingService) -> Text {
-        let count = service.entryCount
+        let count = library.entryCount(of: service)
         guard count > 0 else { return Text("This can't be undone.") }
         return Text(
             """

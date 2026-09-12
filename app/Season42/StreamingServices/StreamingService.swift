@@ -18,12 +18,17 @@ final class StreamingService {
 
     /// The Tracked Series that name this service. Deleting the service leaves them naming
     /// none rather than taking them with it (ADR-0006), which is what `.nullify` says.
+    ///
+    /// Here for the delete rule, not to be counted: naming a service is written on the
+    /// entry, so a view reading the entries back through this side is never told when one
+    /// starts. `Library.entryCount(of:)` is what answers how many (ADR-0018).
     @Relationship(deleteRule: .nullify, inverse: \TrackedSeries.streamingService)
     var series: [TrackedSeries] = []
 
-    /// The Tracked Movies that name this service, on the same terms as `series`. There are
-    /// two of these because a Library Entry is a way of reading the two kinds together,
-    /// not a thing that is stored — so there is no single relationship to hold.
+    /// The Tracked Movies that name this service, on the same terms as `series` — the
+    /// delete rule included, and not being what a count is read from either. There are two
+    /// of these because a Library Entry is a way of reading the two kinds together, not a
+    /// thing that is stored — so there is no single relationship to hold.
     @Relationship(deleteRule: .nullify, inverse: \TrackedMovie.streamingService)
     var movies: [TrackedMovie] = []
 
@@ -31,10 +36,4 @@ final class StreamingService {
         self.name = name
         self.logo = logo
     }
-}
-
-extension StreamingService {
-    /// How many Library Entries name this service: what the Streaming Services tab shows
-    /// beside it, and what the delete confirmation counts before it un-sets them.
-    var entryCount: Int { series.count + movies.count }
 }
