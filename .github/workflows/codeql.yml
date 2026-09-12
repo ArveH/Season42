@@ -1,0 +1,82 @@
+# Code scanning. This exists as a file — rather than as CodeQL's default setup, which needs none —
+# for one reason: the Swift analysis has to choose its runner, and default setup does not let you.
+# Its workflow is GitHub-hosted at the virtual path `dynamic/github-code-scanning/codeql`; there is
+# nothing in the repository to edit (issue #111).
+#
+# Default setup and this workflow cannot both be configured. Default setup is off; turning it back
+# on in Settings silently stops this file from being what runs.
+
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Default setup scanned weekly, and a scheduled run is what catches a new query finding something
+  # in code that has not changed. Off-peak, because a queue is the one cost a free macOS runner has.
+  schedule:
+    - cron: '41 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      security-events: write
+      contents: read
+    strategy:
+      # One language failing should not hide another language's findings.
+      fail-fast: false
+      matrix:
+        include:
+          # `actions` scans the workflow files themselves. It is worth more here than it looks: on a
+          # public repository anyone can open a pull request, and this is the analysis that reads
+          # these files for the ways that goes wrong.
+          - language: actions
+            runner: ubuntu-latest
+            build-mode: none
+          # The BFF. `none` is CodeQL's buildless C# extraction — no SDK, no restore, no build.
+          - language: csharp
+            runner: ubuntu-latest
+            build-mode: none
+          # The iOS app. Swift has no buildless mode: CodeQL extracts by watching a real compile,
+          # which is why this one needs an Xcode that can open the project at all.
+          - language: swift
+            runner: macos-26
+            build-mode: manual
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # macos-26 defaults to Xcode 26.6, which is what `objectVersion = 100` requires. Printed
+      # rather than pinned: pinning an exact patch breaks when the image drops it, and when a future
+      # project-format bump outruns the image, the version above this line is the answer.
+      - if: matrix.language == 'swift'
+        run: xcodebuild -version
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      # A hosted runner holds no signing identity, and DEVELOPMENT_TEAM is deliberately not in the
+      # pbxproj (app/README.md). Neither matters to CodeQL, which needs the compiler to run and not
+      # a product that could be installed — so this builds unsigned, for no particular simulator.
+      - if: matrix.language == 'swift'
+        name: Build the app for the extractor
+        working-directory: app
+        run: |
+          xcodebuild -project Season42.xcodeproj -scheme Season42 \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
