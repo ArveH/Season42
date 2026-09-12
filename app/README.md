@@ -31,3 +31,18 @@ xcrun simctl boot "iPhone 17 Pro"
 xcrun simctl install booted <path to Season42.app from DerivedData>
 xcrun simctl launch booted com.season42.app
 ```
+
+## Driving it, to reproduce a bug
+
+`bin/` at the repo root holds a loop that drives the app in the simulator with
+[idb](https://fbidb.io) and asserts on the accessibility tree's frames, which is how a layout
+bug gets a red/green loop at all. `bin/sim.sh` is the helpers; `bin/repro.sh` is one bug's
+flow — issue #100, the form that would not scroll after a trip into the Streaming Service list.
+
+```sh
+xcrun simctl boot "iPhone 16 Pro"     # on iOS 26.5: #100 does not show on 26.0 or 18.1
+./bin/repro.sh                        # exit 0 pass, 1 the bug is there, 2 nothing was proved
+```
+
+It needs `idb` and `jq`, and the simulator only raises the software keyboard on a freshly
+booted device — so the script reboots it, and a run takes about 90 seconds.
