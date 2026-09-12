@@ -17,14 +17,14 @@ already added keeps working.
 
 <table>
   <tr>
-    <td width="25%"><img src="docs/screenshots/watching.png" alt="The Watching tab: two series in progress with their positions, and one waiting" /></td>
-    <td width="25%"><img src="docs/screenshots/library.png" alt="The Library tab: three series and a movie, each with its status and streaming service" /></td>
+    <td width="25%"><img src="docs/screenshots/watching.png" alt="The Watching tab: two series in progress with their positions, and one waiting that lands Mondays at 3:00" /></td>
+    <td width="25%"><img src="docs/screenshots/library.png" alt="The Library tab: three series and a movie, each with its status, streaming service and when it is next back" /></td>
     <td width="25%"><img src="docs/screenshots/search.png" alt="A series' details from a search: poster, overview and every season with its episode count" /></td>
     <td width="25%"><img src="docs/screenshots/streaming-services.png" alt="The Streaming Services tab: three registered services with their logos and entry counts" /></td>
   </tr>
   <tr>
-    <td><b>Watching</b> — what is on the go, in an order that is yours and held still, with the next episode one tap away. Below it, what you are waiting on.</td>
-    <td><b>Library</b> — everything you track, series and movies together, each saying where it stands and what you watch it on.</td>
+    <td><b>Watching</b> — what is on the go, in an order that is yours and held still, with the next episode one tap away. Below it, what you are waiting on, and when it is due: a series can say it lands Mondays at 3:00 and the row says so rather than counting down.</td>
+    <td><b>Library</b> — everything you track, series and movies together, each saying where it stands, what you watch it on, and when the next episode is due.</td>
     <td><b>Search</b> — the one thing that needs a network. What you copy from it is yours to edit; nothing links back.</td>
     <td><b>Streaming Services</b> — the services you have registered, with the logos adopted onto them and how much each one carries.</td>
   </tr>
