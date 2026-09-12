@@ -11,6 +11,10 @@ final class Library {
     private var context: ModelContext { container.mainContext }
     /// Where every timestamp the Library stamps comes from; tests hand it a clock they move.
     private let now: @MainActor () -> Date
+    /// The calendar the Waiting order works a Release Slot's next occurrence out in.
+    /// Injected beside `now` because that order turns on a weekday and a local midnight,
+    /// and a test asserting the rollover cannot hang off the machine's own time zone.
+    private let calendar: Calendar
 
     /// Every series the user tracks, most recently added first.
     private(set) var trackedSeries: [TrackedSeries] = []
@@ -34,9 +38,14 @@ final class Library {
         entries.filter(filter.matches)
     }
 
-    init(container: ModelContainer, now: @escaping @MainActor () -> Date = Date.init) {
+    init(
+        container: ModelContainer,
+        now: @escaping @MainActor () -> Date = Date.init,
+        calendar: Calendar = .current
+    ) {
         self.container = container
         self.now = now
+        self.calendar = calendar
         reload()
     }
 
@@ -57,7 +66,8 @@ final class Library {
         status: WatchStatus,
         position: Position? = nil,
         streamingService: StreamingService? = nil,
-        nextEpisodeDate: Date? = nil
+        nextEpisodeDate: Date? = nil,
+        releaseSlot: ReleaseSlot? = nil
     ) throws -> TrackedSeries {
         let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
         try checkSeasons(seasons, hold: position)
@@ -71,6 +81,7 @@ final class Library {
             position: position,
             streamingService: streamingService,
             nextEpisodeDate: nextEpisodeDate,
+            releaseSlot: releaseSlot,
             addedAt: now()
         )
         context.insert(series)
@@ -227,7 +238,8 @@ final class Library {
         status: WatchStatus,
         position: Position?,
         streamingService: StreamingService?,
-        nextEpisodeDate: Date?
+        nextEpisodeDate: Date?,
+        releaseSlot: ReleaseSlot?
     ) throws {
         let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
         try checkSeasons(seasons, hold: position)
@@ -240,6 +252,7 @@ final class Library {
         series.position = position
         series.streamingService = streamingService
         series.nextEpisodeDate = nextEpisodeDate
+        series.releaseSlot = releaseSlot
         save()
     }
 
@@ -324,15 +337,24 @@ final class Library {
     // MARK: - Waiting
 
     /// What the Watching tab lists below `watching`: series with status Waiting, soonest
-    /// Next Episode Date first. Ones without a date come last rather than disappearing,
-    /// and series the dates can't separate come most recently added first.
+    /// back first. Ones that say nothing about when they are back come last rather than
+    /// disappearing, and series that fall on the same day come most recently added first.
+    ///
+    /// A Release Slot ranks by the day it next lands on, among the dated ones, so a series
+    /// airing tomorrow is not buried under one dated in March — even though its row says
+    /// the recurrence and never that day (ADR-0016). Which means this listing is not a
+    /// pure function of what is stored: two runs minutes apart can order differently, and
+    /// the order turns over at local midnight, while nobody is looking.
     var waiting: [TrackedSeries] {
-        trackedSeries
+        let today = now()
+        return trackedSeries
             .filter { $0.status == .waiting }
             .sorted { series, other in
-                switch (series.nextEpisodeDate, other.nextEpisodeDate) {
-                case let (date?, otherDate?) where date != otherDate:
-                    date < otherDate
+                let day = series.dayNextBack(on: today, in: calendar)
+                let otherDay = other.dayNextBack(on: today, in: calendar)
+                return switch (day, otherDay) {
+                case let (day?, otherDay?) where day != otherDay:
+                    day < otherDay
                 case (.some, nil):
                     true
                 case (nil, .some):
@@ -389,8 +411,11 @@ extension Library {
         )
     }
 
-    static func inMemory(now: @escaping @MainActor () -> Date = Date.init) throws -> Library {
-        Library(container: try inMemoryContainer(), now: now)
+    static func inMemory(
+        now: @escaping @MainActor () -> Date = Date.init,
+        calendar: Calendar = .current
+    ) throws -> Library {
+        Library(container: try inMemoryContainer(), now: now, calendar: calendar)
     }
 
     /// A store at an explicit location. Tests use it to reopen the same file the way a

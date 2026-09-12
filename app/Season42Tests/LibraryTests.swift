@@ -34,7 +34,8 @@ struct LibraryTests {
             status: .waiting,
             position: Position(season: 2, episode: 3),
             streamingService: try library.service("Apple TV+"),
-            nextEpisodeDate: airDate
+            nextEpisodeDate: airDate,
+            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
         )
 
         #expect(series.title == "Severance")
@@ -45,6 +46,65 @@ struct LibraryTests {
         #expect(series.position == Position(season: 2, episode: 3))
         #expect(series.streamingService?.name == "Apple TV+")
         #expect(series.nextEpisodeDate == airDate)
+        #expect(series.releaseSlot == ReleaseSlot(weekday: 3, hour: 21, minute: 0))
+    }
+
+    // MARK: - What a row says about the next episode
+
+    /// The choice between the Release Slot and the Next Episode Date is made here, once,
+    /// for every row that lists a Tracked Series (ADR-0016).
+
+    @Test func aSeriesWithOnlyANextEpisodeDateSaysTheDate() throws {
+        let library = try Library.inMemory()
+        let airDate = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            nextEpisodeDate: airDate
+        )
+
+        #expect(series.nextEpisodeSchedule == .nextEpisodeDate(airDate))
+    }
+
+    @Test func aSeriesWithOnlyAReleaseSlotSaysTheSlot() throws {
+        let library = try Library.inMemory()
+        let slot = ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            releaseSlot: slot
+        )
+
+        #expect(series.nextEpisodeSchedule == .releaseSlot(slot))
+    }
+
+    @Test func aSeriesWithBothSaysTheReleaseSlotAndKeepsTheDate() throws {
+        let library = try Library.inMemory()
+        let airDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let slot = ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            nextEpisodeDate: airDate,
+            releaseSlot: slot
+        )
+
+        #expect(series.nextEpisodeSchedule == .releaseSlot(slot))
+        #expect(series.nextEpisodeDate == airDate)
+    }
+
+    @Test func aSeriesWithNeitherSaysNothing() throws {
+        let library = try Library.inMemory()
+
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .waiting)
+
+        #expect(series.nextEpisodeSchedule == nil)
     }
 
     @Test func aSeriesWithNoPositionHasWatchedNothing() throws {

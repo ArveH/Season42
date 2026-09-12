@@ -23,7 +23,8 @@ struct EditingTests {
             status: .waiting,
             position: Position(season: 2, episode: 3),
             streamingService: try library.service("Apple TV+"),
-            nextEpisodeDate: airDate
+            nextEpisodeDate: airDate,
+            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
         )
 
         #expect(series.title == "Severance")
@@ -33,6 +34,7 @@ struct EditingTests {
         #expect(series.position == Position(season: 2, episode: 3))
         #expect(series.streamingService?.name == "Apple TV+")
         #expect(series.nextEpisodeDate == airDate)
+        #expect(series.releaseSlot == ReleaseSlot(weekday: 3, hour: 21, minute: 0))
     }
 
     /// Adding a season by hand is the only way a returning series gets its new episodes:
@@ -68,7 +70,8 @@ struct EditingTests {
             status: .watching,
             position: Position(season: 1, episode: 2),
             streamingService: try library.service("Apple TV+"),
-            nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000)
+            nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000),
+            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
         )
 
         try library.edit(series, title: "Severance", seasons: [9], status: .planned)
@@ -77,6 +80,73 @@ struct EditingTests {
         #expect(series.position == nil)
         #expect(series.streamingService == nil)
         #expect(series.nextEpisodeDate == nil)
+        #expect(series.releaseSlot == nil)
+    }
+
+    // MARK: - The Release Slot and the Next Episode Date are edited apart
+
+    @Test func aReleaseSlotCanBeSetByAnEditOnASeriesThatHadNone() throws {
+        let library = try Library.inMemory()
+        let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .waiting)
+
+        try library.edit(
+            series,
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            releaseSlot: ReleaseSlot(weekday: 6, hour: 8, minute: 30)
+        )
+
+        #expect(series.releaseSlot == ReleaseSlot(weekday: 6, hour: 8, minute: 30))
+    }
+
+    /// Turning the Slot off costs the user only the Slot — the date they typed beside it is
+    /// still there, and still what the row goes back to saying (ADR-0016).
+    @Test func clearingTheReleaseSlotLeavesTheNextEpisodeDateStanding() throws {
+        let library = try Library.inMemory()
+        let airDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            nextEpisodeDate: airDate,
+            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+        )
+
+        try library.edit(
+            series,
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            nextEpisodeDate: airDate
+        )
+
+        #expect(series.releaseSlot == nil)
+        #expect(series.nextEpisodeDate == airDate)
+        #expect(series.nextEpisodeSchedule == .nextEpisodeDate(airDate))
+    }
+
+    @Test func clearingTheNextEpisodeDateLeavesTheReleaseSlotStanding() throws {
+        let library = try Library.inMemory()
+        let slot = ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+        let series = try library.addTrackedSeries(
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            nextEpisodeDate: Date(timeIntervalSince1970: 1_700_000_000),
+            releaseSlot: slot
+        )
+
+        try library.edit(
+            series,
+            title: "Severance",
+            seasons: [9],
+            status: .waiting,
+            releaseSlot: slot
+        )
+
+        #expect(series.nextEpisodeDate == nil)
+        #expect(series.releaseSlot == slot)
     }
 
     @Test func anEditLeavesWhenTheSeriesWasAddedAndLastWatchedAlone() throws {
@@ -290,7 +360,8 @@ struct EditingTests {
             title: "Severance",
             seasons: [9, 10],
             status: .watching,
-            position: Position(season: 2, episode: 1)
+            position: Position(season: 2, episode: 1),
+            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
         )
         library.delete(.movie(movie))
 
@@ -300,6 +371,10 @@ struct EditingTests {
         #expect(relaunched.trackedSeries.first?.seasons == [9, 10])
         #expect(relaunched.trackedSeries.first?.status == .watching)
         #expect(relaunched.trackedSeries.first?.position == Position(season: 2, episode: 1))
+        #expect(
+            relaunched.trackedSeries.first?.releaseSlot
+                == ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+        )
         #expect(relaunched.trackedMovies.isEmpty)
     }
 }
@@ -318,7 +393,8 @@ private extension Library {
         status: WatchStatus,
         position: Position? = nil,
         streamingService: StreamingService? = nil,
-        nextEpisodeDate: Date? = nil
+        nextEpisodeDate: Date? = nil,
+        releaseSlot: ReleaseSlot? = nil
     ) throws {
         try updateTrackedSeries(
             series,
@@ -329,7 +405,8 @@ private extension Library {
             status: status,
             position: position,
             streamingService: streamingService,
-            nextEpisodeDate: nextEpisodeDate
+            nextEpisodeDate: nextEpisodeDate,
+            releaseSlot: releaseSlot
         )
     }
 

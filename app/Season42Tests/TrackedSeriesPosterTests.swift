@@ -52,7 +52,8 @@ struct TrackedSeriesPosterTests {
             status: .planned,
             position: nil,
             streamingService: nil,
-            nextEpisodeDate: nil
+            nextEpisodeDate: nil,
+            releaseSlot: nil
         )
 
         #expect(series.poster == nil)
@@ -76,7 +77,8 @@ struct TrackedSeriesPosterTests {
             status: .planned,
             position: nil,
             streamingService: nil,
-            nextEpisodeDate: nil
+            nextEpisodeDate: nil,
+            releaseSlot: nil
         )
 
         #expect(series.poster == another)

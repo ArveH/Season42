@@ -187,7 +187,8 @@ struct WatchingListingTests {
             status: .watching,
             position: nil,
             streamingService: nil,
-            nextEpisodeDate: nil
+            nextEpisodeDate: nil,
+            releaseSlot: nil
         )
 
         #expect(listing.series.map(\.title) == ["Andor", "Aargo"])
@@ -292,7 +293,8 @@ struct WatchingListingTests {
             status: .dropped,
             position: nil,
             streamingService: nil,
-            nextEpisodeDate: nil
+            nextEpisodeDate: nil,
+            releaseSlot: nil
         )
 
         #expect(listing.series.map(\.title) == ["Andor"])
