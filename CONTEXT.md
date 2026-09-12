@@ -69,7 +69,7 @@ Watching while the tab is held still — edited to it from a Waiting row — is 
 snapshot as an ordinary Watching row, several of them in the order in force, and is not part of
 the snapshot: set back to Waiting it returns to the Waiting listing at once rather than lapsing, and
 the next re-take sorts it in. Says nothing about the Waiting listing
-below it, which is by Next Episode Date and is not the user's to reorder.
+below it, which is by when the series is next back and is not the user's to reorder.
 _Avoid_: sort, sort order, last updated
 
 **Lapsed Row**:
@@ -96,7 +96,22 @@ A user-entered, optional date on a Tracked Series recording when the next episod
 available. Drawn on every row that lists the series — both Library rows and both of the Watching
 tab's — because when the next one lands is as much a reason to look at a series the user is
 part-way through as one they are waiting on. Never a past-or-future judgement: a date that has
-gone by is still what the row says.
+gone by is still what the row says. Where the series also carries a Release Slot the rows say the
+Slot instead, and the date is kept and stays editable: the form holds both, and only the row
+chooses (ADR-0016).
+
+**Release Slot**:
+When a series' episodes turn up week after week, as a weekday and a time of day the user enters
+together — "Tuesdays at 21:00" — optional on a Tracked Series and set or unset as one thing;
+there is no day without a time and no time without a day. It is wall-clock local and carries no
+time zone: it is the user's own note about when to look, so it reads the same after they land
+somewhere else. Nothing copies it, TMDB says nothing about it, and a Tracked Movie has none.
+
+Drawn on every row a Next Episode Date is drawn on, and in preference to one where a series has
+both, because a recurrence answers "when is it back" for longer than a single date does. The row
+says the recurrence and nothing more — never the next occurrence worked out from today — so what
+it says is what the user typed, as unjudged as a date that has gone by (ADR-0016).
+_Avoid_: schedule, air time, release day, recurrence
 
 **Streaming Service**:
 One of the services the user has registered, kept as a list they add to, rename and delete
