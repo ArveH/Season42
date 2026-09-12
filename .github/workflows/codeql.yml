@@ -4,7 +4,8 @@
 # nothing in the repository to edit (issue #111).
 #
 # Default setup and this workflow cannot both be configured. Default setup is off; turning it back
-# on in Settings silently stops this file from being what runs.
+# on in Settings makes every run here fail at the upload with "CodeQL analyses from advanced
+# configurations cannot be processed when the default setup is enabled".
 
 name: CodeQL
 
@@ -16,7 +17,7 @@ on:
   # in code that has not changed. Off-peak, because a queue is the one cost a free macOS runner has.
   schedule:
     - cron: '41 4 * * 1'
-  # So Swift can still be run against a branch before merging, despite the `if:` below.
+  # So Swift can be run against a branch before merging, despite it skipping pull requests below.
   workflow_dispatch:
 
 permissions:
@@ -27,14 +28,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The two that need no build. `none` is CodeQL's buildless extraction: no SDK, no restore, no
+  # compile, about a minute each — which is why these run on every pull request and Swift does not.
+  #
+  # `actions` scans the workflow files themselves. It is worth more here than it looks: on a public
+  # repository anyone can open a pull request, and this is the analysis that reads these files for
+  # the ways that goes wrong.
   analyze:
     name: Analyze ${{ matrix.language }}
-    runs-on: ${{ matrix.runner }}
-    # Swift skips pull requests. Building the app takes ~18 minutes — by far the slowest thing in
-    # this repository's CI — and CodeQL is not a required status check, so on a pull request that
-    # wait buys only the alert annotations on the diff, and never a blocked merge. The push to main
-    # and the weekly run still analyse it. Run it on a branch on demand with workflow_dispatch.
-    if: matrix.language != 'swift' || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
     permissions:
       security-events: write
       contents: read
@@ -42,42 +44,56 @@ jobs:
       # One language failing should not hide another language's findings.
       fail-fast: false
       matrix:
-        include:
-          # `actions` scans the workflow files themselves. It is worth more here than it looks: on a
-          # public repository anyone can open a pull request, and this is the analysis that reads
-          # these files for the ways that goes wrong.
-          - language: actions
-            runner: ubuntu-latest
-            build-mode: none
-          # The BFF. `none` is CodeQL's buildless C# extraction — no SDK, no restore, no build.
-          - language: csharp
-            runner: ubuntu-latest
-            build-mode: none
-          # The iOS app. Swift has no buildless mode: CodeQL extracts by watching a real compile,
-          # which is why this one needs an Xcode that can open the project at all.
-          - language: swift
-            runner: macos-26
-            build-mode: manual
+        language: [actions, csharp]
 
     steps:
       - uses: actions/checkout@v7
 
-      # macos-26 defaults to Xcode 26.6, which is what `objectVersion = 100` requires. Printed
-      # rather than pinned: pinning an exact patch breaks when the image drops it, and when a future
-      # project-format bump outruns the image, the version above this line is the answer.
-      - if: matrix.language == 'swift'
-        run: xcodebuild -version
-
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  # Swift is its own job rather than a third row of the matrix above, because it differs in all
+  # three of the things a row cannot change on its own: the runner, the build mode, and whether it
+  # runs at all. A job-level `if` cannot read the `matrix` context — only `github`, `needs`, `vars`
+  # and `inputs` — so a matrix row that skips pull requests is not expressible.
+  #
+  # And it does skip them: building the app takes about eighteen minutes, by far the slowest thing
+  # in this repository's CI, while CodeQL is not a required status check — so on a pull request that
+  # wait buys the alert annotations on the diff and never a blocked merge. The push to main and the
+  # weekly run still analyse it; workflow_dispatch runs it against a branch on demand.
+  analyze-swift:
+    name: Analyze swift
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # macos-26 defaults to Xcode 26.6, which is what `objectVersion = 100` requires — macos-latest
+      # is still the macOS 15 image, whose newest Xcode is 26.3 and whose selected one is 16.4, and
+      # CodeQL's tracer segfaults on it rather than saying so. Printed rather than pinned: pinning an
+      # exact patch breaks when the image drops it, and when a future project-format bump outruns the
+      # image, the version this prints is the answer.
+      - run: xcodebuild -version
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: swift
+          build-mode: manual
 
       # A hosted runner holds no signing identity, and DEVELOPMENT_TEAM is deliberately not in the
       # pbxproj (app/README.md). Neither matters to CodeQL, which needs the compiler to run and not
       # a product that could be installed — so this builds unsigned, for no particular simulator.
-      - if: matrix.language == 'swift'
-        name: Build the app for the extractor
+      - name: Build the app for the extractor
         working-directory: app
         run: |
           xcodebuild -project Season42.xcodeproj -scheme Season42 \
@@ -86,4 +102,4 @@ jobs:
 
       - uses: github/codeql-action/analyze@v4
         with:
-          category: /language:${{ matrix.language }}
+          category: /language:swift
