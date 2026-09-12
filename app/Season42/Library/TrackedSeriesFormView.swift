@@ -24,6 +24,9 @@ struct TrackedSeriesFormView: View {
     @State private var streamingService: StreamingService?
     @State private var hasNextEpisodeDate: Bool
     @State private var nextEpisodeDate: Date
+    @State private var hasReleaseSlot: Bool
+    @State private var releaseSlotWeekday: Int
+    @State private var releaseSlotTime: Date
     @State private var failureMessage: String?
     @State private var isSearching = false
 
@@ -53,6 +56,30 @@ struct TrackedSeriesFormView: View {
         _streamingService = State(initialValue: tracked?.streamingService)
         _hasNextEpisodeDate = State(initialValue: tracked?.nextEpisodeDate != nil)
         _nextEpisodeDate = State(initialValue: tracked?.nextEpisodeDate ?? Date())
+        let slot = tracked?.releaseSlot
+        _hasReleaseSlot = State(initialValue: slot != nil)
+        _releaseSlotWeekday = State(initialValue: slot?.weekday ?? Self.defaultReleaseSlot.weekday)
+        _releaseSlotTime = State(
+            initialValue: Self.time(of: slot ?? Self.defaultReleaseSlot)
+        )
+    }
+
+    /// What the Release Slot pickers open on before the user has touched them: Mondays at
+    /// 20:00, a plausible evening rather than a meaningful one — the toggle being off is
+    /// what says the series has no Slot.
+    private static let defaultReleaseSlot = ReleaseSlot(weekday: 2, hour: 20, minute: 0)
+
+    /// A slot's time of day as the moment today a `DatePicker` can hold it as. The day it
+    /// lands on is thrown away again when the form reads the picker back: only the hour
+    /// and the minute are the user's.
+    private static func time(of slot: ReleaseSlot) -> Date {
+        let today = Calendar.current.startOfDay(for: Date())
+        return Calendar.current.date(
+            bySettingHour: slot.hour,
+            minute: slot.minute,
+            second: 0,
+            of: today
+        ) ?? today
     }
 
     var body: some View {
@@ -118,16 +145,7 @@ struct TrackedSeriesFormView: View {
                     }
                 }
 
-                Section("Next episode") {
-                    Toggle("Next episode date", isOn: $hasNextEpisodeDate)
-                    if hasNextEpisodeDate {
-                        DatePicker(
-                            "Next episode",
-                            selection: $nextEpisodeDate,
-                            displayedComponents: .date
-                        )
-                    }
-                }
+                nextEpisodeSection
             }
             .navigationTitle(isEditing ? "Edit Series" : "Track a Series")
             .navigationBarTitleDisplayMode(.inline)
@@ -161,6 +179,55 @@ struct TrackedSeriesFormView: View {
             .onChange(of: seasons) { _, _ in position = seasons.clamping(position) }
             .onChange(of: position.season) { _, _ in position = seasons.clamping(position) }
         }
+    }
+
+    /// Everything about when the series is next on: the one date it comes back, the weekly
+    /// Release Slot, or both. Neither toggle touches the other's value, so turning the Slot
+    /// off gives the user back the row they had before (ADR-0016).
+    private var nextEpisodeSection: some View {
+        Section {
+            Toggle("Next episode date", isOn: $hasNextEpisodeDate)
+            if hasNextEpisodeDate {
+                DatePicker(
+                    "Next episode",
+                    selection: $nextEpisodeDate,
+                    displayedComponents: .date
+                )
+            }
+            Toggle("Release slot", isOn: $hasReleaseSlot)
+            if hasReleaseSlot {
+                Picker("Day", selection: $releaseSlotWeekday) {
+                    ForEach(ReleaseSlot.weekdays, id: \.self) { weekday in
+                        Text(ReleaseSlot.pluralWeekday(weekday)).tag(weekday)
+                    }
+                }
+                DatePicker(
+                    "Time",
+                    selection: $releaseSlotTime,
+                    displayedComponents: .hourAndMinute
+                )
+            }
+        } header: {
+            Text("Next episode")
+        } footer: {
+            // Only where both are set: prose about a rule that doesn't apply is prose the
+            // user has to read to find that out.
+            if hasNextEpisodeDate && hasReleaseSlot {
+                Text("Rows will show the day and time rather than the date. The date is kept.")
+            }
+        }
+    }
+
+    /// The Release Slot the pickers are holding, or nil while the toggle is off — the hour
+    /// and the minute of the time picker, and none of the day it happened to sit on.
+    private var releaseSlot: ReleaseSlot? {
+        guard hasReleaseSlot else { return nil }
+        let time = Calendar.current.dateComponents([.hour, .minute], from: releaseSlotTime)
+        return ReleaseSlot(
+            weekday: releaseSlotWeekday,
+            hour: time.hour ?? 0,
+            minute: time.minute ?? 0
+        )
     }
 
     /// Where the user watches this, asked while they are still thinking about what it is —
@@ -208,10 +275,12 @@ struct TrackedSeriesFormView: View {
     /// Only the fields TMDB's answer speaks to are written — the Poster among them, as the very
     /// bytes the detail screen drew, and as nothing where that series had none: a copy replaces
     /// what the last one left, rather than leaving one series' picture over another's name.
-    /// The Status, the Streaming Service, the Next Episode Date and the watched state are
-    /// untouched; the Position moves only where the copied seasons no longer reach it, which
-    /// the clamp on `seasons` above does and the detail screen said it would. That move is stated here too: the screen that
-    /// warned of it is gone by the time it happens.
+    /// The Status, the Streaming Service, the Next Episode Date, the Release Slot and the
+    /// watched state are untouched — the Slot because TMDB says nothing about one and a copy
+    /// never invents a schedule (ADR-0016); the Position moves only where the copied seasons
+    /// no longer reach it, which the clamp on `seasons` above does and the detail screen said
+    /// it would. That move is stated here too: the screen that warned of it is gone by the
+    /// time it happens.
     private func apply(_ copied: SeriesCopy) {
         title = copied.title
         summary = copied.summary
@@ -231,31 +300,31 @@ struct TrackedSeriesFormView: View {
         max(1, seasons.episodeCount(inSeason: position.season) ?? 1)
     }
 
+    /// Everything the form is holding, as the Library takes it. The fields a toggle
+    /// governs are what that toggle says they are — off means nothing, not the value the
+    /// picker is still holding underneath, so turning one off and saving clears it.
+    private var draft: TrackedSeriesDraft {
+        TrackedSeriesDraft(
+            title: title,
+            summary: summary,
+            poster: poster,
+            seasons: seasons,
+            status: status,
+            position: hasPosition ? position : nil,
+            streamingService: streamingService,
+            nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil,
+            releaseSlot: releaseSlot
+        )
+    }
+
+    /// Adding and editing differ in one thing — whether there is already a series to
+    /// rewrite — so they say the fields once, as a draft, and differ only in that.
     private func submit() {
         do {
             if let editing {
-                try library.updateTrackedSeries(
-                    editing,
-                    title: title,
-                    summary: summary,
-                    poster: poster,
-                    seasons: seasons,
-                    status: status,
-                    position: hasPosition ? position : nil,
-                    streamingService: streamingService,
-                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil
-                )
+                try library.updateTrackedSeries(editing, to: draft)
             } else {
-                try library.addTrackedSeries(
-                    title: title,
-                    summary: summary,
-                    poster: poster,
-                    seasons: seasons,
-                    status: status,
-                    position: hasPosition ? position : nil,
-                    streamingService: streamingService,
-                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil
-                )
+                try library.addTrackedSeries(draft)
             }
             dismiss()
         } catch {

@@ -173,7 +173,7 @@ private struct TrackedSeriesRow: View {
                 StreamingServiceSegment(subtitle: subtitle, service: series.streamingService)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                NextEpisodeDateLine(date: series.nextEpisodeDate)
+                NextEpisodeLineView(line: series.nextEpisodeLine)
             }
         }
         .contentShape(.rect)
