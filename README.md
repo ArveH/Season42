@@ -3,9 +3,35 @@
 An iPhone app for keeping track of which series and movies you watch across streaming services.
 
 Everything the app knows is yours: entered by hand, stored on the device, and never sent anywhere.
-There is no account, no sync and no analytics. The one thing the app reaches the network for is
-searching — for a streaming service's logo, or for a series or a movie to enter into your library —
-and a search is the only thing that stops working when the server is down.
+There is no account, no sync and no analytics.
+
+**The app works without a network connection.** Your library is on the phone, so opening it,
+reading it, editing it, marking an episode watched, reordering what you are watching and looking at
+the posters and logos you have already adopted all work with no connection at all — on a plane, in a
+tunnel, or with the server switched off for good. **Searching is the one thing that needs a
+network**: looking up a series, a movie or a streaming service's logo to enter into your library is
+an ask of the internet, and that ask is the only thing that fails offline. Everything you have
+already added keeps working.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/watching.png" alt="The Watching tab: two series in progress with their positions, and one waiting" /></td>
+    <td width="25%"><img src="docs/screenshots/library.png" alt="The Library tab: three series and a movie, each with its status and streaming service" /></td>
+    <td width="25%"><img src="docs/screenshots/search.png" alt="A series' details from a search: poster, overview and every season with its episode count" /></td>
+    <td width="25%"><img src="docs/screenshots/streaming-services.png" alt="The Streaming Services tab: three registered services with their logos and entry counts" /></td>
+  </tr>
+  <tr>
+    <td><b>Watching</b> — what is on the go, in an order that is yours and held still, with the next episode one tap away. Below it, what you are waiting on.</td>
+    <td><b>Library</b> — everything you track, series and movies together, each saying where it stands and what you watch it on.</td>
+    <td><b>Search</b> — the one thing that needs a network. What you copy from it is yours to edit; nothing links back.</td>
+    <td><b>Streaming Services</b> — the services you have registered, with the logos adopted onto them and how much each one carries.</td>
+  </tr>
+</table>
+
+Posters and logos are from [TMDB](https://www.themoviedb.org/); the library in these shots is
+a handful of entries added to a fresh install.
 
 ## You probably want TMDB's own app instead
 
@@ -88,9 +114,10 @@ Two documents carry the thinking, and they are worth reading before the code:
 [Matt Pocock](https://www.aihero.dev)'s [agent skills](https://github.com/mattpocock/skills).** Not
 as an experiment in seeing what an AI would produce unsupervised — as an actual workflow, which is
 the part worth passing on. His skills are what gave the work its shape: `/to-spec` and `/to-tickets`
-turned an idea into a GitHub issue worth implementing, `/grilling` took apart the ones that were not
-ready, `/tdd` meant a failing test came before every feature, `/domain-modeling` is why `CONTEXT.md`
-and `docs/adr/` exist at all, `/implement` did the work, and `/code-review` read it back afterwards.
+turned an idea into a GitHub issue worth implementing, `/grill-with-docs` took apart the ones that
+were not ready, `/tdd` meant a failing test came before every feature, `/domain-modeling` is why
+`CONTEXT.md` and `docs/adr/` exist at all, `/implement` did the work, and `/code-review` read it
+back afterwards.
 
 That last point is the one that shows in this repository. The reason every decision here has an ADR
 with the argument in it, and the reason the comments explain *why* rather than *what*, is that the
