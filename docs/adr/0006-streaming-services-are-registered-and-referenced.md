@@ -42,7 +42,10 @@ service spans services and entries in one transaction, and a seam through that o
 be a seam through its only hard part. `StreamingService` holds two inverse relationships, one
 per kind of entry, because a Library Entry is a way of reading the two kinds together and not a
 thing that is stored — there is no single relationship to point at. Those inverses are what make
-the entry count on the tab cheap and the nullify SwiftData's job rather than hand-written.
+the nullify SwiftData's job rather than hand-written. They also made the entry count on the tab
+cheap, and that half is amended by
+[ADR-0018](0018-a-number-a-view-draws-is-counted-off-the-librarys-listings.md): a count read back
+through an inverse is one no view is told about, so the count the tab draws is the Library's.
 
 Names are unique case-insensitively, so "netflix" and "Netflix" cannot both be registered. Where
 both were already typed on entries, the sweep collapses them and keeps the spelling on the most

@@ -133,6 +133,10 @@ one of them as where the user watches it, and names the service itself rather th
 its name, so renaming one renames it everywhere it is named. An entry may name none. Says
 nothing about global availability: it is where this user watches, not where the thing can be
 watched.
+
+How many entries name one is the Library's to answer, not the service's: the Streaming Services
+tab draws that count beside each service and the delete confirmation counts it before un-setting
+them, and a count read back off the service itself is one no view is told has changed (ADR-0018).
 _Avoid_: channel, platform, provider, label
 
 **Logo**:
