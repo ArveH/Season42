@@ -15,6 +15,10 @@ if (string.IsNullOrWhiteSpace(builder.Configuration[TmdbOptions.AccessTokenKey])
         $"set \"{TmdbOptions.AccessTokenKey}\" \"<your TMDB API Read Access Token>\".");
 }
 
+// The server is a public address and the token behind it is not, so a caller gets a share
+// rather than all of it. Every route below except /health is behind it (ADR-0017).
+RateLimiting.AddTo(builder.Services, builder.Configuration);
+
 builder.Services.AddSingleton<WatchProviderStore>();
 var tmdbTimeout = TimeSpan.FromSeconds(15);
 // A bounded timeout, because the first fetch is awaited as the server starts: without one, a
@@ -34,6 +38,9 @@ builder.Services.AddHttpClient<TmdbImages>(client => client.Timeout = tmdbTimeou
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
 
 var app = builder.Build();
+
+// Ahead of every endpoint, so a refused caller is refused before anything is done for them.
+app.UseRateLimiter();
 
 // A liveness probe and nothing more: it answers for the host, never for the snapshot. A replica
 // with no snapshot is the only replica during a TMDB outage, and marking it unready there would

@@ -3,5 +3,6 @@ xcuserdata/
 DerivedData/
 app/Config/Local.xcconfig
 .idea/
+.claude/settings.local.json
 .env
 *.DotSettings.user

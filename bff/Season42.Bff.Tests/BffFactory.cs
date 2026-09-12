@@ -22,6 +22,13 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// <summary>Where this server keeps what it fetched — a directory of its own per test.</summary>
     public string StorePath { get; }
 
+    /// <summary>
+    /// How many requests one caller may make per window. Left at the deployment's own default
+    /// unless a test sets it, which a test of the limit does so a burst is a handful of requests
+    /// rather than a minute of them. Set it before the first <c>CreateClient</c>.
+    /// </summary>
+    public int? PermitsPerWindow { get; set; }
+
     /// <summary>The snapshot file inside <see cref="StorePath"/>.</summary>
     public string SnapshotPath => Path.Combine(StorePath, TmdbOptions.SnapshotFileName);
 
@@ -57,6 +64,12 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         builder.UseSetting(TmdbOptions.AccessTokenKey, "test-token");
         builder.UseSetting("Tmdb:WatchRegion", "NO");
         builder.UseSetting("Tmdb:LogoStorePath", StorePath);
+
+        if (PermitsPerWindow is { } permits)
+        {
+            builder.UseSetting($"{RateLimitOptions.SectionName}:{nameof(RateLimitOptions.PermitsPerWindow)}",
+                permits.ToString());
+        }
 
         builder.ConfigureTestServices(services =>
         {
