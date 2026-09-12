@@ -76,11 +76,11 @@ extension TrackedSeries {
         position.flatMap { seasons.episode(before: $0) }
     }
 
-    /// What a row should say about when the next episode lands: the Release Slot where
-    /// there is one, the Next Episode Date where there is only that, and nothing where
-    /// there is neither. A series carrying both says its Slot, and the date is kept and
-    /// stays editable all the same (ADR-0016).
-    var nextEpisodeSchedule: NextEpisodeSchedule? {
+    /// The series' Next Episode Line: what a row should say about when the next episode
+    /// lands — the Release Slot where there is one, the Next Episode Date where there is
+    /// only that, and nothing where there is neither. A series carrying both says its
+    /// Slot, and the date is kept and stays editable all the same (ADR-0016).
+    var nextEpisodeLine: NextEpisodeLine? {
         if let releaseSlot { return .releaseSlot(releaseSlot) }
         if let nextEpisodeDate { return .nextEpisodeDate(nextEpisodeDate) }
         return nil
@@ -103,7 +103,7 @@ extension TrackedSeries {
     /// no time of day and inventing one to sort by would turn the order on a value the
     /// user never gave (ADR-0016).
     func dayNextBack(on now: Date, in calendar: Calendar) -> Date? {
-        switch nextEpisodeSchedule {
+        switch nextEpisodeLine {
         case .releaseSlot(let slot):
             slot.nextOccurrenceDay(onOrAfter: now, in: calendar)
         case .nextEpisodeDate(let date):

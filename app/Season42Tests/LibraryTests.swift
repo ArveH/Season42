@@ -49,7 +49,7 @@ struct LibraryTests {
         #expect(series.releaseSlot == ReleaseSlot(weekday: 3, hour: 21, minute: 0))
     }
 
-    // MARK: - What a row says about the next episode
+    // MARK: - The Next Episode Line
     //
     // The choice between the Release Slot and the Next Episode Date is made here, once,
     // for every row that lists a Tracked Series (ADR-0016).
@@ -65,7 +65,7 @@ struct LibraryTests {
             nextEpisodeDate: airDate
         )
 
-        #expect(series.nextEpisodeSchedule == .nextEpisodeDate(airDate))
+        #expect(series.nextEpisodeLine == .nextEpisodeDate(airDate))
     }
 
     @Test func aSeriesWithOnlyAReleaseSlotSaysTheSlot() throws {
@@ -79,7 +79,7 @@ struct LibraryTests {
             releaseSlot: slot
         )
 
-        #expect(series.nextEpisodeSchedule == .releaseSlot(slot))
+        #expect(series.nextEpisodeLine == .releaseSlot(slot))
     }
 
     @Test func aSeriesWithBothSaysTheReleaseSlotAndKeepsTheDate() throws {
@@ -95,7 +95,7 @@ struct LibraryTests {
             releaseSlot: slot
         )
 
-        #expect(series.nextEpisodeSchedule == .releaseSlot(slot))
+        #expect(series.nextEpisodeLine == .releaseSlot(slot))
         #expect(series.nextEpisodeDate == airDate)
     }
 
@@ -104,7 +104,7 @@ struct LibraryTests {
 
         let series = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .waiting)
 
-        #expect(series.nextEpisodeSchedule == nil)
+        #expect(series.nextEpisodeLine == nil)
     }
 
     @Test func aSeriesWithNoPositionHasWatchedNothing() throws {

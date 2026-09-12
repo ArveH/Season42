@@ -113,6 +113,19 @@ says the recurrence and nothing more — never the next occurrence worked out fr
 it says is what the user typed, as unjudged as a date that has gone by (ADR-0016).
 _Avoid_: schedule, air time, release day, recurrence
 
+**Next Episode Line**:
+The one line a row that lists a Tracked Series says when the next episode lands on: the Release
+Slot where the series has one, the Next Episode Date where it has only that, and nothing at all —
+not an empty line — where it has neither. Which of the two is a property of the Tracked Series
+rather than a choice each row makes, so that the Library's series row and the Watching tab's
+Watching, Waiting and Lapsed rows cannot disagree about it (ADR-0016).
+
+It says what the user entered and never changes on its own: no date is worked out from a Release
+Slot to draw, and no date already entered is judged against today. The Waiting listing's order is
+the one place the coming occurrence of a Slot is worked out at all, and it is ranked by, never
+drawn.
+_Avoid_: schedule, subtitle, next-up line
+
 **Streaming Service**:
 One of the services the user has registered, kept as a list they add to, rename and delete
 themselves, and optionally carrying a Logo. A Tracked Series or Tracked Movie names at most

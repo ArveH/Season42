@@ -43,18 +43,7 @@ struct TrackedSeriesPosterTests {
             status: .planned
         )
 
-        try library.updateTrackedSeries(
-            series,
-            title: "Severance",
-            summary: "",
-            poster: nil,
-            seasons: [9],
-            status: .planned,
-            position: nil,
-            streamingService: nil,
-            nextEpisodeDate: nil,
-            releaseSlot: nil
-        )
+        try library.edit(series, title: "Severance", seasons: [9], status: .planned)
 
         #expect(series.poster == nil)
     }
@@ -68,17 +57,12 @@ struct TrackedSeriesPosterTests {
             status: .planned
         )
 
-        try library.updateTrackedSeries(
+        try library.edit(
             series,
             title: "Severance",
-            summary: "",
             poster: another,
             seasons: [9],
-            status: .planned,
-            position: nil,
-            streamingService: nil,
-            nextEpisodeDate: nil,
-            releaseSlot: nil
+            status: .planned
         )
 
         #expect(series.poster == another)

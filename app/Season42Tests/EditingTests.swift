@@ -16,15 +16,16 @@ struct EditingTests {
 
         try library.updateTrackedSeries(
             series,
-            title: "Severance",
-            summary: "Work-life balance, surgically enforced.",
-            poster: nil,
-            seasons: [9, 10],
-            status: .waiting,
-            position: Position(season: 2, episode: 3),
-            streamingService: try library.service("Apple TV+"),
-            nextEpisodeDate: airDate,
-            releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+            to: TrackedSeriesDraft(
+                title: "Severance",
+                summary: "Work-life balance, surgically enforced.",
+                seasons: [9, 10],
+                status: .waiting,
+                position: Position(season: 2, episode: 3),
+                streamingService: try library.service("Apple TV+"),
+                nextEpisodeDate: airDate,
+                releaseSlot: ReleaseSlot(weekday: 3, hour: 21, minute: 0)
+            )
         )
 
         #expect(series.title == "Severance")
@@ -123,7 +124,7 @@ struct EditingTests {
 
         #expect(series.releaseSlot == nil)
         #expect(series.nextEpisodeDate == airDate)
-        #expect(series.nextEpisodeSchedule == .nextEpisodeDate(airDate))
+        #expect(series.nextEpisodeLine == .nextEpisodeDate(airDate))
     }
 
     @Test func clearingTheNextEpisodeDateLeavesTheReleaseSlotStanding() throws {
@@ -376,55 +377,5 @@ struct EditingTests {
                 == ReleaseSlot(weekday: 3, hour: 21, minute: 0)
         )
         #expect(relaunched.trackedMovies.isEmpty)
-    }
-}
-
-/// An edit rewrites an entry whole, so the facade spells every field out and clears what
-/// a caller leaves out. These let a test name only the fields it is about; leaving one out
-/// clears it, exactly as clearing it in the form does.
-@MainActor
-private extension Library {
-    func edit(
-        _ series: TrackedSeries,
-        title: String,
-        summary: String = "",
-        poster: Data? = nil,
-        seasons: Seasons,
-        status: WatchStatus,
-        position: Position? = nil,
-        streamingService: StreamingService? = nil,
-        nextEpisodeDate: Date? = nil,
-        releaseSlot: ReleaseSlot? = nil
-    ) throws {
-        try updateTrackedSeries(
-            series,
-            title: title,
-            summary: summary,
-            poster: poster,
-            seasons: seasons,
-            status: status,
-            position: position,
-            streamingService: streamingService,
-            nextEpisodeDate: nextEpisodeDate,
-            releaseSlot: releaseSlot
-        )
-    }
-
-    func edit(
-        _ movie: TrackedMovie,
-        title: String,
-        summary: String = "",
-        poster: Data? = nil,
-        streamingService: StreamingService? = nil,
-        isWatched: Bool = false
-    ) throws {
-        try updateTrackedMovie(
-            movie,
-            title: title,
-            summary: summary,
-            poster: poster,
-            streamingService: streamingService,
-            isWatched: isWatched
-        )
     }
 }

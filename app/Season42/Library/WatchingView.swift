@@ -124,7 +124,7 @@ private struct WatchingRow: View {
                     StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    NextEpisodeLine(schedule: series.nextEpisodeSchedule)
+                    NextEpisodeLineView(line: series.nextEpisodeLine)
                 }
             }
 
@@ -194,7 +194,7 @@ private struct LapsedRow: View {
                     StreamingServiceSegment(subtitle: series.status.title, service: series.streamingService)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    NextEpisodeLine(schedule: series.nextEpisodeSchedule)
+                    NextEpisodeLineView(line: series.nextEpisodeLine)
                 }
             }
             .opacity(0.5)
@@ -221,7 +221,7 @@ private struct WaitingRow: View {
                     StreamingServiceSegment(subtitle: series.positionSoFar, service: series.streamingService)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    NextEpisodeLine(schedule: series.nextEpisodeSchedule)
+                    NextEpisodeLineView(line: series.nextEpisodeLine)
                 }
             }
 

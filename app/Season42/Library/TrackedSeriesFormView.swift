@@ -300,33 +300,31 @@ struct TrackedSeriesFormView: View {
         max(1, seasons.episodeCount(inSeason: position.season) ?? 1)
     }
 
+    /// Everything the form is holding, as the Library takes it. The fields a toggle
+    /// governs are what that toggle says they are — off means nothing, not the value the
+    /// picker is still holding underneath, so turning one off and saving clears it.
+    private var draft: TrackedSeriesDraft {
+        TrackedSeriesDraft(
+            title: title,
+            summary: summary,
+            poster: poster,
+            seasons: seasons,
+            status: status,
+            position: hasPosition ? position : nil,
+            streamingService: streamingService,
+            nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil,
+            releaseSlot: releaseSlot
+        )
+    }
+
+    /// Adding and editing differ in one thing — whether there is already a series to
+    /// rewrite — so they say the fields once, as a draft, and differ only in that.
     private func submit() {
         do {
             if let editing {
-                try library.updateTrackedSeries(
-                    editing,
-                    title: title,
-                    summary: summary,
-                    poster: poster,
-                    seasons: seasons,
-                    status: status,
-                    position: hasPosition ? position : nil,
-                    streamingService: streamingService,
-                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil,
-                    releaseSlot: releaseSlot
-                )
+                try library.updateTrackedSeries(editing, to: draft)
             } else {
-                try library.addTrackedSeries(
-                    title: title,
-                    summary: summary,
-                    poster: poster,
-                    seasons: seasons,
-                    status: status,
-                    position: hasPosition ? position : nil,
-                    streamingService: streamingService,
-                    nextEpisodeDate: hasNextEpisodeDate ? nextEpisodeDate : nil,
-                    releaseSlot: releaseSlot
-                )
+                try library.addTrackedSeries(draft)
             }
             dismiss()
         } catch {

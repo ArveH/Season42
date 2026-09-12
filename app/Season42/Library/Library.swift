@@ -51,37 +51,24 @@ final class Library {
 
     // MARK: - Tracking a series by hand
 
-    /// Adds a hand-entered Tracked Series.
+    /// Adds a hand-entered Tracked Series from what the user typed.
     ///
-    /// - Parameter position: where the user already is, or nil if they have watched nothing yet.
-    /// - Parameter poster: the Poster bytes copied off a search, or nil for a series entered by
-    ///   hand — which is every series until a copy brings one.
     /// - Throws: `LibraryError` if any field is unusable; nothing is stored in that case.
     @discardableResult
-    func addTrackedSeries(
-        title: String,
-        summary: String = "",
-        poster: Data? = nil,
-        seasons: Seasons,
-        status: WatchStatus,
-        position: Position? = nil,
-        streamingService: StreamingService? = nil,
-        nextEpisodeDate: Date? = nil,
-        releaseSlot: ReleaseSlot? = nil
-    ) throws -> TrackedSeries {
-        let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
-        try checkSeasons(seasons, hold: position)
+    func addTrackedSeries(_ draft: TrackedSeriesDraft) throws -> TrackedSeries {
+        let title = try validatedTitle(draft.title, blankTitleIs: .seriesTitleIsBlank)
+        try checkSeasons(draft.seasons, hold: draft.position)
 
         let series = TrackedSeries(
             title: title,
-            summary: summary.trimmed,
-            poster: poster,
-            seasons: seasons,
-            status: status,
-            position: position,
-            streamingService: streamingService,
-            nextEpisodeDate: nextEpisodeDate,
-            releaseSlot: releaseSlot,
+            summary: draft.summary.trimmed,
+            poster: draft.poster,
+            seasons: draft.seasons,
+            status: draft.status,
+            position: draft.position,
+            streamingService: draft.streamingService,
+            nextEpisodeDate: draft.nextEpisodeDate,
+            releaseSlot: draft.releaseSlot,
             addedAt: now()
         )
         context.insert(series)
@@ -225,34 +212,22 @@ final class Library {
     /// What the app stamps rather than the user types, `addedAt` and `lastWatchedAt`, is
     /// left alone: renaming a series is not watching it.
     ///
-    /// Every field is spelled out because an edit rewrites the series whole: what is left
-    /// out here is cleared, not kept.
+    /// The draft is the series whole: what it does not carry is cleared, not kept.
     ///
     /// - Throws: `LibraryError` if any field is unusable; the series is untouched then.
-    func updateTrackedSeries(
-        _ series: TrackedSeries,
-        title: String,
-        summary: String,
-        poster: Data?,
-        seasons: Seasons,
-        status: WatchStatus,
-        position: Position?,
-        streamingService: StreamingService?,
-        nextEpisodeDate: Date?,
-        releaseSlot: ReleaseSlot?
-    ) throws {
-        let title = try validatedTitle(title, blankTitleIs: .seriesTitleIsBlank)
-        try checkSeasons(seasons, hold: position)
+    func updateTrackedSeries(_ series: TrackedSeries, to draft: TrackedSeriesDraft) throws {
+        let title = try validatedTitle(draft.title, blankTitleIs: .seriesTitleIsBlank)
+        try checkSeasons(draft.seasons, hold: draft.position)
 
         series.title = title
-        series.summary = summary.trimmed
-        series.poster = poster
-        series.seasons = seasons
-        series.status = status
-        series.position = position
-        series.streamingService = streamingService
-        series.nextEpisodeDate = nextEpisodeDate
-        series.releaseSlot = releaseSlot
+        series.summary = draft.summary.trimmed
+        series.poster = draft.poster
+        series.seasons = draft.seasons
+        series.status = draft.status
+        series.position = draft.position
+        series.streamingService = draft.streamingService
+        series.nextEpisodeDate = draft.nextEpisodeDate
+        series.releaseSlot = draft.releaseSlot
         save()
     }
 

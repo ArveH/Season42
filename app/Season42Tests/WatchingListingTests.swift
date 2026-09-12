@@ -178,18 +178,7 @@ struct WatchingListingTests {
         listing.order = .title
         #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
 
-        try library.updateTrackedSeries(
-            fargo,
-            title: "Aargo",
-            summary: "",
-            poster: nil,
-            seasons: [10],
-            status: .watching,
-            position: nil,
-            streamingService: nil,
-            nextEpisodeDate: nil,
-            releaseSlot: nil
-        )
+        try library.edit(fargo, title: "Aargo", seasons: [10], status: .watching)
 
         #expect(listing.series.map(\.title) == ["Andor", "Aargo"])
     }
@@ -284,18 +273,7 @@ struct WatchingListingTests {
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         let listing = WatchingListing(library: library, defaults: defaults.suite)
 
-        try library.updateTrackedSeries(
-            andor,
-            title: "Andor",
-            summary: "",
-            poster: nil,
-            seasons: [12],
-            status: .dropped,
-            position: nil,
-            streamingService: nil,
-            nextEpisodeDate: nil,
-            releaseSlot: nil
-        )
+        try library.edit(andor, title: "Andor", seasons: [12], status: .dropped)
 
         #expect(listing.series.map(\.title) == ["Andor"])
         #expect(listing.isLapsed(andor))
