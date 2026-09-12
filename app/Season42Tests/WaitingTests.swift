@@ -193,17 +193,6 @@ struct WaitingTests {
         #expect(library.waiting.map(\.title) == ["Slotted", "Nothing known"])
     }
 
-    /// A Library whose Waiting order is worked out in a calendar of the test's own, so
-    /// which weekday the epoch falls on and where local midnight sits never depend on the
-    /// machine running it.
-    private func waitingLibrary(
-        now: @escaping @MainActor () -> Date = { TestClock.epoch }
-    ) throws -> Library {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        return try Library.inMemory(now: now, calendar: calendar)
-    }
-
     @Test func aSeriesAnsweringWaitingToTheEndOfSeriesQuestionJoinsTheWaitingList() throws {
         let library = try Library.inMemory()
         let series = try library.addTrackedSeries(
@@ -217,6 +206,20 @@ struct WaitingTests {
 
         #expect(library.waiting.map(\.title) == ["Severance"])
         #expect(library.watching.isEmpty)
+    }
+}
+
+@MainActor
+private extension WaitingTests {
+    /// A Library whose Waiting order is worked out in a calendar of the test's own, so
+    /// which weekday the epoch falls on and where local midnight sits never depend on the
+    /// machine running it.
+    func waitingLibrary(
+        now: @escaping @MainActor () -> Date = { TestClock.epoch }
+    ) throws -> Library {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return try Library.inMemory(now: now, calendar: calendar)
     }
 }
 

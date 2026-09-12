@@ -50,9 +50,9 @@ struct LibraryTests {
     }
 
     // MARK: - What a row says about the next episode
-
-    /// The choice between the Release Slot and the Next Episode Date is made here, once,
-    /// for every row that lists a Tracked Series (ADR-0016).
+    //
+    // The choice between the Release Slot and the Next Episode Date is made here, once,
+    // for every row that lists a Tracked Series (ADR-0016).
 
     @Test func aSeriesWithOnlyANextEpisodeDateSaysTheDate() throws {
         let library = try Library.inMemory()

@@ -32,35 +32,6 @@ struct NextEpisodeLine: View {
     }
 }
 
-extension ReleaseSlot {
-    /// The weekday in the plural — "Tuesdays" — because the row teaches the pattern rather
-    /// than naming one instance of it. Seven strings rather than a formatted weekday with
-    /// an `s` on the end: the plural is a fact about English, not about dates (ADR-0016).
-    var pluralWeekday: String {
-        switch weekday {
-        case 1: String(localized: "Sundays")
-        case 2: String(localized: "Mondays")
-        case 3: String(localized: "Tuesdays")
-        case 4: String(localized: "Wednesdays")
-        case 5: String(localized: "Thursdays")
-        case 6: String(localized: "Fridays")
-        default: String(localized: "Saturdays")
-        }
-    }
-
-    /// The time of day as this device writes times, so a 12-hour device reads "9:00 PM"
-    /// where a 24-hour one reads "21:00".
-    var formattedTime: String {
-        Date.now.startOfDayInCurrentCalendar
-            .addingTimeInterval(TimeInterval(minutesPastMidnight) * 60)
-            .formatted(date: .omitted, time: .shortened)
-    }
-}
-
-private extension Date {
-    var startOfDayInCurrentCalendar: Date { Calendar.current.startOfDay(for: self) }
-}
-
 #Preview {
     List {
         NextEpisodeLine(schedule: .nextEpisodeDate(.now.addingTimeInterval(7 * 86_400)))

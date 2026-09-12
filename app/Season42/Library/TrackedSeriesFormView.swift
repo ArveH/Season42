@@ -198,8 +198,7 @@ struct TrackedSeriesFormView: View {
             if hasReleaseSlot {
                 Picker("Day", selection: $releaseSlotWeekday) {
                     ForEach(ReleaseSlot.weekdays, id: \.self) { weekday in
-                        Text(ReleaseSlot(weekday: weekday, minutesPastMidnight: 0).pluralWeekday)
-                            .tag(weekday)
+                        Text(ReleaseSlot.pluralWeekday(weekday)).tag(weekday)
                     }
                 }
                 DatePicker(
