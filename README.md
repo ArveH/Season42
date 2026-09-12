@@ -33,13 +33,15 @@ already added keeps working.
 Posters and logos are from [TMDB](https://www.themoviedb.org/); the library in these shots is
 a handful of entries added to a fresh install.
 
-## You probably want TMDB's own app instead
+## You probably want a real tracker instead
 
-**If you are here looking for something to track your watching with, get
-[the TMDB app](https://www.themoviedb.org/apps) — iOS, Android, free — and not this.** It is the
-real thing: a full catalogue, watchlists, ratings, sync across your devices, and people maintaining
-it. Season42 is one person's app for one person's habits, it is not on the App Store, and running it
-means building it yourself.
+**If you are here looking for something to track your watching with, use one of the real ones, not
+this.** TMDB has no app of its own, but [their web app](https://www.themoviedb.org/) is the full
+catalogue — watchlists, ratings, and it works fine on a phone. On iOS there are proper trackers
+built on that same data: [Trakt](https://trakt.tv/) and
+[Sofa Time](https://apps.apple.com/app/sofa-time-tv-show-tracker/id1491037404) among them. Any of
+them gives you sync across your devices and people maintaining it. Season42 is one person's app for
+one person's habits, it is not on the App Store, and running it means building it yourself.
 
 What this repository is good for is reading. It is a small, complete, deliberately over-documented
 project: a SwiftUI app and a server, with the reasoning behind every decision written down next to
