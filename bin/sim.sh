@@ -30,7 +30,6 @@ tap_label() {
 }
 
 tap_xy() { idb ui tap --udid $U $1 $2; }
-type_text() { idb ui text --udid $U "$1"; }
 
 # Type by tapping the keys of the on-screen keyboard. idb's own text entry arrives as
 # hardware-keyboard input, which makes iOS put the software keyboard away for the rest of
@@ -38,7 +37,8 @@ type_text() { idb ui text --udid $U "$1"; }
 type_keys() {
   local ch c
   for ch in ${(s::)1}; do
-    c=$(tree | jq -r --arg k "$ch" '[.[] | select(.type=="Button" and ((.AXLabel//"")|ascii_downcase)==($k|ascii_downcase))][0] | if .==null then "NONE" else "\((.frame.x + .frame.width/2)|floor) \((.frame.y + .frame.height/2)|floor)" end')
+    # The keys are Buttons in the tree, labelled uppercase whatever the shift state shows.
+    c=$(center "^(${(U)ch}|${(L)ch})\$" Button)
     if [[ "$c" == "NONE" ]]; then echo "type_keys: no key '$ch' on screen" >&2; return 1; fi
     idb ui tap --udid $U ${=c}
     sleep 0.4

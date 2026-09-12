@@ -46,7 +46,7 @@ private struct StreamingServiceList: View {
         // last rows clear of the keyboard — unreachable, and no longer dismissable by dragging
         // (#100). So the keyboard goes down as the list arrives: there is nothing to type in
         // here, and a form with the keyboard down has no inset to lose.
-        .onAppear(perform: putTheKeyboardDown)
+        .onAppear(perform: dismissKeyboard)
         .navigationTitle("Streaming service")
         .navigationBarTitleDisplayMode(.inline)
         .streamingServiceNamingSheet(
@@ -77,7 +77,7 @@ private struct StreamingServiceList: View {
     /// Ends editing wherever it is happening. SwiftUI has no way to say this about a screen
     /// other than the one holding the `FocusState`, and the field in question is on the form
     /// below, so it is asked of UIKit.
-    private func putTheKeyboardDown() {
+    private func dismissKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
