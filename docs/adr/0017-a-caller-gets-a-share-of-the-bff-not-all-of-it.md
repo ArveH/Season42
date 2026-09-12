@@ -71,10 +71,12 @@ a caller would escape one.
 ## Consequences
 
 - A route added to the BFF is behind the limit without anything being said, because the limiter is
-  global with one exemption rather than an opt-in per route. `RateLimitingTests` asserts every
-  TMDB-backed route is covered, so a route that somehow is not has a failing test.
+  global with one exemption rather than an opt-in per route. That arrangement, rather than a test,
+  is what covers a new route: `RateLimitingTests` walks a hand-written list of today's routes and
+  would not notice one added to `Program.cs` and not to it. The list is worth having anyway — it is
+  what says the global limiter really does reach all eight — but it is not a guard.
 - A request that never reaches TMDB still costs a permit — a query-less `/series`, or a `/logos`
   path the snapshot does not name. Making the cheap refusals free would make them the way in.
 - The limit is one machine's. It is per-process state, so the count is per machine — which is
-  exactly right while there is one machine, and one more thing on the list `fly.toml` says to
+  exactly right while there is one machine, and the second item `fly.toml` now names on the list to
   revisit before `fly scale count` goes above 1.

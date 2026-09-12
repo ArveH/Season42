@@ -29,6 +29,13 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// </summary>
     public int? PermitsPerWindow { get; set; }
 
+    /// <summary>
+    /// How long a window lasts. Left at the deployment's own default unless a test sets it; a
+    /// test that waits for permits to come back sets it to about a second, because the default
+    /// minute is not a thing to wait for. Set it before the first <c>CreateClient</c>.
+    /// </summary>
+    public int? WindowSeconds { get; set; }
+
     /// <summary>The snapshot file inside <see cref="StorePath"/>.</summary>
     public string SnapshotPath => Path.Combine(StorePath, TmdbOptions.SnapshotFileName);
 
@@ -69,6 +76,12 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         {
             builder.UseSetting($"{RateLimitOptions.SectionName}:{nameof(RateLimitOptions.PermitsPerWindow)}",
                 permits.ToString());
+        }
+
+        if (WindowSeconds is { } window)
+        {
+            builder.UseSetting($"{RateLimitOptions.SectionName}:{nameof(RateLimitOptions.WindowSeconds)}",
+                window.ToString());
         }
 
         builder.ConfigureTestServices(services =>

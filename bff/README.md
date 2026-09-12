@@ -285,9 +285,10 @@ Nothing the app adopts depends on the server afterwards: the logo bytes are stor
 ### `GET /health`
 
 `200` once the host has started, with nothing in the body. The one route outside the rate limit
-(ADR-0017). It is a liveness probe — the deployment wires it as one — and it deliberately says nothing about whether a snapshot has been taken: a
-replica that has never reached TMDB still answers searches honestly with `503`, and calling it
-unhealthy would turn a degraded service into a dead one (ADR-0010).
+(ADR-0017). It is a liveness probe — the deployment wires it as one — and it deliberately says
+nothing about whether a snapshot has been taken: a replica that has never reached TMDB still
+answers searches honestly with `503`, and calling it unhealthy would turn a degraded service into
+a dead one (ADR-0010).
 
 ### `GET /providers?query=<text>`
 

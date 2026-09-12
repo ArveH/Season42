@@ -5,24 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace Season42.Bff;
 
-/// <summary>How much of the server one caller may have (ADR-0017).</summary>
-public sealed class RateLimitOptions
-{
-    public const string SectionName = "RateLimit";
-
-    /// <summary>
-    /// How many requests one caller may make within a window. The default is well above what the
-    /// app does — a search, a details call and a poster is three — and well below what a script
-    /// pointed at the TMDB token would want.
-    /// </summary>
-    public int PermitsPerWindow { get; set; } = 60;
-
-    /// <summary>How long a window lasts, in seconds.</summary>
-    public int WindowSeconds { get; set; } = 60;
-
-    public TimeSpan Window => TimeSpan.FromSeconds(WindowSeconds);
-}
-
 /// <summary>
 /// The limit that lets this server be a public address without being a public TMDB token.
 ///
@@ -60,12 +42,32 @@ public static class RateLimiting
     /// </summary>
     private const string UnknownCaller = "unknown";
 
-    public static void AddTo(IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// Wires the limit into the server. The parameter is named <c>host</c> rather than
+    /// <c>builder</c> because Program.cs is top-level statements, whose own <c>builder</c> local is
+    /// in scope for every type in this compilation and cannot be shadowed.
+    /// </summary>
+    public static void AddTo(WebApplicationBuilder host)
     {
-        services.AddOptions<RateLimitOptions>().Bind(configuration.GetSection(RateLimitOptions.SectionName));
+        // Validated at startup rather than on the first request, for the reason Program.cs gives
+        // about the TMDB token: a nonsense limit would otherwise surface as a 500 from every route
+        // on a server that had started and looked healthy. A limiter cannot be built from a window
+        // of zero seconds or a permit count below one, so those are a refusal to start.
+        host.Services.AddOptions<RateLimitOptions>()
+            .Bind(host.Configuration.GetSection(RateLimitOptions.SectionName))
+            .Validate(
+                options => options.PermitsPerWindow >= 1,
+                $"{RateLimitOptions.SectionName}:{nameof(RateLimitOptions.PermitsPerWindow)} must be at least 1.")
+            .Validate(
+                options => options.WindowSeconds >= 1,
+                $"{RateLimitOptions.SectionName}:{nameof(RateLimitOptions.WindowSeconds)} must be at least 1 second.")
+            .ValidateOnStart();
 
-        services.AddRateLimiter(limiter =>
+        host.Services.AddRateLimiter(limiter =>
         {
+            // OnRejected below writes the whole response, status included, so this is the
+            // answer a caller gets only if that is ever removed. Stated rather than left at
+            // the framework's 503, which would be this server claiming to be the one at fault.
             limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
             limiter.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
@@ -75,10 +77,10 @@ public static class RateLimiting
                     return RateLimitPartition.GetNoLimiter(UnlimitedPartition);
                 }
 
-
-                // Resolved per partition rather than captured once, so a value set at startup is
-                // read the same way as one bound from configuration.
-                var options = context.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value;
+                // Read off the request rather than captured when this was wired, because a test
+                // sets these through the host's own settings and a captured value would be the
+                // default it replaced.
+                var options = LimitsFor(context);
 
                 return RateLimitPartition.GetFixedWindowLimiter($"caller:{CallerOf(context)}", _ =>
                     new FixedWindowRateLimiterOptions
@@ -94,8 +96,7 @@ public static class RateLimiting
 
             limiter.OnRejected = async (context, cancellationToken) =>
             {
-                var window = context.HttpContext.RequestServices
-                    .GetRequiredService<IOptions<RateLimitOptions>>().Value.Window;
+                var window = LimitsFor(context.HttpContext).Window;
 
                 // The limiter knows when the next permit falls due; the window is the fallback for
                 // a limiter that does not say. Either way the caller is told rather than left to
@@ -117,11 +118,18 @@ public static class RateLimiting
         });
     }
 
+    /// <summary>What this server is willing to serve one caller, as the running host has it.</summary>
+    private static RateLimitOptions LimitsFor(HttpContext context) =>
+        context.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value;
+
     /// <summary>
     /// Who is asking: fly-proxy's word where there is one, the connection's own address where
-    /// there is not, and one shared bucket where there is neither.
+    /// there is not, and one shared bucket where there is neither. Public because the fallback is
+    /// the half of this that no request through the test host can reach — a TestServer connection
+    /// has no remote address to fall back to — and an untested fallback on a deployment without a
+    /// proxy in front of it is a limit one header rotation escapes.
     /// </summary>
-    private static string CallerOf(HttpContext context)
+    public static string CallerOf(HttpContext context)
     {
         if (context.Request.Headers.TryGetValue(ClientIpHeader, out var forwarded))
         {

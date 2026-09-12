@@ -17,7 +17,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration[TmdbOptions.AccessTokenKey])
 
 // The server is a public address and the token behind it is not, so a caller gets a share
 // rather than all of it. Every route below except /health is behind it (ADR-0017).
-RateLimiting.AddTo(builder.Services, builder.Configuration);
+RateLimiting.AddTo(builder);
 
 builder.Services.AddSingleton<WatchProviderStore>();
 var tmdbTimeout = TimeSpan.FromSeconds(15);

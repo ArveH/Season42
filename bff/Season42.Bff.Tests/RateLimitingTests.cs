@@ -5,8 +5,10 @@ namespace Season42.Bff.Tests;
 
 /// <summary>
 /// The BFF is open to the internet and holds a token that is not, so a caller gets a share of it
-/// rather than all of it (ADR-0017). These tests set the window small so a burst is a handful of
-/// requests rather than a minute of them.
+/// rather than all of it (ADR-0017). Most of these leave the window at its deployed minute and cut
+/// the permits to two or three, so spending a caller's share is a handful of requests rather than
+/// sixty; the one that waits for the share to come back is the exception, and shortens the window
+/// instead.
 /// </summary>
 public class RateLimitingTests
 {
@@ -93,7 +95,10 @@ public class RateLimitingTests
     public async Task EveryTmdbBackedRouteIsBehindTheLimit()
     {
         // The point of the limit is the token, so a route that reaches TMDB and is not behind it
-        // is a hole. Adding a route without adding it here leaves this test to say so.
+        // is a hole. This list is written by hand and nothing enumerates the app's endpoints, so a
+        // route added to Program.cs and not added here is not caught here — what covers it is the
+        // limiter being global with one exemption rather than an opt-in per route (ADR-0017). This
+        // asserts that arrangement actually holds for every route there is today.
         string[] routes =
         [
             "/providers?query=net",
@@ -150,6 +155,40 @@ public class RateLimitingTests
         var refused = await client.GetAsync("/series?query=severance");
 
         Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+    }
+
+    [Fact]
+    public async Task WhenTheWindowHasPassed_TheShareComesBack()
+    {
+        // The whole of the difference between a rate limit and a ban after sixty requests, and the
+        // one thing here worth waiting real time for.
+        var factory = new BffFactory();
+        factory.PermitsPerWindow = 1;
+        factory.WindowSeconds = 1;
+        using var _ = factory;
+        var client = factory.CreateClient();
+
+        await client.GetAsync("/series?query=severance");
+        var refused = await client.GetAsync("/series?query=severance");
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+        var afterTheWindow = await client.GetAsync("/series?query=severance");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, afterTheWindow.StatusCode);
+    }
+
+    [Fact]
+    public void AStartupLimitOfNothingIsRefused_RatherThanA500PerRoute()
+    {
+        // The same bargain Program.cs strikes over the TMDB token: a server that cannot serve is
+        // better off saying so while starting than while answering.
+        using var factory = new BffFactory();
+        factory.PermitsPerWindow = 0;
+
+        var failure = Record.Exception(() => factory.CreateClient());
+
+        Assert.NotNull(failure);
+        Assert.Contains(nameof(RateLimitOptions.PermitsPerWindow), failure.ToString());
     }
 
     private static Task<HttpResponseMessage> AskAs(HttpClient client, string clientIp)

@@ -11,7 +11,10 @@
 # is rewritten wholesale every 24 hours by every machine independently, so a second one exercises a
 # path that never has been. (The other half of the old Azure reasoning has retired: the volume
 # below is a local filesystem, not an SMB share, so File.Move really is an atomic rename now.)
-# Before running `fly scale count` above 1, revisit the snapshot-write path.
+# The rate limit is the second item on the same list: it is per-process state, so two machines mean
+# two counts and a caller's real share is however many machines the proxy spreads them over
+# (ADR-0017).
+# Before running `fly scale count` above 1, revisit the snapshot-write path and the rate limit.
 
 app = "season42-bff"
 primary_region = "arn"
