@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Picks where the user watches something, out of the Streaming Services they have
 /// registered. It is the whole of what a series or movie form asks about a service — the
@@ -40,6 +41,12 @@ private struct StreamingServiceList: View {
                 Button("Add new service…", systemImage: "plus") { naming = .adding }
             }
         }
+        // The form that pushed this list may have had the keyboard up, and on iOS 26.5 a push
+        // and pop while it is leaves the form's scroll view without the inset that kept its
+        // last rows clear of the keyboard — unreachable, and no longer dismissable by dragging
+        // (#100). So the keyboard goes down as the list arrives: there is nothing to type in
+        // here, and a form with the keyboard down has no inset to lose.
+        .onAppear(perform: putTheKeyboardDown)
         .navigationTitle("Streaming service")
         .navigationBarTitleDisplayMode(.inline)
         .streamingServiceNamingSheet(
@@ -65,6 +72,13 @@ private struct StreamingServiceList: View {
         } message: { message in
             Text(message)
         }
+    }
+
+    /// Ends editing wherever it is happening. SwiftUI has no way to say this about a screen
+    /// other than the one holding the `FocusState`, and the field in question is on the form
+    /// below, so it is asked of UIKit.
+    private func putTheKeyboardDown() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     /// One choice, service or none, marked when it is the one in force.
