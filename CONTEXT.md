@@ -190,6 +190,16 @@ a movie TMDB has no poster for. Like the stores beside it, it holds nothing the 
 costs fetches.
 _Avoid_: poster cache, image proxy
 
+**Rate Limit**:
+How much of the BFF one caller may have: a number of requests within a window, counted per caller
+and refused with `429` past it (ADR-0017). What it protects is the TMDB access token's allowance
+and the bill for the machine, never the token itself, which reaches no caller at all — so it is a
+limit rather than a key, and a repository anyone can read is what made it necessary. `/health` is
+outside it, the probe not being a caller. A **caller** is one address as fly-proxy reports it, or
+the connection's own where there is no proxy; the count is one machine's, so it is a share of one
+machine rather than of the service.
+_Avoid_: throttle, quota, API limit
+
 **Series Match**:
 A series a search matched: an id and a name, and nothing else. What a search lists, so the user
 can tell which of several similar titles is theirs. Someone else's data, never stored — the id is

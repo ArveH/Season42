@@ -1,7 +1,11 @@
 .DS_Store
 xcuserdata/
+# Written by Xcode and xcodebuild; holds nothing a checkout needs. The leading **/ matters:
+# a pattern with a slash in it is anchored to this file's directory otherwise.
+**/xcshareddata/WorkspaceSettings.xcsettings
 DerivedData/
 app/Config/Local.xcconfig
 .idea/
+.claude/settings.local.json
 .env
 *.DotSettings.user

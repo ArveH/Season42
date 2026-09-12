@@ -18,6 +18,8 @@ through `WebApplicationFactory`). The solution file is `Season42.slnx` at the re
 | `Tmdb:AccessToken` | *(empty)* | A TMDB API Read Access Token. Empty is a startup failure. |
 | `Tmdb:WatchRegion` | `NO` | The country whose TV watch providers are fetched. |
 | `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`), the logo bytes (`logos/`) and the poster bytes (`posters/series/` and `posters/movies/`). Relative to the content root. |
+| `RateLimit:PermitsPerWindow` | `60` | How many requests one caller may make per window. See [The rate limit](#the-rate-limit). |
+| `RateLimit:WindowSeconds` | `60` | How long a window lasts. |
 
 The token never belongs in `appsettings.json`. Set it with user-secrets:
 
@@ -29,6 +31,25 @@ dotnet user-secrets set "Tmdb:AccessToken" "<your TMDB API Read Access Token>"
 Get the token from <https://www.themoviedb.org/settings/api> — the **API Read Access Token**, not
 the older API key. It is sent as an `Authorization: Bearer` header, never as a query parameter.
 The BFF calls TMDB's **v3** API; the read access token is what authenticates those calls.
+
+## The rate limit
+
+Every route that can reach TMDB is behind a fixed-window limit of **60 requests per minute per
+caller**, and a caller over it gets `429` with a `Retry-After` (ADR-0017). `/health` is not behind
+it, because a `429` to Fly's probe is a machine Fly restarts.
+
+This exists because the address below is public and the token behind it is not. The token itself is
+safe either way — holding it off the phone is what this server is for (ADR-0007) — so what the limit
+protects is TMDB's per-token allowance and the Fly bill, not a secret. 60 a minute is far above what
+the app does (a search, a details call and a poster is three) and far below what a loop wants.
+
+A caller is `Fly-Client-IP`, the header fly-proxy puts the real client's address in — unspoofable,
+because the proxy overwrites whatever a caller sent — falling back to the connection's own address
+where there is no proxy. **Many callers at once are many buckets**, which ADR-0017 says plainly is
+not defended against, and why a global cap was not taken.
+
+The limit is per-process, so the count is per machine. One more entry on the list `fly.toml` says to
+read before `fly scale count` goes above 1.
 
 ## Run
 
@@ -263,10 +284,11 @@ Nothing the app adopts depends on the server afterwards: the logo bytes are stor
 
 ### `GET /health`
 
-`200` once the host has started, with nothing in the body. It is a liveness probe — the deployment
-wires it as one — and it deliberately says nothing about whether a snapshot has been taken: a
-replica that has never reached TMDB still answers searches honestly with `503`, and calling it
-unhealthy would turn a degraded service into a dead one (ADR-0010).
+`200` once the host has started, with nothing in the body. The one route outside the rate limit
+(ADR-0017). It is a liveness probe — the deployment wires it as one — and it deliberately says
+nothing about whether a snapshot has been taken: a replica that has never reached TMDB still
+answers searches honestly with `503`, and calling it unhealthy would turn a degraded service into
+a dead one (ADR-0010).
 
 ### `GET /providers?query=<text>`
 
@@ -286,6 +308,7 @@ this server serves.
 | A blank or missing `query` | `400` |
 | Nothing matched | `200` with `[]` |
 | No snapshot has ever been taken | `503` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /logos/{file}`
 
@@ -311,6 +334,7 @@ own.
 | The snapshot does not name the logo (traversal attempts included) | `404` |
 | No snapshot has ever been taken | `503` |
 | TMDB could not serve the logo | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /series?query=<text>`
 
@@ -337,6 +361,7 @@ stored: the Library holds what the user copied, not a link back to someone else'
 | A blank or missing `query` | `400`, with no TMDB call made |
 | Nothing matched | `200` with `[]` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /series/{id}`
 
@@ -360,6 +385,7 @@ already has it from the match it opened.
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no series with that id | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /series/{id}/poster`
 
@@ -393,6 +419,7 @@ asking at all.
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no series with that id, or lists no poster for it | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /movies?query=<text>`
 
@@ -411,6 +438,7 @@ curl 'http://localhost:5265/movies?query=arrival'
 | A blank or missing `query` | `400`, with no TMDB call made |
 | Nothing matched | `200` with `[]` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /movies/{id}`
 
@@ -436,6 +464,7 @@ refused.
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no movie with that id | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
 
 ### `GET /movies/{id}/poster`
 
@@ -456,3 +485,4 @@ keyspaces are TMDB's own, so a series and a movie that share a number keep separ
 | The id is not a number | `404`, with no TMDB call made |
 | TMDB knows no movie with that id, or lists no poster for it | `404` |
 | TMDB refused, said nothing, or answered with something unreadable | `502` |
+| The caller is over the rate limit | `429` |
