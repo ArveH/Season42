@@ -16,6 +16,8 @@ on:
   # in code that has not changed. Off-peak, because a queue is the one cost a free macOS runner has.
   schedule:
     - cron: '41 4 * * 1'
+  # So Swift can still be run against a branch before merging, despite the `if:` below.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,6 +30,11 @@ jobs:
   analyze:
     name: Analyze ${{ matrix.language }}
     runs-on: ${{ matrix.runner }}
+    # Swift skips pull requests. Building the app takes ~18 minutes — by far the slowest thing in
+    # this repository's CI — and CodeQL is not a required status check, so on a pull request that
+    # wait buys only the alert annotations on the diff, and never a blocked merge. The push to main
+    # and the weekly run still analyse it. Run it on a branch on demand with workflow_dispatch.
+    if: matrix.language != 'swift' || github.event_name != 'pull_request'
     permissions:
       security-events: write
       contents: read
