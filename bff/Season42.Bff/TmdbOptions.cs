@@ -33,4 +33,32 @@ public sealed class TmdbOptions
     /// </summary>
     public string StoreRootFrom(IHostEnvironment environment) =>
         Path.GetFullPath(LogoStorePath, environment.ContentRootPath);
+
+    /// <summary>
+    /// The longest a fetched image may be kept whatever <see cref="ImageLifetimeDays"/> says.
+    /// TMDB's API Terms of Use, section 1.C, forbid caching "any information obtained through or
+    /// from TMDB" for longer than six months, and the shortest six calendar months there are come
+    /// to 181 days. An image nobody asks for again is only reached by the daily sweep, so what has
+    /// to fit inside those 181 days is this ceiling plus a sweep's worth of lag — not the ceiling
+    /// alone. 170 leaves that margin several times over, and nothing configured can raise it
+    /// (ADR-0020).
+    /// </summary>
+    public const double MaxImageLifetimeDays = 170;
+
+    /// <summary>
+    /// How long a fetched logo or poster is kept before it is dropped and fetched again, in days.
+    /// A day by default: what a store buys is the fetches it saves, and on a server with few
+    /// enough users that the same image is rarely asked for twice in a week, a longer one buys
+    /// little and keeps someone else's pictures around for no reason. Raise it as traffic makes
+    /// the saving real; anything above <see cref="MaxImageLifetimeDays"/> is clamped to it, and
+    /// zero or less keeps nothing at all.
+    /// </summary>
+    public double ImageLifetimeDays { get; set; } = 1;
+
+    /// <summary>
+    /// How long an image is actually kept: what was configured, or the clause's ceiling where
+    /// that is higher. Both stores and the sweep ask this rather than reading the setting.
+    /// </summary>
+    public TimeSpan ImageLifetime =>
+        TimeSpan.FromDays(Math.Clamp(ImageLifetimeDays, 0, MaxImageLifetimeDays));
 }

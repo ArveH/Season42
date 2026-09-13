@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -35,6 +36,12 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     /// minute is not a thing to wait for. Set it before the first <c>CreateClient</c>.
     /// </summary>
     public int? WindowSeconds { get; set; }
+
+    /// <summary>
+    /// How long a fetched image is kept, in days. Left at the deployment's own default unless a
+    /// test sets it, which a test of the setting does. Set it before the first <c>CreateClient</c>.
+    /// </summary>
+    public double? ImageLifetimeDays { get; set; }
 
     /// <summary>The snapshot file inside <see cref="StorePath"/>.</summary>
     public string SnapshotPath => Path.Combine(StorePath, TmdbOptions.SnapshotFileName);
@@ -74,6 +81,13 @@ public sealed class BffFactory : WebApplicationFactory<Program>
         builder.UseSetting(TmdbOptions.AccessTokenKey, "test-token");
         builder.UseSetting("Tmdb:WatchRegion", "NO");
         builder.UseSetting("Tmdb:LogoStorePath", StorePath);
+
+        if (ImageLifetimeDays is { } lifetime)
+        {
+            builder.UseSetting(
+                $"{TmdbOptions.SectionName}:{nameof(TmdbOptions.ImageLifetimeDays)}",
+                lifetime.ToString(CultureInfo.InvariantCulture));
+        }
 
         if (PermitsPerWindow is { } permits)
         {

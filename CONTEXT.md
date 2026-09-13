@@ -186,10 +186,11 @@ _Avoid_: streaming service, provider logo, TMDB service
 **Logo Store**:
 Where the BFF keeps the logo images it has fetched, one file per Watch Provider logo under the
 path TMDB published it at. It fills itself: the first ask for a logo fetches it from TMDB, and
-every ask after that is served from the store until the logo has aged past six months, at which
-point it is dropped and the next ask fetches it again (ADR-0020). Nothing in it needs invalidating
-— a logo TMDB has published does not change under its own path — so what the limit answers is a
-clause in TMDB's terms, never staleness. The current snapshot is what it will serve — a path
+every ask after that is served from the store until the logo has aged past the lifetime the
+deployment set — a day by default, and never more than the six months TMDB's terms allow — at
+which point it is dropped and the next ask fetches it again (ADR-0020). Nothing in it needs
+invalidating, a logo TMDB has published not changing under its own path, so what the limit answers
+is what a kept image is worth and a clause in someone else's terms, never staleness. The current snapshot is what it will serve — a path
 no Watch Provider names is refused before the store is touched at all, which is the whole of the
 route's path validation (ADR-0008). Like the snapshot beside it, it holds nothing the user owns:
 deleting it costs fetches.
@@ -200,8 +201,8 @@ Where the BFF keeps the poster images it has fetched, one file per series or mov
 entry's id — deliberately not under the path TMDB published it at, as the Logo Store is
 (ADR-0012). The id is only half the key: TMDB numbers its series and its movies apart, so the two
 are kept apart in the store as well and a shared number is no collision. It fills
-itself the way the Logo Store does, and drops a poster that has aged past six months on the same
-terms and for the same reason (ADR-0020); what differs is the key, and what it costs. A hit is
+itself the way the Logo Store does, and drops a poster that has aged past the same lifetime for
+the same reason (ADR-0020); what differs is the key, and what it costs. A hit is
 answered without asking TMDB anything at all, and only a miss pays a
 details call to find the poster and then the image itself. Nothing is remembered about a series or
 a movie TMDB has no poster for. Like the stores beside it, it holds nothing the user owns: deleting it

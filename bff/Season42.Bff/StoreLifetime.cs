@@ -1,32 +1,24 @@
 namespace Season42.Bff;
 
 /// <summary>
-/// How long anything fetched from TMDB may be kept, and what that means for a file already on
-/// disk. Both stores that fill themselves from TMDB — <see cref="LogoStore"/> and
-/// <see cref="PosterStore"/> — ask this rather than each deciding for itself, because the limit is
-/// one rule from outside them both (ADR-0020).
+/// What <see cref="TmdbOptions.ImageLifetime"/> means for a file already on disk. Both stores that
+/// fill themselves from TMDB — <see cref="LogoStore"/> and <see cref="PosterStore"/> — ask this
+/// rather than each deciding for itself, because the limit is one rule over them both (ADR-0020).
 /// </summary>
 internal static class StoreLifetime
 {
     /// <summary>
-    /// The longest anything fetched from TMDB may be kept. TMDB's API Terms of Use, section 1.C,
-    /// forbid caching "any information obtained through or from TMDB" for longer than six months;
-    /// 180 days is inside the shortest six calendar months there are, so a stored file that has
-    /// not aged past it has not aged past the clause either, whenever it was fetched.
-    /// </summary>
-    public static readonly TimeSpan Limit = TimeSpan.FromDays(180);
-
-    /// <summary>
     /// The bytes at <paramref name="path"/>, or null where there are none to serve — no file, or
-    /// one that has aged past <see cref="Limit"/>, which is deleted as it is found rather than
-    /// left for the sweep. Whoever asked then pays for a fetch, which is all a lost image costs.
+    /// one that has aged past <paramref name="limit"/>, which is deleted as it is found rather
+    /// than left for the sweep. Whoever asked then pays for a fetch, which is all a lost image
+    /// costs.
     /// </summary>
     public static async Task<byte[]?> ReadIfFreshAsync(
-        string path, ILogger log, CancellationToken cancellationToken)
+        string path, TimeSpan limit, ILogger log, CancellationToken cancellationToken)
     {
         if (!File.Exists(path)) return null;
 
-        if (HasAged(File.GetLastWriteTimeUtc(path)))
+        if (HasAged(File.GetLastWriteTimeUtc(path), limit))
         {
             // Dropped whether or not the fetch about to be made succeeds. Serving it while TMDB
             // is unreachable would be keeping it past the limit for as long as the outage lasts,
@@ -49,10 +41,10 @@ internal static class StoreLifetime
 
     /// <summary>
     /// Deletes everything under <paramref name="directory"/> that has aged past
-    /// <see cref="Limit"/>, and answers how many went. A directory nothing has landed in yet is
-    /// nothing to sweep rather than something to fail on.
+    /// <paramref name="limit"/>, and answers how many went. A directory nothing has landed in yet
+    /// is nothing to sweep rather than something to fail on.
     /// </summary>
-    public static int EvictAgedUnder(string directory, ILogger log)
+    public static int EvictAgedUnder(string directory, TimeSpan limit, ILogger log)
     {
         if (!Directory.Exists(directory)) return 0;
 
@@ -63,7 +55,7 @@ internal static class StoreLifetime
         {
             try
             {
-                if (!HasAged(File.GetLastWriteTimeUtc(path))) continue;
+                if (!HasAged(File.GetLastWriteTimeUtc(path), limit)) continue;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -79,7 +71,8 @@ internal static class StoreLifetime
     }
 
     /// <summary>When a file was fetched is when it was written, which is all this store records.</summary>
-    private static bool HasAged(DateTime writtenUtc) => DateTime.UtcNow - writtenUtc > Limit;
+    private static bool HasAged(DateTime writtenUtc, TimeSpan limit) =>
+        DateTime.UtcNow - writtenUtc > limit;
 
     /// <summary>
     /// Removes one file. A file that cannot be removed is logged and nothing more: what is lost

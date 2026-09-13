@@ -7,10 +7,4 @@
     <UserSecretsId>season42-bff</UserSecretsId>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- The tests drive the real app, and the limit an aged image is measured against is one
-         number both they and it have to agree on. -->
-    <InternalsVisibleTo Include="Season42.Bff.Tests" />
-  </ItemGroup>
-
 </Project>

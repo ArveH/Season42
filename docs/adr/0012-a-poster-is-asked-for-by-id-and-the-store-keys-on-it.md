@@ -42,13 +42,13 @@ is a picture of a series, not a fact about it, and the app is about to keep whic
 adopted as bytes of its own anyway; the escape, if a stale one ever matters, is the same one
 ADR-0007 promised for the whole store — delete the directory and let it fill again.
 
-> **Amended by [ADR-0020](0020-the-image-stores-keep-nothing-past-six-months.md).** This paragraph
+> **Amended by [ADR-0020](0020-image-lifetime-is-a-setting-capped-at-six-months.md).** This paragraph
 > opened "Nothing expires" and the one below it takes the same line about a remembered negative.
-> Nothing is kept past six months now, for a reason that has nothing to do with staleness: TMDB's
-> terms limit how long anything obtained from them may be cached. The staleness reading above
+> A poster is kept for as long as the deployment says now — a day by default — and never longer
+> than TMDB's terms allow anything obtained from them to be cached. The staleness reading above
 > stands as written — it is why a stale poster is tolerable, not why one is eventually dropped —
 > and so does everything this ADR decides about the key. One side effect: the "delete the
-> directory" escape is now taken automatically twice a year.
+> directory" escape is now taken automatically, as often as the lifetime says.
 
 Nothing negative is remembered either: a poster is fetched about twice per adoption rather than
 once per render, so a remembered "no" would save almost nothing and would go on being wrong about
@@ -110,7 +110,7 @@ in either case.
 A miss costs two TMDB calls where a logo's costs one, and the extra one is on the authenticated
 API rather than the public image host. This is the price of the id key, and it is paid once per
 entry per stretch the poster is kept for — once for the life of the store as this was written, and
-once every six months since ADR-0020.
+once per configured lifetime since ADR-0020.
 
 The gates that make two simultaneous asks cost one fetch are reclaimed here, where the logo
 store's are kept. The logo store's keys come from the snapshot and so are bounded by it; a poster's

@@ -4,8 +4,8 @@ namespace Season42.Bff;
 
 /// <summary>
 /// Sweeps the Logo Store and the Poster Store of everything that has aged past
-/// <see cref="StoreLifetime.Limit"/>: once as the server starts, and every 24 hours after that,
-/// beside the <see cref="WatchProviderRefresh"/> that keeps the snapshot current.
+/// <see cref="TmdbOptions.ImageLifetime"/>: once as the server starts, and every 24 hours after
+/// that, beside the <see cref="WatchProviderRefresh"/> that keeps the snapshot current.
 /// </summary>
 /// <remarks>
 /// The sweep is the half of the limit that reaches an image nobody asks for again; the stores
@@ -18,6 +18,7 @@ public sealed class StoreEviction : IHostedService
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
 
     private readonly string[] _directories;
+    private readonly TimeSpan _lifetime;
     private readonly ILogger<StoreEviction> _log;
 
     private CancellationTokenSource? _stopping;
@@ -27,6 +28,7 @@ public sealed class StoreEviction : IHostedService
         IOptions<TmdbOptions> options, IHostEnvironment environment, ILogger<StoreEviction> log)
     {
         _log = log;
+        _lifetime = options.Value.ImageLifetime;
         var root = options.Value.StoreRootFrom(environment);
 
         // The two image stores and not the store root, so that the snapshot beside them — which
@@ -75,7 +77,7 @@ public sealed class StoreEviction : IHostedService
             // tomorrow. The two have nothing to do with each other but the limit they share.
             try
             {
-                evicted += StoreLifetime.EvictAgedUnder(directory, _log);
+                evicted += StoreLifetime.EvictAgedUnder(directory, _lifetime, _log);
             }
             catch (Exception exception)
             {

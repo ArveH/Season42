@@ -3,9 +3,10 @@ using System.Net;
 namespace Season42.Bff.Tests;
 
 /// <summary>
-/// Nothing fetched from TMDB is kept past the six-month clause in TMDB's terms. The two halves of
-/// that are tested here together because they are one rule: an aged image is never served, and an
-/// aged image nobody asks for again is not kept either (ADR-0020).
+/// Nothing fetched from TMDB is kept past the configured lifetime — a day by default, and never
+/// more than the six-month clause in TMDB's terms allows. The two halves of that are tested here
+/// together because they are one rule: an aged image is never served, and an aged image nobody
+/// asks for again is not kept either (ADR-0020).
 /// </summary>
 public class EvictionTests
 {
@@ -22,8 +23,13 @@ public class EvictionTests
     private static void Age(string path, TimeSpan by) =>
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow - by);
 
-    private static readonly TimeSpan PastTheLimit = StoreLifetime.Limit + TimeSpan.FromDays(1);
-    private static readonly TimeSpan InsideTheLimit = StoreLifetime.Limit - TimeSpan.FromDays(1);
+    /// <summary>
+    /// The deployment's own default, which every test here but the ones about the setting runs at.
+    /// </summary>
+    private static readonly TimeSpan Default = new TmdbOptions().ImageLifetime;
+
+    private static readonly TimeSpan PastTheLimit = Default + TimeSpan.FromHours(1);
+    private static readonly TimeSpan InsideTheLimit = Default - TimeSpan.FromHours(1);
 
     [Fact]
     public async Task Logo_AgedPastTheLimit_IsFetchedAgainRatherThanServed()
@@ -220,4 +226,68 @@ public class EvictionTests
         Assert.False(Directory.Exists(factory.LogoDirectory));
         Assert.False(Directory.Exists(factory.PosterDirectory));
     }
+
+    /// <summary>
+    /// A day is the default rather than the rule. A deployment that is asked for more keeps an
+    /// image the default would have dropped, which is the whole point of the setting.
+    /// </summary>
+    [Fact]
+    public async Task Lifetime_RaisedBySetting_KeepsAnImageTheDefaultWouldHaveDropped()
+    {
+        using var factory = new BffFactory { ImageLifetimeDays = 30 };
+        var client = factory.CreateClient();
+        await client.GetAsync($"/logos/{KnownLogo}");
+        Age(factory.LogoPathOf(KnownLogo), TimeSpan.FromDays(7));
+
+        var response = await client.GetAsync($"/logos/{KnownLogo}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Single(factory.Tmdb.ImageRequests);
+        factory.Sweep();
+        Assert.True(File.Exists(factory.LogoPathOf(KnownLogo)));
+    }
+
+    [Fact]
+    public async Task Lifetime_LoweredBySetting_DropsAnImageTheDefaultWouldHaveKept()
+    {
+        using var factory = new BffFactory { ImageLifetimeDays = 0.25 };
+        var client = factory.CreateClient();
+        await client.GetAsync($"/logos/{KnownLogo}");
+        Age(factory.LogoPathOf(KnownLogo), TimeSpan.FromHours(8));
+
+        var response = await client.GetAsync($"/logos/{KnownLogo}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, factory.Tmdb.ImageRequests.Count);
+    }
+
+    /// <summary>
+    /// The setting may lower the limit and may not raise it past what TMDB's terms allow. A
+    /// deployment that asks for a year gets six months, so no configuration puts the server
+    /// outside the clause (ADR-0020).
+    /// </summary>
+    [Fact]
+    public async Task Lifetime_SetAboveTheClause_IsCappedAtIt()
+    {
+        using var factory = new BffFactory { ImageLifetimeDays = 365 };
+        var client = factory.CreateClient();
+        await client.GetAsync($"/logos/{KnownLogo}");
+        Age(factory.LogoPathOf(KnownLogo), TimeSpan.FromDays(TmdbOptions.MaxImageLifetimeDays + 1));
+
+        var response = await client.GetAsync($"/logos/{KnownLogo}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, factory.Tmdb.ImageRequests.Count);
+    }
+
+    /// <summary>The cap is what the option resolves to, whatever a deployment writes in the file.</summary>
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(170, 170)]
+    [InlineData(365, 170)]
+    [InlineData(-1, 0)]
+    public void Lifetime_IsWhatWasConfigured_UpToTheClause(double configured, double kept) =>
+        Assert.Equal(
+            TimeSpan.FromDays(kept),
+            new TmdbOptions { ImageLifetimeDays = configured }.ImageLifetime);
 }

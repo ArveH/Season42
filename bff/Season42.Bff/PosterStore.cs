@@ -18,9 +18,8 @@ public enum PosterSubject
 /// <summary>
 /// The poster bytes on disk, one file per Library Entry and named after that entry's id, filling
 /// itself from TMDB as posters are asked for. Nothing here is kept past
-/// <see cref="StoreLifetime.Limit"/>, for the same reason nothing in the <see cref="LogoStore"/>
-/// beside it is — TMDB's terms limit how long either may cache what it holds (ADR-0020); the key
-/// is the difference between the two (ADR-0012).
+/// <see cref="TmdbOptions.ImageLifetime"/>, which is the same limit the <see cref="LogoStore"/>
+/// beside it keeps to (ADR-0020); the key is the difference between the two (ADR-0012).
 /// </summary>
 /// <remarks>
 /// Keyed on the id rather than on the path TMDB published, because there is no snapshot of
@@ -40,6 +39,7 @@ public sealed class PosterStore
     public const string ContentType = "image/jpeg";
 
     private readonly string _directory;
+    private readonly TimeSpan _lifetime;
     private readonly IServiceProvider _services;
     private readonly ILogger<PosterStore> _log;
 
@@ -59,6 +59,7 @@ public sealed class PosterStore
         _services = services;
         _log = log;
         _directory = Path.Combine(options.Value.StoreRootFrom(environment), DirectoryName);
+        _lifetime = options.Value.ImageLifetime;
     }
 
     /// <summary>
@@ -89,14 +90,15 @@ public sealed class PosterStore
         PosterSubject subject, int id, CancellationToken cancellationToken)
     {
         var path = Path.Combine(_directory, PathOf(subject, id));
-        if (await StoreLifetime.ReadIfFreshAsync(path, _log, cancellationToken) is { } stored) return stored;
+        var stored = await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken);
+        if (stored is not null) return stored;
 
         var gate = Enter(subject, id);
         await gate.Waiting.WaitAsync(cancellationToken);
         try
         {
             // Whoever held the gate may have been fetching this very poster.
-            if (await StoreLifetime.ReadIfFreshAsync(path, _log, cancellationToken) is { } fetched)
+            if (await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken) is { } fetched)
             {
                 return fetched;
             }

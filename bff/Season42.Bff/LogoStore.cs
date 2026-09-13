@@ -6,10 +6,9 @@ namespace Season42.Bff;
 /// <summary>
 /// The logo bytes on disk, filling itself from TMDB as logos are asked for. Nothing here needs
 /// invalidating — a logo that has been published does not change under its own path — but nothing
-/// here is kept indefinitely either: a logo that has aged past <see cref="StoreLifetime.Limit"/>
-/// is dropped and fetched again, because TMDB's terms put a limit on how long what this store
-/// holds may be cached (ADR-0020). Between fetching one and that limit, a logo costs no further
-/// fetch (ADR-0007).
+/// here is kept indefinitely either: a logo that has aged past
+/// <see cref="TmdbOptions.ImageLifetime"/> is dropped and fetched again (ADR-0020). Between
+/// fetching one and that limit, a logo costs no further fetch (ADR-0007).
 /// </summary>
 public sealed class LogoStore
 {
@@ -17,6 +16,7 @@ public sealed class LogoStore
     public const string DirectoryName = "logos";
 
     private readonly string _directory;
+    private readonly TimeSpan _lifetime;
     private readonly IServiceProvider _services;
     private readonly ILogger<LogoStore> _log;
 
@@ -33,6 +33,7 @@ public sealed class LogoStore
         _services = services;
         _log = log;
         _directory = Path.Combine(options.Value.StoreRootFrom(environment), DirectoryName);
+        _lifetime = options.Value.ImageLifetime;
     }
 
     /// <summary>
@@ -45,14 +46,15 @@ public sealed class LogoStore
     public async Task<byte[]> ReadOrFetchAsync(string file, CancellationToken cancellationToken)
     {
         var path = Path.Combine(_directory, file);
-        if (await StoreLifetime.ReadIfFreshAsync(path, _log, cancellationToken) is { } stored) return stored;
+        var stored = await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken);
+        if (stored is not null) return stored;
 
         var gate = _fetching.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
         {
             // Whoever held the gate may have been fetching this very logo.
-            if (await StoreLifetime.ReadIfFreshAsync(path, _log, cancellationToken) is { } fetched)
+            if (await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken) is { } fetched)
             {
                 return fetched;
             }
