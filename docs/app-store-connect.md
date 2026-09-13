@@ -25,7 +25,7 @@ these is a change the page has to follow:
 | Only searching uses the network | `app/Season42/Bff/BffClient.swift` is the only thing that touches it |
 | Search text is sent to `season42-bff.fly.dev` | `app/Config/Bff.xcconfig` |
 | Search text is logged only when TMDB could not be asked | `bff/Season42.Bff/Program.cs` — the `LogWarning` in each search handler |
-| The server stores no user data | `bff/Season42.Bff/` — the only stores are `LogoStore`, `PosterStore` and `WatchProviderStore` |
+| The server holds no part of anyone's Library | `bff/Season42.Bff/` — the only stores are `LogoStore`, `PosterStore` and `WatchProviderStore`, and all three hold TMDB's pictures and TMDB's provider snapshot |
 | The caller's address is counted, not stored | `bff/Season42.Bff/RateLimiting.cs`, and ADR-0017 |
 | No analytics, no third-party SDKs | No SPM dependencies in `app/Season42.xcodeproj` |
 

@@ -41,6 +41,10 @@ small server run for this app at <code>season42-bff.fly.dev</code>, which asks
 you then open a result, the app asks the same server for that title's details and its poster,
 by the identifier the search result carried.</p>
 
+<p>Adopting a streaming service's logo works the same way: the search returns the names of
+the services that matched, and the picture itself is a second request for those bytes, made when
+you pick one.</p>
+
 <p>That is the entire list. Nothing else you do in the app — opening your library, editing an
 entry, marking an episode watched, changing a setting — touches the network at all. The app
 works with no connection; only searching fails.</p>
@@ -53,8 +57,9 @@ tied to you or your device.</p>
 <ul>
   <li><strong>Search text</strong> is passed straight to TMDB and is not written down —
   with one exception: if TMDB cannot be reached, the failure is logged together with the text
-  that was being searched for, so the fault can be diagnosed. Successful searches are not
-  logged.</li>
+  that was being searched for, so the fault can be diagnosed. A failure to fetch a title's
+  details, its poster or a logo logs the identifier that was asked for rather than any text you
+  typed. Successful requests are not logged at all.</li>
   <li><strong>Posters and logos</strong> fetched from TMDB are kept on the server so the next
   person asking for the same picture does not cause a second fetch. These are TMDB's images of
   films and services, and say nothing about who asked for them.</li>
@@ -73,8 +78,8 @@ anyone.</p>
 the app can search, and of the posters and streaming service logos it offers you. Your search
 text reaches TMDB through the server described above. TMDB's own
 <a href="https://www.themoviedb.org/privacy-policy">privacy policy</a> governs what TMDB does
-with the requests it receives. This product uses the TMDB API but is not endorsed or certified
-by TMDB.</p>
+with the requests it receives. This product uses TMDB and the TMDB APIs but is not endorsed, certified, or
+otherwise approved by TMDB.</p>
 
 <p>The server the app talks to runs on <a href="https://fly.io/">Fly.io</a>, which hosts it and
 routes the connection, as any host does.</p>

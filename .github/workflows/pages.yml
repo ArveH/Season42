@@ -17,8 +17,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deploy at a time, and never a cancelled one: the site is a published address, so an
 # interrupted deploy is worth more than a superseded one is worth cancelling.
@@ -30,6 +28,14 @@ jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
+    # Elevated here rather than at workflow level, as the other two workflows do it: the write
+    # and the OIDC token belong to the one job that deploys, and there is nothing else to hold
+    # them for. `id-token` is what deploy-pages exchanges for its short-lived credential, so no
+    # Pages secret exists to leak.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
