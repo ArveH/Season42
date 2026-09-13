@@ -4,9 +4,11 @@ using Microsoft.Extensions.Options;
 namespace Season42.Bff;
 
 /// <summary>
-/// The logo bytes on disk, filling itself from TMDB as logos are asked for. Nothing here expires
-/// and nothing needs invalidating: a logo that has been published does not change under its own
-/// path, so each one costs at most one fetch for the life of the store (ADR-0007).
+/// The logo bytes on disk, filling itself from TMDB as logos are asked for. Nothing here needs
+/// invalidating — a logo that has been published does not change under its own path — but nothing
+/// here is kept indefinitely either: a logo that has aged past
+/// <see cref="TmdbOptions.ImageLifetime"/> is dropped and fetched again (ADR-0020). Between
+/// fetching one and that limit, a logo costs no further fetch (ADR-0007).
 /// </summary>
 public sealed class LogoStore
 {
@@ -14,6 +16,7 @@ public sealed class LogoStore
     public const string DirectoryName = "logos";
 
     private readonly string _directory;
+    private readonly TimeSpan _lifetime;
     private readonly IServiceProvider _services;
     private readonly ILogger<LogoStore> _log;
 
@@ -30,10 +33,12 @@ public sealed class LogoStore
         _services = services;
         _log = log;
         _directory = Path.Combine(options.Value.StoreRootFrom(environment), DirectoryName);
+        _lifetime = options.Value.ImageLifetime;
     }
 
     /// <summary>
-    /// The bytes of one logo, from the store if it is there and from TMDB if it is not.
+    /// The bytes of one logo, from the store if it is there and still inside the limit, and from
+    /// TMDB if it is not.
     /// <paramref name="file"/> must already have been found in the current snapshot: this method
     /// puts it straight onto the filesystem and does no checking of its own.
     /// </summary>
@@ -41,14 +46,18 @@ public sealed class LogoStore
     public async Task<byte[]> ReadOrFetchAsync(string file, CancellationToken cancellationToken)
     {
         var path = Path.Combine(_directory, file);
-        if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
+        var stored = await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken);
+        if (stored is not null) return stored;
 
         var gate = _fetching.GetOrAdd(file, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken);
         try
         {
             // Whoever held the gate may have been fetching this very logo.
-            if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
+            if (await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken) is { } fetched)
+            {
+                return fetched;
+            }
 
             // Resolved per fetch rather than held: TmdbImages is a typed HttpClient, and a
             // singleton holding one would pin a single handler for the life of the server.

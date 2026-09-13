@@ -4,7 +4,9 @@ An ASP.NET Core server whose only job is to hold the TMDB access token off the p
 the configured region's TV watch providers from TMDB on startup and every 24 hours, keeps the last
 good snapshot in memory and on disk, and serves matches from it (ADR-0007). It also searches TMDB
 for series and for movies and reads one of either's details, which it keeps nothing of, and serves
-either's poster, which it keeps.
+either's poster, which it keeps. What it keeps, it keeps for `Tmdb:ImageLifetimeDays` — a day by
+default, capped at the six months TMDB's terms allow: the logo and poster stores are swept on
+startup and every 24 hours, and neither serves an image that has aged past the limit (ADR-0020).
 
 Projects: `Season42.Bff` (the server) and `Season42.Bff.Tests` (xUnit, driving the real endpoints
 through `WebApplicationFactory`). The solution file is `Season42.slnx` at the repo root.
@@ -18,6 +20,7 @@ through `WebApplicationFactory`). The solution file is `Season42.slnx` at the re
 | `Tmdb:AccessToken` | *(empty)* | A TMDB API Read Access Token. Empty is a startup failure. |
 | `Tmdb:WatchRegion` | `NO` | The country whose TV watch providers are fetched. |
 | `Tmdb:LogoStorePath` | `store` | Everything fetched from TMDB — the snapshot (`watch-providers.json`), the logo bytes (`logos/`) and the poster bytes (`posters/series/` and `posters/movies/`). Relative to the content root. |
+| `Tmdb:ImageLifetimeDays` | `1` | How long a fetched logo or poster is kept before it is dropped and fetched again. Raise it as traffic makes the saved fetches worth more; anything above 170 is clamped to 170, which leaves the daily sweep room inside what TMDB's terms allow, and 0 keeps nothing (ADR-0020). |
 | `RateLimit:PermitsPerWindow` | `60` | How many requests one caller may make per window. See [The rate limit](#the-rate-limit). |
 | `RateLimit:WindowSeconds` | `60` | How long a window lasts. |
 
@@ -320,9 +323,10 @@ curl -o netflix.jpg 'http://localhost:5265/logos/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg
 
 The first ask for a logo fetches it from TMDB's image host at size `w154` — the size that stays
 sharp where rows draw logos at 16–24pt — and writes it into `logos/` under the store path. Every
-ask after that is served from there, restarts included: TMDB is asked at most once per logo. The
-store never expires and needs no invalidation, because a logo TMDB has published does not change
-under its own path (ADR-0008).
+ask after that is served from there, restarts included: between one fetch of a logo and the next,
+TMDB is asked at most once for it. The store needs no invalidation — a logo TMDB has published does
+not change under its own path (ADR-0008) — but it keeps nothing past `Tmdb:ImageLifetimeDays`, a
+day by default, so an aged logo is dropped and the next ask fetches it again (ADR-0020).
 
 The current snapshot is the allowlist. A `{file}` no Watch Provider in it names is refused before
 anything touches the filesystem, which is what keeps this route from being a way to read arbitrary
@@ -399,7 +403,8 @@ curl -o severance.jpg 'http://localhost:5265/series/95396/poster'
 The first ask costs two TMDB calls — the details that say where the poster is, then the image
 itself — and writes the bytes into `posters/series/` under the store path, named after the
 **series id**. Every ask after that is served from there with no TMDB call at all, restarts
-included. The `series/` in the path is the other half of the key: TMDB numbers its series and its
+included, until the file has aged past `Tmdb:ImageLifetimeDays` and is evicted on the same terms
+as a logo (ADR-0020). The `series/` in the path is the other half of the key: TMDB numbers its series and its
 movies apart, so a movie's poster of the same id is a different file (ADR-0012). Posters written
 flat at `posters/{id}.jpg` by an earlier version are simply no longer read: they are a cache, and
 what they cost is one refetch each.

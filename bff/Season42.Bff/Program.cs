@@ -37,6 +37,11 @@ builder.Services.AddSingleton<PosterStore>();
 builder.Services.AddHttpClient<TmdbImages>(client => client.Timeout = tmdbTimeout);
 builder.Services.AddHostedService(services => services.GetRequiredService<WatchProviderRefresh>());
 
+// Nothing fetched from TMDB is kept past the six-month clause in TMDB's terms. The stores refuse
+// to serve an aged image themselves; this is what reaches the ones nobody asks for again (ADR-0020).
+builder.Services.AddSingleton<StoreEviction>();
+builder.Services.AddHostedService(services => services.GetRequiredService<StoreEviction>());
+
 var app = builder.Build();
 
 // Ahead of every endpoint, so a refused caller is refused before anything is done for them.

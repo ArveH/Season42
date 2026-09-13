@@ -34,14 +34,21 @@ series and its movies in separate keyspaces, so 550 names one of each and their 
 stand in for one another. The store keeps them in `posters/series/` and `posters/movies/`, spelled
 as the two routes are, and the id means what it means inside one of them.
 
-Nothing expires — but not for the logo store's reason, and the difference is the id key again. The
-logo store's bytes cannot go stale, because a rebranded provider arrives under a new path and the
-old path keeps meaning what it always meant. A poster kept under a series id can: TMDB re-posters
-a returning series, and this store will go on serving the poster it first saw. That is accepted
-rather than unnoticed. A poster is a picture of a series, not a fact about it, and the app is
-about to keep whichever one the user adopted as bytes of its own anyway; the escape, if a stale
-one ever matters, is the same one ADR-0007 promised for the whole store — delete the directory
-and let it fill again.
+A poster can go stale where a logo cannot, and the difference is the id key again. The logo store's
+bytes cannot: a rebranded provider arrives under a new path and the old path keeps meaning what it
+always meant. A poster kept under a series id can — TMDB re-posters a returning series, and this
+store will go on serving the poster it first saw. That is accepted rather than unnoticed. A poster
+is a picture of a series, not a fact about it, and the app is about to keep whichever one the user
+adopted as bytes of its own anyway; the escape, if a stale one ever matters, is the same one
+ADR-0007 promised for the whole store — delete the directory and let it fill again.
+
+> **Amended by [ADR-0020](0020-image-lifetime-is-a-setting-capped-at-six-months.md).** This paragraph
+> opened "Nothing expires" and the one below it takes the same line about a remembered negative.
+> A poster is kept for as long as the deployment says now — a day by default — and never longer
+> than TMDB's terms allow anything obtained from them to be cached. The staleness reading above
+> stands as written — it is why a stale poster is tolerable, not why one is eventually dropped —
+> and so does everything this ADR decides about the key. One side effect: the "delete the
+> directory" escape is now taken automatically, as often as the lifetime says.
 
 Nothing negative is remembered either: a poster is fetched about twice per adoption rather than
 once per render, so a remembered "no" would save almost nothing and would go on being wrong about
@@ -102,7 +109,8 @@ in either case.
 
 A miss costs two TMDB calls where a logo's costs one, and the extra one is on the authenticated
 API rather than the public image host. This is the price of the id key, and it is paid once per
-entry for the life of the store.
+entry per stretch the poster is kept for — once for the life of the store as this was written, and
+once per configured lifetime since ADR-0020.
 
 The gates that make two simultaneous asks cost one fetch are reclaimed here, where the logo
 store's are kept. The logo store's keys come from the snapshot and so are bounded by it; a poster's

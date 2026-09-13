@@ -17,9 +17,9 @@ public enum PosterSubject
 
 /// <summary>
 /// The poster bytes on disk, one file per Library Entry and named after that entry's id, filling
-/// itself from TMDB as posters are asked for. Nothing here expires, for the same reason nothing in
-/// the <see cref="LogoStore"/> beside it does; the key is the difference between the two
-/// (ADR-0012).
+/// itself from TMDB as posters are asked for. Nothing here is kept past
+/// <see cref="TmdbOptions.ImageLifetime"/>, which is the same limit the <see cref="LogoStore"/>
+/// beside it keeps to (ADR-0020); the key is the difference between the two (ADR-0012).
 /// </summary>
 /// <remarks>
 /// Keyed on the id rather than on the path TMDB published, because there is no snapshot of
@@ -39,6 +39,7 @@ public sealed class PosterStore
     public const string ContentType = "image/jpeg";
 
     private readonly string _directory;
+    private readonly TimeSpan _lifetime;
     private readonly IServiceProvider _services;
     private readonly ILogger<PosterStore> _log;
 
@@ -58,6 +59,7 @@ public sealed class PosterStore
         _services = services;
         _log = log;
         _directory = Path.Combine(options.Value.StoreRootFrom(environment), DirectoryName);
+        _lifetime = options.Value.ImageLifetime;
     }
 
     /// <summary>
@@ -72,9 +74,10 @@ public sealed class PosterStore
         subject == PosterSubject.Series ? "series" : "movies";
 
     /// <summary>
-    /// The bytes of one series' or one movie's poster, from the store if it is there and from
-    /// TMDB if it is not, or null where there is no poster to be had — TMDB listing none, and
-    /// TMDB having never heard of the id, are the same answer to whoever asked.
+    /// The bytes of one series' or one movie's poster, from the store if it is there and still
+    /// inside the limit, from TMDB if it is not, or null where there is no poster to be had —
+    /// TMDB listing none, and TMDB having never heard of the id, are the same answer to whoever
+    /// asked.
     /// </summary>
     /// <remarks>
     /// A null is not remembered. A poster is asked for about twice per adoption rather than once
@@ -87,14 +90,18 @@ public sealed class PosterStore
         PosterSubject subject, int id, CancellationToken cancellationToken)
     {
         var path = Path.Combine(_directory, PathOf(subject, id));
-        if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
+        var stored = await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken);
+        if (stored is not null) return stored;
 
         var gate = Enter(subject, id);
         await gate.Waiting.WaitAsync(cancellationToken);
         try
         {
             // Whoever held the gate may have been fetching this very poster.
-            if (File.Exists(path)) return await File.ReadAllBytesAsync(path, cancellationToken);
+            if (await StoreLifetime.ReadIfFreshAsync(path, _lifetime, _log, cancellationToken) is { } fetched)
+            {
+                return fetched;
+            }
 
             // Resolved per fetch rather than held: both of these reach TMDB through a typed
             // HttpClient, and a singleton holding one would pin a single handler for the life of
