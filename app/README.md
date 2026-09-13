@@ -2,7 +2,7 @@
 
 SwiftUI iPhone app (bundle id `com.season42.app`). Targets: `Season42` (app) and `Season42Tests` (Swift Testing, hosted in the app).
 
-Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed. The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the Privacy Manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships.
+Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed. The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the privacy manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships.
 
 The only thing it reaches the network for is searching — for a Streaming Service's Logo, or for a series or a movie to enter into the Library — and every search goes to the BFF (ADR-0007) — see `bff/README.md`. Everything else works with the BFF stopped, an adopted Logo included, because the bytes are on the device.
 

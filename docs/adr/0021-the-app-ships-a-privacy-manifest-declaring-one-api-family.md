@@ -1,4 +1,4 @@
-# The app ships a Privacy Manifest, and it declares one API family
+# The app ships a privacy manifest, and it declares one API family
 
 Apple enforces `PrivacyInfo.xcprivacy` for third-party SDKs. This app ships none — it has no
 package dependencies at all — so nothing is rejected today for its absence, and the question is
