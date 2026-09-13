@@ -2,9 +2,9 @@ import UIKit
 import Testing
 @testable import Season42
 
-/// The attribution TMDB's terms require under a search: the mark is bundled rather than
-/// fetched, so it draws with the BFF down, and the wording says what the terms say —
-/// including, word for word, the sentence the terms dictate.
+/// The attribution TMDB's terms require of the application (ADR-0019): the mark is bundled
+/// rather than fetched, so it draws with the BFF down, and every wording says what the terms
+/// say — including, word for word, the sentence the terms dictate.
 struct TmdbAttributionTests {
     /// TMDB's current sentence, spelled out here rather than read off the component, so a
     /// drift in the component is a failure rather than a test that agrees with it.
@@ -27,6 +27,18 @@ struct TmdbAttributionTests {
     @Test func theLogoSheetCreditsJustWatchForTheProviderData() {
         let wording = TmdbAttribution.Credits.watchProviders.wording
         #expect(wording.contains("JustWatch"))
+        #expect(wording.contains("logos"))
+    }
+
+    /// Settings is the app's one permanent notice (ADR-0019), so its wording is the one that
+    /// has to name everything the app takes — both TMDB's own details and posters and the
+    /// streaming data JustWatch is owed the credit for. A sheet may say half; this may not.
+    @Test func theAppLevelWordingNamesBothTmdbAndJustWatch() {
+        let wording = TmdbAttribution.Credits.wholeApp.wording
+
+        #expect(wording.contains("TMDB"))
+        #expect(wording.contains("JustWatch"))
+        #expect(wording.contains("posters"))
         #expect(wording.contains("logos"))
     }
 }

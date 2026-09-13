@@ -88,8 +88,19 @@ _Avoid_: stale row, ghost, orphan
 Whether the app draws light, dark, or however the device is drawing — the user's own choice, made
 on the Settings tab and remembered between launches, and following the device until they make
 one. Not the Library's to hold: it is a preference about the app, not something the user tracks
-(ADR-0005).
+(ADR-0005). The only preference the Settings tab holds, which is no longer all the tab is for: it
+also says which build the app is, links to the published privacy and support pages, and carries
+the Attribution Notice.
 _Avoid_: theme, dark mode, colour scheme
+
+**Attribution Notice**:
+The credit TMDB's terms ask for — their mark, the wording naming what the app takes from TMDB and
+from JustWatch, and TMDB's own sentence verbatim. Owed by the application and not by any screen
+that draws a poster, so it has one permanent home at the foot of the Settings tab, and the Library
+tab, the Watching tab and the Streaming Services list carry none (ADR-0019). The three search
+sheets carry one as well, which is redundancy rather than a second obligation. Never a link: the
+terms ask for the mark's presence, not for somewhere to tap.
+_Avoid_: credit, disclaimer, TMDB logo (as a name for the whole notice)
 
 **Next Episode Date**:
 A user-entered, optional date on a Tracked Series recording when the next episode becomes
