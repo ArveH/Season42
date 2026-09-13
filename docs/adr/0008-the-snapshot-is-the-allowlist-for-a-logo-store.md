@@ -1,5 +1,10 @@
 # The snapshot is the allowlist for a logo store that never expires
 
+> **The title is no longer true of the second half, and is kept as the decision was taken.** The
+> store does expire now — nothing in it is kept past six months, because TMDB's terms say so
+> ([ADR-0020](0020-the-image-stores-keep-nothing-past-six-months.md)). Everything below about the
+> snapshot as the allowlist, and about how the store is keyed, stands unchanged.
+
 The BFF serves the logo images themselves. `GET /logos/{file}` looks in a local store first; on a
 miss it fetches the image from TMDB's image host at size `w154`, writes it into the store, and
 returns it. `{file}` is a `logoPath` from `/providers` without its leading slash, so the two halves
@@ -13,9 +18,16 @@ which is the same reason `madeup.jpg` is refused. A route that turns a caller's 
 filesystem path is a way to read arbitrary files off the server unless something stops it, and the
 thing that stops it here is a list this server already had.
 
-The store never expires and needs no invalidation, because a logo that has been published does not
-change under its own path. TMDB is asked for any given logo at most once — including across
-restarts, and including two simultaneous asks for the same missing logo.
+The store needs no invalidation, because a logo that has been published does not change under its
+own path. Between one fetch of a logo and the next, TMDB is asked for it at most once — including
+across restarts, and including two simultaneous asks for the same missing logo.
+
+> **Amended by [ADR-0020](0020-the-image-stores-keep-nothing-past-six-months.md).** This paragraph
+> read "the store never expires" and the rejected option below rejected giving it one. Both are
+> now wrong on that one point: nothing is kept past six months, because TMDB's terms say so. The
+> staleness argument here — a published logo does not change under its own path, so re-fetching
+> buys identical bytes — was never wrong and is not what ADR-0020 answers. Everything this ADR
+> decides about *keying* stands unchanged.
 
 The distinction ADR-0007 drew for searches is carried here: before any snapshot exists the answer
 is `503`, not `404`. "I do not know yet" and "no such logo" are different answers, and collapsing
@@ -40,6 +52,10 @@ nothing.
   are identical by construction. TMDB's logo path is content-addressed in practice — a rebranded
   provider arrives in the snapshot under a new path, not with new bytes under the old one — so
   expiry is a cost with no failure mode to protect against.
+  _Overtaken by [ADR-0020](0020-the-image-stores-keep-nothing-past-six-months.md): the store does
+  have an expiry now, and this option was answering the wrong question. It weighs staleness, and
+  the reason an expiry exists is a term in TMDB's contract, which no argument about whether the
+  bytes changed can answer._
 - **Serve several sizes, `/logos/{size}/{file}`.** Rejected: one size, chosen against how rows draw
   logos, is the requirement; the rest is generality for a caller that does not exist. It would also
   widen the part of the route that has to be checked, and the argument above is worth keeping

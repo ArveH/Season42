@@ -59,6 +59,9 @@ public sealed class BffFactory : WebApplicationFactory<Program>
     public Task RefreshAsync() =>
         Services.GetRequiredService<WatchProviderRefresh>().RefreshAsync(CancellationToken.None);
 
+    /// <summary>Sweeps aged images on demand, as the daily timer beside the refresh would.</summary>
+    public void Sweep() => Services.GetRequiredService<StoreEviction>().Sweep();
+
     public static string NewStoreDirectory()
     {
         var directory = Path.Combine(Path.GetTempPath(), "season42-bff-tests", Guid.NewGuid().ToString("n"));
