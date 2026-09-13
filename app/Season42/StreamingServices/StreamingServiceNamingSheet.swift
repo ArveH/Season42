@@ -155,6 +155,7 @@ struct StreamingServiceNamingSheet: View {
                     adoptedLogoSection
                 }
                 resultsSection
+                TmdbAttribution(.watchProviders)
             }
             .navigationTitle(naming.title)
             .navigationBarTitleDisplayMode(.inline)

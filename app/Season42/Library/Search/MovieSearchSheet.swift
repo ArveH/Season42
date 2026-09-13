@@ -46,7 +46,7 @@ struct MovieSearchSheet: View {
             Form {
                 searchSection
                 resultsSection
-                TmdbAttribution()
+                TmdbAttribution(.seriesAndMovies)
             }
             .navigationDestination(for: MovieMatch.self) { match in
                 MovieDetailsView(match: match, search: search, form: form, onCopy: onCopy)
