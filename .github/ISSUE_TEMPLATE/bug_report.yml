@@ -1,0 +1,58 @@
+# A form rather than a Markdown template, so a report from someone who has never filed one
+# arrives with the three things that decide whether it can be acted on: what happened, what was
+# expected, and which phone it happened on. The support page at
+# https://arveh.github.io/Season42/support/ points here (issue #114).
+
+name: Report a problem
+description: Something in the app is broken, wrong, or not doing what you expected.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Season42 is maintained by one person, so a report that is
+        clear enough to act on is worth a great deal more than a fast one.
+
+        **Nothing you write here is private** — this repository is public, and so is your
+        GitHub username. If you would rather not say it in the open, email
+        season42app@outlook.com instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you were doing, and what the app did instead of what you expected.
+      placeholder: |
+        I marked the last episode of a series watched, and the row stayed in the Watching
+        listing with the old position. I expected it to say the new one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to get there
+      description: The steps that produce it, if you know them. "It happens every time I open the app" is a useful answer too.
+      placeholder: |
+        1. Open the Watching tab
+        2. Tap the next-episode button on any series
+        3. ...
+    validations:
+      required: false
+
+  - type: input
+    id: device
+    attributes:
+      label: iPhone and iOS version
+      description: Settings → General → About tells you both.
+      placeholder: iPhone 15 Pro, iOS 18.5
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drag an image in. A screenshot is worth several paragraphs, and your library is your own — crop out anything you would rather not publish.
+    validations:
+      required: false

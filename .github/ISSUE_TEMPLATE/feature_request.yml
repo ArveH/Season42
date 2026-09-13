@@ -1,0 +1,32 @@
+# The other half of what a support page invites. Kept separate from a bug report because the
+# question that decides a request is different: not "what went wrong" but "what are you trying
+# to do", which is the part that survives when the suggested solution does not.
+
+name: Ask for something
+description: Something the app does not do that you would like it to.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests are read and some are built. Some are answered with "not going to build that" —
+        which will at least be said rather than left hanging.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The situation the app makes awkward, before any suggestion of how to fix it. This is the part that matters most.
+      placeholder: |
+        I watch two series with the same name from different years, and I cannot tell the rows
+        apart in the Library.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What you had in mind
+      description: How you would solve it, if you have a view. Optional — the problem above is enough on its own.
+    validations:
+      required: false

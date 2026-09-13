@@ -1,0 +1,81 @@
+/* One stylesheet for the three pages, served from the same origin as they are: the site
+   fetches nothing from anywhere else, which is both cheaper to serve and the only way a
+   privacy policy can say a page loads no third-party resources and mean it. */
+
+:root {
+  color-scheme: light dark;
+  --ink: #1b1b1b;
+  --ink-quiet: #5d5d5d;
+  --paper: #fbfbf9;
+  --rule: #e0e0da;
+  --accent: #0f7a32;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #ececec;
+    --ink-quiet: #a6a6a6;
+    --paper: #131313;
+    --rule: #2c2c2c;
+    --accent: #4aff4a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 3rem 1.25rem 4rem;
+  background: var(--paper);
+  color: var(--ink);
+  font: 1.0625rem/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2.5rem 0 0.6rem;
+}
+
+p, ul { margin: 0 0 1rem; }
+
+ul { padding-left: 1.2rem; }
+
+li { margin-bottom: 0.4rem; }
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+.lede {
+  color: var(--ink-quiet);
+  margin-bottom: 2rem;
+}
+
+.updated {
+  color: var(--ink-quiet);
+  font-size: 0.9rem;
+}
+
+nav {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.95rem;
+  color: var(--ink-quiet);
+}
+
+nav a { margin-right: 1rem; }

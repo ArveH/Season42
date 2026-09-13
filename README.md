@@ -103,6 +103,19 @@ Two documents carry the thinking, and they are worth reading before the code:
   comments cite them by number, so an `(ADR-0012)` in a source file is a pointer to the argument
   behind it.
 
+## Privacy and support
+
+- **[Privacy policy](https://arveh.github.io/Season42/privacy/)** — what the app does and does not
+  do with information. The short version is the paragraph at the top of this file; the page is the
+  whole of it, and it is what an App Store submission points at.
+- **[Support](https://arveh.github.io/Season42/support/)** — how to report a problem, and what
+  support is for an app one person maintains in their own time.
+
+Both pages are served by GitHub Pages from [`site/`](site/) in this repository, deployed by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+[`docs/app-store-connect.md`](docs/app-store-connect.md) records the URLs as the submission form
+wants them, and says which file in the tree makes each claim on the policy page true.
+
 ## Requirements
 
 - Xcode recent enough to open the project, with an iOS simulator runtime
