@@ -2,16 +2,22 @@ import SwiftUI
 
 /// What TMDB's terms ask of a screen that shows its data or its images: the mark, and the
 /// wording that says what on the screen is TMDB's and that the app is not endorsed by it.
-/// Drawn under the results of all three search sheets, whatever state the search is in — the
-/// wording is owed for the data being asked for, not only for data that arrived. A `Section`
-/// of its own rather than a footer on the results, because an idle search has no results
-/// section to hang it from; the sheets drop it straight into their `Form`.
+/// Drawn under all three sheets that search TMDB — series, movies, and the one that names a
+/// service — whatever state the search is in, because the wording is owed for the data being
+/// asked for, not only for data that arrived. A `Section` of its own rather than a footer on
+/// the results, because an idle search has no results section to hang it from; the sheets
+/// drop it straight into their `Form`.
 ///
-/// The second sentence is TMDB's, verbatim, and is the same under every sheet: the terms
-/// dictate its words and a paraphrase of it is not the thing they asked for. The first
-/// sentence differs because what the sheet is showing differs. The series and movie sheets
-/// show details and posters, which are TMDB's own. The logo sheet shows Watch Providers,
-/// which reach TMDB from JustWatch — so its first sentence credits JustWatch as well.
+/// TMDB's own sentence is last, verbatim, and is the same under every sheet: the terms
+/// dictate its words and a paraphrase of it is not the thing they asked for. The same
+/// sentence is in the root README and on the privacy page under `site/`, so a reworded terms
+/// page is a change in three places and not only this one. What comes before it differs,
+/// because what the sheet is showing differs. The series and movie sheets show details and
+/// posters, which are TMDB's own. The logo sheet shows Watch Providers, which reach TMDB from
+/// JustWatch — so it carries JustWatch's fixed clause as well, in JustWatch's own words for
+/// the same reason TMDB's sentence is in TMDB's. Both say "streaming service" rather than
+/// Watch Provider: the glossary's term is for the code, and a user has only ever registered
+/// streaming services.
 ///
 /// That JustWatch credit is prudence, not remediation: TMDB's "we will revoke access"
 /// language sits on the per-title watch provider endpoints, and the BFF calls only the
@@ -24,25 +30,26 @@ import SwiftUI
 /// missing when it was least excusable. It is TMDB's `blue_square_2`, a teal-to-blue gradient
 /// on nothing, which reads against light and dark alike, so there is one of it.
 ///
-/// Not tappable. The user is mid-search, and a link out to a browser is a way to lose their
-/// place. The detail screens that push from a sheet get no copy: one Back brings this one up.
+/// Not tappable. The user is part-way through something, and a link out to a browser is a way
+/// to lose their place. The detail screens the search sheets push get no copy of their own:
+/// one Back brings this one up.
 struct TmdbAttribution: View {
-    /// What the sheet under this attribution is showing, which is what the wording's first
-    /// sentence names.
+    /// What the sheet under this attribution is showing, which is what its wording names
+    /// before it gets to TMDB's own sentence.
     enum Credits: CaseIterable {
         /// The series and movie search sheets: details and posters, TMDB's own.
         case seriesAndMovies
         /// The logo sheet: Watch Providers, which TMDB has from JustWatch.
         case watchProviders
 
-        /// The wording, with the sentence TMDB's terms require verbatim as its second half.
+        /// The wording, with the sentence TMDB's terms require verbatim as its last.
         var wording: String {
             switch self {
             case .seriesAndMovies:
                 "Series and movie details and posters are provided by TMDB. " + Self.requiredSentence
             case .watchProviders:
-                "Streaming service names and logos are provided by JustWatch, by way of TMDB. "
-                    + Self.requiredSentence
+                "Streaming service names and logos come by way of TMDB; "
+                    + "streaming data provided by JustWatch. " + Self.requiredSentence
             }
         }
 

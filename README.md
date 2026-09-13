@@ -146,8 +146,8 @@ the [skills repository](https://github.com/mattpocock/skills). Thank you, Matt.
 
 This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by
 TMDB. Series and movie data, posters and streaming service logos all come from
-[TMDB](https://www.themoviedb.org/); the streaming services themselves are JustWatch's data,
-which is where TMDB has them from.
+[TMDB](https://www.themoviedb.org/). Streaming data provided by
+[JustWatch](https://www.justwatch.com/), which is where TMDB has the streaming services from.
 
 ## License
 
