@@ -93,14 +93,19 @@ public sealed class StoreEviction : IHostedService
 
     private async Task LoopAsync(CancellationToken cancellationToken)
     {
-        // Off the startup path before the first sweep, so the walk is the server's own work rather
-        // than something a caller waiting on a cold start pays for.
-        await Task.Yield();
-        Sweep();
-
-        using var timer = new PeriodicTimer(Interval);
         try
         {
+            // Off the startup path before the first sweep, so the walk is the server's own work
+            // rather than something a caller waiting on a cold start pays for. The cost of that is
+            // that the sweep can arrive after the server has been told to stop, which is what the
+            // check below is for: a server on its way down has nothing to gain from a walk of both
+            // stores, and the next start will sweep anyway.
+            await Task.Yield();
+            if (cancellationToken.IsCancellationRequested) return;
+
+            Sweep();
+
+            using var timer = new PeriodicTimer(Interval);
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
                 Sweep();
