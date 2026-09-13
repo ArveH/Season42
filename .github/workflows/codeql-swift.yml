@@ -1,0 +1,58 @@
+# The Swift half of code scanning, split out of `codeql.yml` and manual on purpose (issue #124).
+#
+# Swift is the one language here that CodeQL cannot extract buildless: it needs the compiler to
+# actually run, and building the app takes about eighteen minutes. CodeQL is not a required status
+# check on this repository, so that wait never blocked a merge — it only annotated one. Rather than
+# spend it on every push to main and every weekly run, this analysis happens when it is asked for.
+#
+# Dispatch it from the Actions tab (or `gh workflow run codeql-swift.yml --ref <branch>`) against
+# whatever ref you want scanned. The alerts on the security tab are as fresh as the last dispatch.
+
+name: CodeQL (Swift)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-swift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-swift:
+    name: Analyze swift
+    runs-on: macos-26
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # macos-26 defaults to Xcode 26.6, which is what `objectVersion = 100` requires — macos-latest
+      # is still the macOS 15 image, whose newest Xcode is 26.3 and whose selected one is 16.4, and
+      # CodeQL's tracer segfaults on it rather than saying so. Printed rather than pinned: pinning an
+      # exact patch breaks when the image drops it, and when a future project-format bump outruns the
+      # image, the version this prints is the answer.
+      - run: xcodebuild -version
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: swift
+          build-mode: manual
+
+      # A hosted runner holds no signing identity, and DEVELOPMENT_TEAM is deliberately not in the
+      # pbxproj (app/README.md). Neither matters to CodeQL, which needs the compiler to run and not
+      # a product that could be installed — so this builds unsigned, for no particular simulator.
+      - name: Build the app for the extractor
+        working-directory: app
+        run: |
+          xcodebuild -project Season42.xcodeproj -scheme Season42 \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:swift
