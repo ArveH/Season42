@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Season42</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<main>
+
+<h1>Privacy Policy</h1>
+<p class="lede">Season42 for iPhone. Last updated 13 September 2026.</p>
+
+<p>Season42 keeps a record of the series and movies you watch. Everything it knows is
+yours: you type it in, and it stays on your phone. There is no account to make, nothing
+to sign in to, and nothing that tracks you.</p>
+
+<p>This policy describes the whole of what the app does with information, because there
+is not much of it to describe.</p>
+
+<h2>What stays on your device</h2>
+
+<p>Your library — every series and movie you track, their titles, descriptions, statuses,
+positions, dates, the streaming services you have registered, and the posters and logos you
+have adopted — is stored on your iPhone and nowhere else. It is never uploaded, never
+synchronised, and never sent to us or to anyone else. If you delete the app, that library
+goes with it; there is no copy anywhere for us to keep or for you to recover.</p>
+
+<p>Your library may be included in your own iPhone backup, whether that backup is on your
+computer or in your iCloud account. That backup is Apple's and yours, and is governed by
+Apple's terms rather than this policy. Nothing in Season42 puts it there — it is the ordinary
+behaviour of an app's storage on iOS.</p>
+
+<h2>The one thing that leaves your device</h2>
+
+<p><strong>Searching</strong> is the only part of the app that uses the network. When you
+search for a series, a movie, or a streaming service's logo, the text you typed is sent to a
+small server run for this app at <code>season42-bff.fly.dev</code>, which asks
+<a href="https://www.themoviedb.org/">TMDB</a> on your behalf and passes the answer back. If
+you then open a result, the app asks the same server for that title's details and its poster,
+by the identifier the search result carried.</p>
+
+<p>That is the entire list. Nothing else you do in the app — opening your library, editing an
+entry, marking an episode watched, changing a setting — touches the network at all. The app
+works with no connection; only searching fails.</p>
+
+<h2>What the server keeps</h2>
+
+<p>The server holds no personal information. It stores no library, no account, and nothing
+tied to you or your device.</p>
+
+<ul>
+  <li><strong>Search text</strong> is passed straight to TMDB and is not written down —
+  with one exception: if TMDB cannot be reached, the failure is logged together with the text
+  that was being searched for, so the fault can be diagnosed. Successful searches are not
+  logged.</li>
+  <li><strong>Posters and logos</strong> fetched from TMDB are kept on the server so the next
+  person asking for the same picture does not cause a second fetch. These are TMDB's images of
+  films and services, and say nothing about who asked for them.</li>
+  <li><strong>Your IP address</strong> is visible to the server while it answers, as it is to
+  any server you connect to, and is used in memory to count requests against a rate limit that
+  keeps one caller from using up the whole service. It is not stored, and it is not written
+  into a log.</li>
+</ul>
+
+<p>Nothing the server keeps could be used to identify you, and nothing it keeps is shared with
+anyone.</p>
+
+<h2>Third parties</h2>
+
+<p><strong>TMDB</strong> (The Movie Database) is the source of all series and movie information
+the app can search, and of the posters and streaming service logos it offers you. Your search
+text reaches TMDB through the server described above. TMDB's own
+<a href="https://www.themoviedb.org/privacy-policy">privacy policy</a> governs what TMDB does
+with the requests it receives. This product uses the TMDB API but is not endorsed or certified
+by TMDB.</p>
+
+<p>The server the app talks to runs on <a href="https://fly.io/">Fly.io</a>, which hosts it and
+routes the connection, as any host does.</p>
+
+<p>There are no other third parties. Season42 contains <strong>no analytics, no advertising, no
+tracking, no crash reporting, and no third-party SDKs of any kind</strong>. It does not use the
+advertising identifier, does not fingerprint your device, and collects nothing for marketing.</p>
+
+<h2>Children</h2>
+
+<p>Season42 collects no personal information from anyone, of any age.</p>
+
+<h2>Your choices</h2>
+
+<p>Because nothing about you is held anywhere but your own phone, there is nothing to request,
+export or have deleted on your behalf. Deleting the app deletes everything it holds. If you
+would rather nothing at all left your device, do not use search; the rest of the app does not
+need it.</p>
+
+<h2>Changes</h2>
+
+<p>If this policy changes, the new version will be published on this page with a new date above.
+The history of every change is public in the
+<a href="https://github.com/ArveH/Season42">app's repository</a>.</p>
+
+<h2>Contact</h2>
+
+<p>Questions about this policy: open an issue at
+<a href="https://github.com/ArveH/Season42/issues">github.com/ArveH/Season42/issues</a>. See also
+the <a href="../support/">support page</a>.</p>
+
+<nav>
+  <a href="../">Season42</a>
+  <a href="../support/">Support</a>
+  <a href="https://github.com/ArveH/Season42">Source</a>
+</nav>
+
+</main>
+</body>
+</html>

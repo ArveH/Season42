@@ -1,0 +1,10 @@
+# The chooser at /issues/new/choose. Blank issues stay on, because a report that fits neither
+# form is still a report worth having.
+blank_issues_enabled: true
+contact_links:
+  - name: Email instead
+    url: mailto:season42app@outlook.com
+    about: If you would rather not report in public, or have no GitHub account.
+  - name: Privacy policy
+    url: https://arveh.github.io/Season42/privacy/
+    about: What the app does and does not do with information.

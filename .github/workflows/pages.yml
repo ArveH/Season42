@@ -1,0 +1,46 @@
+# The public site: a privacy policy and a support page, which App Store Connect will not accept
+# a submission without (issue #114). GitHub Pages serves them from this repository at no cost.
+#
+# `site/` is uploaded as it stands — there is no build step and no Jekyll. Three hand-written
+# HTML files and one stylesheet, fetching nothing from anywhere else, is what lets the privacy
+# policy say the pages load no third-party resources and be right about it.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never a cancelled one: the site is a published address, so an
+# interrupted deploy is worth more than a superseded one is worth cancelling.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
