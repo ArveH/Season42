@@ -1,5 +1,5 @@
-# The BFF as a Fly.io app: one machine in Stockholm, asleep until somebody searches, with a volume
-# holding everything it has fetched from TMDB.
+# The BFF as a Fly.io app: one machine in Stockholm, kept awake so no search waits on a cold start,
+# with a volume holding everything it has fetched from TMDB.
 #
 # The image this deploys is the one the Dockerfile beside this file builds, and the move off Azure
 # Container Apps did not change a line of it (ADR-0015). It listens on plain HTTP on 8080 and holds
@@ -32,8 +32,9 @@ primary_region = "arn"
 
 # The same absolute path the Azure Files share was mounted at, so nothing in the server had to be
 # told the store had moved. What lives here is a cache: losing it costs fetches and nothing else
-# (ADR-0008). It is durable anyway because the machine stops when nobody is searching, and a
-# container-local store would be emptied on a schedule no one chose (ADR-0010).
+# (ADR-0008). It is durable anyway: a container-local store would be emptied on a schedule no one
+# chose (ADR-0010). The machine no longer stops on its own, but deploys and Fly still restart it,
+# so the volume is doing the same work it always was.
 [[mounts]]
   source = "store"
   destination = "/store"
@@ -43,11 +44,15 @@ primary_region = "arn"
   internal_port = 8080
   force_https = true
 
-  # Scale to zero, the counterpart of the Container App's minReplicas 0. A cold start pays the
-  # awaited first TMDB fetch, and a search is the only thing a stopped BFF costs.
-  auto_stop_machines = "stop"
+  # No scale to zero: the machine stays up so the first search of the day does not pay for a cold
+  # start. That start is not the usual container-boot cost — the Watch Provider refresh is a hosted
+  # service whose first TMDB fetch is awaited before the app serves anything (see the grace period
+  # below), so waking on demand put a multi-second wait in front of a user who had already typed.
+  # The trade is that one shared-CPU machine is now billed around the clock instead of only while
+  # somebody is searching.
+  auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
   # Liveness, not readiness — the same distinction the Container App's probe drew. /health answers
   # for the host and says nothing about the snapshot, so a BFF that has never reached TMDB keeps
