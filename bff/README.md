@@ -174,9 +174,12 @@ anything the app does not. What it says, and why:
   and the container holds no certificate (ADR-0010 for why, ADR-0015 for where). The Dockerfile
   already sets `ASPNETCORE_HTTP_PORTS` to 8080, which is Fly's default internal port, so `fly.toml`
   restates it rather than choosing it.
-- **`auto_stop_machines` with `min_machines_running = 0`.** The machine stops when nobody is
-  searching and starts on the next request. A cold start pays the awaited first TMDB fetch, and a
-  search is the only thing a stopped BFF costs.
+- **`auto_stop_machines = "off"` with `min_machines_running = 1`.** The machine stays up rather
+  than stopping when nobody is searching. Scale-to-zero was the arrangement at first, but the cold
+  start here is not just a container boot: the Watch Provider refresh is a hosted service whose
+  first TMDB fetch is awaited before the app answers anything, so waking on demand put a
+  multi-second wait in front of a user who had already typed. The trade is one shared-CPU machine
+  billed around the clock instead of only while somebody is searching.
 - **`/health` is an HTTP check with a 30-second grace period**, and that number is not the one the
   Container App's probe used. The Watch Provider refresh is a hosted service, so its first fetch
   from TMDB is awaited before `/health` answers anything, bounded at 15 seconds in `Program.cs`.
@@ -185,7 +188,7 @@ anything the app does not. What it says, and why:
 
 **Deploys are not zero-downtime**, and that is a property rather than an oversight: one machine
 holding one volume cannot hand over to a second machine, because the volume cannot attach twice. It
-is a few seconds, against an app that is usually asleep anyway.
+is a few seconds, once per deploy, on an app with one user.
 
 ### The deployed address
 
@@ -238,8 +241,8 @@ setting one restarts the app and it changes about once a year — so it is out o
 altogether (ADR-0015).
 
 A run ends by asking the deployed BFF for `/providers?query=net` over HTTPS. That request is given
-ten tries at fifteen-second spacing, because the machine stops when nobody is searching and the
-first request after a deploy is waiting on a cold start and the awaited first TMDB fetch. A run is
+ten tries at fifteen-second spacing, because the first request after a deploy is waiting on the
+new machine booting and its awaited first TMDB fetch. A run is
 green when the address in [The deployed address](#the-deployed-address) has answered with real
 Watch Providers. **This is the only thing that proves the deployment**, and it proves a great deal
 of it at once: the image built and pushed, the machine booted, the token present, TLS at the edge,
