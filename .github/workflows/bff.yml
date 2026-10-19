@@ -15,10 +15,13 @@ on:
     branches: [main]
     # An app-only or docs-only commit does not redeploy. fly.toml lives under bff/, so the
     # deployment config is covered by the first entry rather than needing one of its own.
+    # The last entry drops Markdown anywhere, so editing bff/README.md is not a deploy either.
+    # Order matters: a `!` pattern only excludes what the entries above it matched.
     paths:
       - 'bff/**'
       - 'Season42.slnx'
       - '.github/**'
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:

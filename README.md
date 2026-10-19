@@ -97,7 +97,7 @@ anything more than look.
 
 Two documents carry the thinking, and they are worth reading before the code:
 
-- **[`CONTEXT.md`](CONTEXT.md)** — the domain language. Every term the code uses in the sense it
+- **[`GLOSSARY.md`](GLOSSARY.md)** — the domain language. Every term the code uses in the sense it
   uses it, with the words deliberately avoided. If a name in the code reads oddly, this says why.
 - **[`docs/adr/`](docs/adr/)** — the decisions, one file each, in the order they were taken. Code
   comments cite them by number, so an `(ADR-0012)` in a source file is a pointer to the argument
@@ -130,7 +130,7 @@ as an experiment in seeing what an AI would produce unsupervised — as an actua
 the part worth passing on. His skills are what gave the work its shape: `/to-spec` and `/to-tickets`
 turned an idea into a GitHub issue worth implementing, `/grill-with-docs` took apart the ones that
 were not ready, `/tdd` meant a failing test came before every feature, `/domain-modeling` is why
-`CONTEXT.md` and `docs/adr/` exist at all, `/implement` did the work, and `/code-review` read it
+`GLOSSARY.md` and `docs/adr/` exist at all, `/implement` did the work, and `/code-review` read it
 back afterwards.
 
 That last point is the one that shows in this repository. The reason every decision here has an ADR
