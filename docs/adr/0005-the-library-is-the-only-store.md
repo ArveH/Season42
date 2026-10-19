@@ -1,5 +1,7 @@
 # The Library is the only store; the Catalog and the API are gone
 
+**Status: amended by [ADR-0022](0022-the-library-syncs-through-the-users-icloud.md)** — still the only store, but synced through iCloud rather than on the device alone.
+
 A series or a movie exists in exactly one place: the Library, on the device, entered by hand.
 The shared Catalog, the ASP.NET Core API that served it, `catalog/catalog.json`, the on-device
 Catalog cache and the Sync that filled it are all deleted. The tab bar is Watching and Library.

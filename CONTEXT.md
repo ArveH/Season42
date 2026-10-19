@@ -1,11 +1,11 @@
 # Season42
 
-An iPhone app for tracking which series and movies one person watches across streaming services. Everything the app knows is the user's own, entered by hand and stored on the device.
+An iPhone app for tracking which series and movies one person watches across streaming services. Everything the app knows is the user's own, entered by hand and kept in the user's own iCloud, with an Apple Watch companion, the Watch App.
 
 ## Language
 
 **Library**:
-The user's own collection of Tracked Series and Tracked Movies — everything the app stores, and the only place a series or a movie is held (ADR-0005). Lives only on the device, and a store the app can no longer open is discarded and started again empty rather than taking the launch with it (ADR-0009).
+The user's own collection of Tracked Series and Tracked Movies — everything the app stores, and the only place a series or a movie is held (ADR-0005). Kept in the user's own iCloud and shared between their iPhone and the Watch App, or on the iPhone alone where iCloud is unavailable to the app. Nothing the app does deletes it: a store the app can no longer open is moved aside and kept, never discarded (ADR-0023), and it syncs through iCloud (ADR-0022).
 _Avoid_: user data, my shows, collection
 
 **Library Entry**:
@@ -57,7 +57,7 @@ _Avoid_: last seen, watch history, last updated
 
 **Watching Order**:
 How the Watching tab lists the series the user is watching: by Watched At or by Title, whichever
-of the two they picked, remembered between launches and shown as the two of them side by side so
+of the two they picked, remembered between launches, shared with the Watch App, and shown as the two of them side by side so
 the one in force is readable without tapping. Taken as a snapshot and held still — marking an
 episode watched, taking one back, or editing a series moves nothing on screen. It is re-taken
 only when the user picks an order, arrives on the tab from another tab, or pulls the listing
@@ -78,11 +78,26 @@ Watching — the visible cost of holding the order still, and taken deliberately
 Finished by mistake undoes it on the row they mis-tapped rather than hunting for the series in
 the Library. It draws dimmed, says its new Status where the Position was, and offers Edit and
 nothing else, there being no next episode to mark on a series the user has said they are done
-with. One that lapsed to Waiting is drawn there and not again in the Waiting listing below, until
+with. On the Watch App, which has no Edit, it offers Back to Watching in its place — the one
+undo a mis-tapped Finished or Waiting needs, and the only Status change the Watch App makes
+besides answering them. One that lapsed to Waiting is drawn there and not again in the Waiting listing below, until
 a re-take sweeps it there. Setting the Status back to Watching un-lapses the row where it stands. A series deleted
 from the Library is never one of these and never lingers: position is what is frozen, existence
 never is (ADR-0014).
 _Avoid_: stale row, ghost, orphan
+
+**Watch App**:
+The companion app on the user's Apple Watch: the Watching tab and nothing else — its Watching
+listing and the Waiting listing below it, in whichever Watching Order the user picked on the
+phone. What it does to a Tracked Series is what a Watching row on the phone does: mark the next
+episode watched and take the last one back, by the same rules and stamping Watched At the same
+way — and, once the Position is at the last known episode, answer Finished or Waiting, with
+Back to Watching on the Lapsed Row that leaves. Nothing else about a series is edited there, and
+nothing is searched, added or deleted from it; no Tracked Movie is drawn on it. A series lapsed
+by a change made on the iPhone is not a Lapsed Row on the Watch App: it is simply gone at the
+next re-take.
+_Avoid_: watch (lowercase, for the app — it collides with Watching, watched and Watched At),
+wrist app, watch extension
 
 **Appearance**:
 Whether the app draws light, dark, or however the device is drawing — the user's own choice, made
@@ -92,6 +107,13 @@ one. Not the Library's to hold: it is a preference about the app, not something 
 also says which build the app is, links to the published privacy and support pages, and carries
 the Attribution Notice.
 _Avoid_: theme, dark mode, colour scheme
+
+**Library Export**:
+The whole Library written out to a file the user keeps, from the Settings tab — their own copy,
+taken by hand and independent of iCloud and of the app being able to open its store. Never read
+back automatically; it exists so a schema change or a sync gone wrong cannot be the end of the
+user's data (ADR-0023).
+_Avoid_: backup (for the file), sync, archive
 
 **Attribution Notice**:
 The credit TMDB's terms ask for — their mark, the wording naming what the app takes from TMDB and

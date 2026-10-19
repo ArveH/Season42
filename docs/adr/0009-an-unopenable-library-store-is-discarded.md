@@ -1,5 +1,7 @@
 # A Library store the app can't open is discarded, not migrated
 
+**Status: superseded by [ADR-0023](0023-an-unopenable-library-store-is-kept-and-migrated.md).** Kept as the record of why the discard existed and of the day it said it would have to be undone.
+
 Opening the on-device store is done twice: once ordinarily, and, if that throws, once more after
 deleting the store file and everything SQLite and SwiftData keep beside it under its name — the
 write-ahead log, the shared-memory and journal files, the support directory. The second open finds
