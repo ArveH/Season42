@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import Season42
 
@@ -287,6 +288,89 @@ struct LibraryTests {
         #expect(relaunched.trackedSeries.first?.seasons == [9, 10])
         #expect(relaunched.trackedSeries.first?.status == .watching)
         #expect(relaunched.trackedSeries.first?.position == Position(season: 1, episode: 4))
+    }
+
+    /// A store written before the schema was versioned — opened, as the app used to, with a
+    /// plain `Schema` of the same models — opens through the migration plan with every
+    /// value and every Streaming Service link it held (ADR-0023).
+    @Test func aStoreWrittenBeforeTheSchemaWasVersionedOpensWithEverythingInIt() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let addedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let nextEpisodeDate = Date(timeIntervalSince1970: 1_800_500_000)
+
+        do {
+            let unversioned = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
+            let container = try ModelContainer(
+                for: unversioned,
+                configurations: ModelConfiguration(schema: unversioned, url: storeURL)
+            )
+            let old = Library(container: container, now: { addedAt })
+            let tv = try old.addStreamingService(name: "Apple TV+", logo: Data("logo".utf8))
+            let bare = try old.addStreamingService(name: "Netflix")
+            let series = try old.addTrackedSeries(TrackedSeriesDraft(
+                title: "Severance",
+                summary: "Work and life, severed.",
+                poster: Data("poster".utf8),
+                seasons: [9, 10],
+                status: .watching,
+                position: Position(season: 1, episode: 4),
+                streamingService: tv,
+                nextEpisodeDate: nextEpisodeDate,
+                releaseSlot: ReleaseSlot(weekday: 6, hour: 3, minute: 0)
+            ))
+            old.markNextEpisodeWatched(series)
+            try old.addTrackedSeries(TrackedSeriesDraft(title: "Dark", seasons: [10], status: .planned))
+            let movie = try old.addTrackedMovie(
+                title: "Arrival",
+                summary: "Heptapods.",
+                poster: Data("movie poster".utf8),
+                streamingService: tv
+            )
+            old.setWatched(true, on: movie)
+            try old.addTrackedMovie(title: "Heat", streamingService: bare)
+        }
+
+        let library = try Library.onDisk(at: storeURL)
+
+        #expect(library.keptAsideStore == nil)
+        #expect(Set(library.trackedSeries.map(\.title)) == ["Severance", "Dark"])
+        let severance = try #require(library.trackedSeries.first { $0.title == "Severance" })
+        #expect(severance.summary == "Work and life, severed.")
+        #expect(severance.poster == Data("poster".utf8))
+        #expect(severance.seasons == [9, 10])
+        #expect(severance.status == .watching)
+        #expect(severance.position == Position(season: 1, episode: 5))
+        #expect(severance.nextEpisodeDate == nextEpisodeDate)
+        #expect(severance.releaseSlot == ReleaseSlot(weekday: 6, hour: 3, minute: 0))
+        #expect(severance.addedAt == addedAt)
+        #expect(severance.lastWatchedAt == addedAt)
+        #expect(severance.streamingService?.name == "Apple TV+")
+        let dark = try #require(library.trackedSeries.first { $0.title == "Dark" })
+        #expect(dark.status == .planned)
+        #expect(dark.position == nil)
+        #expect(dark.streamingService == nil)
+
+        #expect(Set(library.trackedMovies.map(\.title)) == ["Arrival", "Heat"])
+        let arrival = try #require(library.trackedMovies.first { $0.title == "Arrival" })
+        #expect(arrival.summary == "Heptapods.")
+        #expect(arrival.poster == Data("movie poster".utf8))
+        #expect(arrival.isWatched)
+        #expect(arrival.watchedAt == addedAt)
+        #expect(arrival.streamingService?.name == "Apple TV+")
+        let heat = try #require(library.trackedMovies.first { $0.title == "Heat" })
+        #expect(heat.streamingService?.name == "Netflix")
+
+        #expect(library.streamingServices.map(\.name) == ["Apple TV+", "Netflix"])
+        let tv = try #require(library.streamingServices.first)
+        #expect(tv.logo == Data("logo".utf8))
+        #expect(Set(tv.series.map(\.title)) == ["Severance"])
+        #expect(Set(tv.movies.map(\.title)) == ["Arrival"])
+        let netflix = try #require(library.streamingServices.last)
+        #expect(netflix.logo == nil)
+        #expect(netflix.series.isEmpty)
+        #expect(netflix.movies.map(\.title) == ["Heat"])
     }
 
     /// A store the app's schema cannot open — one written by a shape of the models that
