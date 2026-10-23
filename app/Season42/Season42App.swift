@@ -9,11 +9,15 @@ struct Season42App: App {
     /// Up when the Library's store couldn't be opened and was kept aside, until the user
     /// has read that it was (ADR-0023) — a Library that comes up empty must say why.
     @State private var tellingOfKeptAsideStore: Bool
+    /// The device's, unless a debug launch asked to simulate one before the first unlock.
+    private let protectedData: any ProtectedData
 
     init() {
+        let protectedData = LaunchProtectedData.from()
+        self.protectedData = protectedData
         let library: Library?
         do {
-            library = try Library.onDiskIfReadable(protectedData: DeviceProtectedData())
+            library = try Library.onDiskIfReadable(protectedData: protectedData)
         } catch {
             Self.fail(opening: error)
         }
@@ -35,7 +39,7 @@ struct Season42App: App {
             .task {
                 guard library == nil else { return }
                 do {
-                    let opened = try await Library.onDisk(protectedData: DeviceProtectedData())
+                    let opened = try await Library.onDisk(protectedData: protectedData)
                     library = opened
                     tellingOfKeptAsideStore = opened.keptAsideStore != nil
                 } catch {

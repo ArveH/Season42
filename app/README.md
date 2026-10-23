@@ -36,6 +36,18 @@ xcrun simctl install booted <path to Season42.app from DerivedData>
 xcrun simctl launch booted com.season42.app
 ```
 
+### Launching as if before the first unlock
+
+The simulator never locks protected data, so the app always opens its Library at once
+there. To see it wait instead, as it does when woken before the device's first unlock since
+boot (ADR-0023), launch a debug build with `-simulateLockedLaunch [seconds]` (3 if no
+seconds are given): a spinner shows until then, and the Library opens after. In Xcode, tick
+the argument under Edit Scheme ▸ Run ▸ Arguments; from the command line:
+
+```sh
+xcrun simctl launch booted com.season42.app -simulateLockedLaunch 5
+```
+
 ## Driving it, to reproduce a bug
 
 `bin/` at the repo root holds a loop that drives the app in the simulator with
