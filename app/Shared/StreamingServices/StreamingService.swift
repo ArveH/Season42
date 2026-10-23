@@ -7,14 +7,14 @@ extension LibrarySchemaV2 {
     /// that no two services share one.
     @Model
     final class StreamingService {
-        // Optional or defaulted throughout, for CloudKit (ADR-0022), and with no unique
-        // constraint on the name: that no two services share one is `Library`'s rule.
+        // No unique constraint on the name, which CloudKit forbids (ADR-0022): that no two
+        // services share one is `Library`'s rule.
         var name: String = ""
 
         /// The Logo the user has adopted onto this service, as image bytes, or nil where they
         /// have adopted none. Nothing records where the bytes came from — a Logo is the user's
-        /// own once adopted, and nothing refreshes it (ADR-0007). Kept outside the store's
-        /// rows, as Posters are, so the images are handled one way.
+        /// own once adopted, and nothing refreshes it (ADR-0007). External storage, as for
+        /// Posters (ADR-0022).
         @Attribute(.externalStorage) var logo: Data?
 
         /// The Tracked Series that name this service. Deleting the service leaves them naming

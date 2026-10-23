@@ -7,7 +7,7 @@ extension LibrarySchemaV2 {
     /// Created only through `Library`, which owns every rule about these fields.
     @Model
     final class TrackedMovie {
-        // Optional or defaulted throughout, for CloudKit, on the same terms as Tracked Series.
+        // Declaration defaults for CloudKit only, as on `TrackedSeries`.
         var title: String = ""
         /// What the movie is about, as the user typed it.
         var summary: String = ""
@@ -15,7 +15,7 @@ extension LibrarySchemaV2 {
         /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
         /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
         /// once copied, nothing refreshes it, and the Library tab draws it with the BFF stopped,
-        /// unreachable or never deployed (ADR-0013). Kept outside the store's rows.
+        /// unreachable or never deployed (ADR-0013). External storage (ADR-0022).
         @Attribute(.externalStorage) var poster: Data?
         /// Where the user watches it, or nil if they watch it nowhere they have registered.
         var streamingService: StreamingService?

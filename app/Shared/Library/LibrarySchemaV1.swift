@@ -7,8 +7,9 @@ import SwiftData
 ///
 /// Frozen: a store on the user's device was written with it, and `LibraryMigrationPlan`
 /// can only recognise that store while these classes hash exactly as they did. Nothing
-/// here is ever edited, and nothing in the app reads these classes but the plan — the
-/// behaviour the models have lives on the current version's names, in their own files.
+/// here is ever edited, and nothing reads these classes but the plan and the tests that
+/// write a V1 store for it — the behaviour the models have lives on the current version's
+/// names, in their own files.
 /// The value types stored here (`Seasons`, `WatchStatus`, `Position`, `ReleaseSlot`) are
 /// part of the hash too, and are frozen with them.
 enum LibrarySchemaV1: VersionedSchema {

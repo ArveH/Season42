@@ -6,9 +6,8 @@ extension LibrarySchemaV2 {
     /// which is the sole owner of the rules these fields have to satisfy.
     @Model
     final class TrackedSeries {
-        // Every stored property is optional or has a declaration default, so CloudKit can
-        // mirror it (ADR-0022). The defaults are never what a series is created with: the
-        // initialiser sets every one, and `Library` decides what it is set to.
+        // The declaration defaults are for CloudKit (see `LibrarySchemaV2`), never what a
+        // series is created with: the initialiser sets every field, as `Library` decides.
         var title: String = ""
         /// What the series is about, as the user typed it.
         var summary: String = ""
@@ -16,7 +15,8 @@ extension LibrarySchemaV2 {
         /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
         /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
         /// once copied, nothing refreshes it, and the Library and Watching tabs draw it with the
-        /// BFF stopped, unreachable or never deployed (ADR-0013). Kept outside the store's rows, as the largest value a series holds.
+        /// BFF stopped, unreachable or never deployed (ADR-0013). External storage, as the largest value a series
+        /// holds (ADR-0022).
         @Attribute(.externalStorage) var poster: Data?
 
         // Not `= [1]`: SwiftData reads an array literal here as an array rather than as

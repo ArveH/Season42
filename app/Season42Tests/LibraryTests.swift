@@ -329,8 +329,9 @@ struct LibraryTests {
         }
     }
 
-    /// Posters and Logos are the only large values the Library holds, so they are kept out of
-    /// the store's rows, which is also what lets CloudKit carry them apart from the record.
+    /// Posters and Logos are the only large values the Library holds, so they are kept in
+    /// external storage (ADR-0022). CloudKit still sends them inside the record, so this
+    /// keeps the store lean but does not lift CloudKit's 1 MB record cap.
     @Test func postersAndLogosAreStoredExternally() {
         let external = Library.schema.entities.flatMap { entity in
             entity.attributes

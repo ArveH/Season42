@@ -36,11 +36,10 @@ enum LibraryMigrationPlan: SchemaMigrationPlan {
         [v1ToV2]
     }
 
-    /// V2 only loosens what V1 required and moves the images out of the rows, so SwiftData
-    /// infers the move of every value. But moving an image to external storage turns one
-    /// that was nil into zero bytes, and a row would draw that as a Poster or Logo rather
-    /// than the placeholder. No adopted image is ever empty, so after the move an empty one
-    /// is put back to nil.
+    /// V2 only loosens what V1 required and lets Posters and Logos leave the rows, so
+    /// SwiftData infers the move of every value. But that move turns a missing Poster or
+    /// Logo into zero bytes, which a row would draw as an empty picture instead of the
+    /// placeholder. An empty one is never worth keeping, so after the move it is nil again.
     static let v1ToV2 = MigrationStage.custom(
         fromVersion: LibrarySchemaV1.self,
         toVersion: LibrarySchemaV2.self,
