@@ -394,7 +394,7 @@ final class Library {
 extension Library {
     /// The schema of everything the user owns — which, since ADR-0005, is everything
     /// the app stores — at its current version in `LibraryMigrationPlan`.
-    static let schema = Schema(versionedSchema: LibrarySchemaV1.self)
+    static let schema = Schema(versionedSchema: LibrarySchemaV2.self)
 
     /// The on-device store, opened there and then when protected data can already be read —
     /// every launch but a background one before the first unlock since boot — so the app

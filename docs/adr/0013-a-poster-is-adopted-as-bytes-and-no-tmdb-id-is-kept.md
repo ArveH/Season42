@@ -58,6 +58,9 @@ that put a Remove beside the adopted Logo in the first place.
   ADR-0007's reasoning: it buys file management, and a personal Library of a few hundred entries
   at a few tens of kilobytes each is not the size of problem that needs it. Revisit if a Library
   grows large enough that the store's size is felt.
+  *Since revisited:* [ADR-0022](0022-the-library-syncs-through-the-users-icloud.md) moved Posters
+  and Logos to external storage in schema V2, as part of meeting CloudKit's rules. Measured then,
+  the user's largest Poster was 97 KB, well under CloudKit's 1 MB record cap.
 - **Let Copy leave an already-adopted Poster standing when the new series has none.** Rejected:
   a copy replaces the fields TMDB's answer speaks to, and leaving one series' picture over
   another series' name is the one outcome nobody would have asked for. Remove is how a Poster is

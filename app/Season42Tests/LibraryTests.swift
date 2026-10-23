@@ -311,46 +311,100 @@ struct LibraryTests {
             == ["StreamingService", "TrackedMovie", "TrackedSeries"])
     }
 
-    /// A store written before the schema was versioned — opened, as the app used to, with a
-    /// plain `Schema` of the same models — opens through the migration plan with every
-    /// value and every Streaming Service link it held (ADR-0023).
-    @Test func aStoreWrittenBeforeTheSchemaWasVersionedOpensWithEverythingInIt() throws {
+    /// CloudKit can only mirror a store whose every attribute and relationship may be missing
+    /// from a record it receives, and which promises nothing unique (ADR-0022). An attribute
+    /// with a declaration default meets that as well as an optional one does.
+    @Test func theSchemaMeetsCloudKitsRules() {
+        for entity in Library.schema.entities {
+            for attribute in entity.attributes {
+                #expect(
+                    attribute.isOptional || attribute.defaultValue != nil,
+                    "\(entity.name).\(attribute.name) is neither optional nor defaulted"
+                )
+            }
+            for relationship in entity.relationships {
+                #expect(relationship.isOptional, "\(entity.name).\(relationship.name) is required")
+            }
+            #expect(entity.uniquenessConstraints.isEmpty, "\(entity.name) has a unique constraint")
+        }
+    }
+
+    /// Posters and Logos are the only large values the Library holds, so they are kept out of
+    /// the store's rows, which is also what lets CloudKit carry them apart from the record.
+    @Test func postersAndLogosAreStoredExternally() {
+        let external = Library.schema.entities.flatMap { entity in
+            entity.attributes
+                .filter { $0.options.contains(.externalStorage) }
+                .map { "\(entity.name).\($0.name)" }
+        }
+        #expect(Set(external) == ["TrackedSeries.poster", "TrackedMovie.poster", "StreamingService.logo"])
+    }
+
+    /// A store on the user's device was written with V1 — or before the schema was versioned
+    /// at all, which writes the same store — and opens through the migration plan as the
+    /// iCloud-ready V2 with every value and every Streaming Service link it held (ADR-0023).
+    /// The store is written with V1's own classes, as the app before V2 wrote it, since a
+    /// Library only speaks the current version.
+    @Test func aStoreWrittenWithV1OpensAsV2WithEverythingInIt() throws {
         let directory = try temporaryStoreDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
         let addedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let watchedAt = Date(timeIntervalSince1970: 1_800_100_000)
         let nextEpisodeDate = Date(timeIntervalSince1970: 1_800_500_000)
+        // Big enough that V2 moves it out of the row, which is the path a real Poster takes.
+        let poster = Data((0..<200_000).map { UInt8($0 % 251) })
 
         do {
-            let unversioned = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
+            let v1 = Schema(versionedSchema: LibrarySchemaV1.self)
             let container = try ModelContainer(
-                for: unversioned,
-                configurations: ModelConfiguration(schema: unversioned, url: storeURL)
+                for: v1,
+                configurations: ModelConfiguration(schema: v1, url: storeURL)
             )
-            let old = Library(container: container, now: { addedAt })
-            let tv = try old.addStreamingService(name: "Apple TV+", logo: Data("logo".utf8))
-            let bare = try old.addStreamingService(name: "Netflix")
-            let series = try old.addTrackedSeries(TrackedSeriesDraft(
+            let context = ModelContext(container)
+            let tv = LibrarySchemaV1.StreamingService(name: "Apple TV+", logo: Data("logo".utf8))
+            let bare = LibrarySchemaV1.StreamingService(name: "Netflix")
+            context.insert(tv)
+            context.insert(bare)
+            context.insert(LibrarySchemaV1.TrackedSeries(
                 title: "Severance",
                 summary: "Work and life, severed.",
-                poster: Data("poster".utf8),
+                poster: poster,
                 seasons: [9, 10],
                 status: .watching,
-                position: Position(season: 1, episode: 4),
+                position: Position(season: 1, episode: 5),
                 streamingService: tv,
                 nextEpisodeDate: nextEpisodeDate,
-                releaseSlot: ReleaseSlot(weekday: 6, hour: 3, minute: 0)
+                releaseSlot: ReleaseSlot(weekday: 6, hour: 3, minute: 0),
+                addedAt: addedAt,
+                lastWatchedAt: watchedAt
             ))
-            old.markNextEpisodeWatched(series)
-            try old.addTrackedSeries(TrackedSeriesDraft(title: "Dark", seasons: [10], status: .planned))
-            let movie = try old.addTrackedMovie(
+            context.insert(LibrarySchemaV1.TrackedSeries(
+                title: "Dark",
+                summary: "",
+                seasons: [10],
+                status: .planned,
+                position: nil,
+                streamingService: nil,
+                nextEpisodeDate: nil,
+                addedAt: addedAt
+            ))
+            context.insert(LibrarySchemaV1.TrackedMovie(
                 title: "Arrival",
                 summary: "Heptapods.",
                 poster: Data("movie poster".utf8),
-                streamingService: tv
-            )
-            old.setWatched(true, on: movie)
-            try old.addTrackedMovie(title: "Heat", streamingService: bare)
+                streamingService: tv,
+                addedAt: addedAt,
+                isWatched: true,
+                watchedAt: watchedAt
+            ))
+            context.insert(LibrarySchemaV1.TrackedMovie(
+                title: "Heat",
+                summary: "",
+                streamingService: bare,
+                addedAt: addedAt
+            ))
+            try context.save()
         }
 
         let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
@@ -359,39 +413,47 @@ struct LibraryTests {
         #expect(Set(library.trackedSeries.map(\.title)) == ["Severance", "Dark"])
         let severance = try #require(library.trackedSeries.first { $0.title == "Severance" })
         #expect(severance.summary == "Work and life, severed.")
-        #expect(severance.poster == Data("poster".utf8))
+        #expect(severance.poster == poster)
         #expect(severance.seasons == [9, 10])
         #expect(severance.status == .watching)
         #expect(severance.position == Position(season: 1, episode: 5))
         #expect(severance.nextEpisodeDate == nextEpisodeDate)
         #expect(severance.releaseSlot == ReleaseSlot(weekday: 6, hour: 3, minute: 0))
         #expect(severance.addedAt == addedAt)
-        #expect(severance.lastWatchedAt == addedAt)
+        #expect(severance.lastWatchedAt == watchedAt)
         #expect(severance.streamingService?.name == "Apple TV+")
         let dark = try #require(library.trackedSeries.first { $0.title == "Dark" })
         #expect(dark.status == .planned)
         #expect(dark.position == nil)
         #expect(dark.streamingService == nil)
+        #expect(dark.poster == nil)
 
         #expect(Set(library.trackedMovies.map(\.title)) == ["Arrival", "Heat"])
         let arrival = try #require(library.trackedMovies.first { $0.title == "Arrival" })
         #expect(arrival.summary == "Heptapods.")
         #expect(arrival.poster == Data("movie poster".utf8))
         #expect(arrival.isWatched)
-        #expect(arrival.watchedAt == addedAt)
+        #expect(arrival.watchedAt == watchedAt)
         #expect(arrival.streamingService?.name == "Apple TV+")
         let heat = try #require(library.trackedMovies.first { $0.title == "Heat" })
         #expect(heat.streamingService?.name == "Netflix")
+        #expect(heat.poster == nil)
 
         #expect(library.streamingServices.map(\.name) == ["Apple TV+", "Netflix"])
         let tv = try #require(library.streamingServices.first)
         #expect(tv.logo == Data("logo".utf8))
-        #expect(Set(tv.series.map(\.title)) == ["Severance"])
-        #expect(Set(tv.movies.map(\.title)) == ["Arrival"])
+        #expect(Set((tv.series ?? []).map(\.title)) == ["Severance"])
+        #expect(Set((tv.movies ?? []).map(\.title)) == ["Arrival"])
         let netflix = try #require(library.streamingServices.last)
         #expect(netflix.logo == nil)
-        #expect(netflix.series.isEmpty)
-        #expect(netflix.movies.map(\.title) == ["Heat"])
+        #expect((netflix.series ?? []).isEmpty)
+        #expect((netflix.movies ?? []).map(\.title) == ["Heat"])
+
+        // The next launch opens it as V2 already, with the Poster still where V2 moved it.
+        let relaunched = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+        #expect(relaunched.keptAsideStore == nil)
+        #expect(relaunched.trackedSeries.first { $0.title == "Severance" }?.poster == poster)
+        #expect(relaunched.trackedSeries.first { $0.title == "Dark" }?.poster == nil)
     }
 
     /// A store the app's schema cannot open — one written by a shape of the models that

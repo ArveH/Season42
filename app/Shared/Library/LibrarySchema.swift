@@ -1,19 +1,19 @@
+import Foundation
 import SwiftData
 
-/// The Library's schema as it stood when it was first versioned: Tracked Series, Tracked
-/// Movie and Streaming Service as they were before (ADR-0023). The models are declared
-/// inside this enum, in their own files, and the rest of the app names them through the
-/// typealiases below, so V1 is a version of its own rather than whatever the models are
-/// today.
+/// The Library's schema made iCloud-ready (ADR-0022): every stored property optional or
+/// defaulted, the Streaming Service's relationships optional, no unique constraints, and
+/// Posters and Logos in external storage. The models are declared inside this enum, in
+/// their own files, and the rest of the app names them through the typealiases below.
 ///
-/// V1 is frozen: once a store has been written with it, its hash must never change, or
-/// that store fails to open and is kept aside. A change to the models is a new version —
-/// copy these classes into `LibrarySchemaV2`, change the copies, point the typealiases at
-/// them and add the stage to `LibraryMigrationPlan` — and never an edit to the classes
-/// here. The value types they store (`Seasons`, `WatchStatus`, `Position`, `ReleaseSlot`)
-/// are part of that hash too, and are frozen with them.
-enum LibrarySchemaV1: VersionedSchema {
-    static let versionIdentifier = Schema.Version(1, 0, 0)
+/// Frozen once a store has been written with it, as V1 is: a change to the models is a new
+/// version — move these classes into a frozen `LibrarySchemaV2.swift` the way V1's were,
+/// declare the next version in the model files, point the typealiases at it and add the
+/// stage to `LibraryMigrationPlan` — and never an edit to a version a store already has.
+/// Once this schema is in CloudKit's production environment, a later version may only add
+/// to it: nothing is renamed, removed or retyped (ADR-0022).
+enum LibrarySchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
 
     static var models: [any PersistentModel.Type] {
         [TrackedSeries.self, TrackedMovie.self, StreamingService.self]
@@ -21,19 +21,44 @@ enum LibrarySchemaV1: VersionedSchema {
 }
 
 /// The models of the current schema version, under the names the rest of the app uses.
-typealias TrackedSeries = LibrarySchemaV1.TrackedSeries
-typealias TrackedMovie = LibrarySchemaV1.TrackedMovie
-typealias StreamingService = LibrarySchemaV1.StreamingService
+typealias TrackedSeries = LibrarySchemaV2.TrackedSeries
+typealias TrackedMovie = LibrarySchemaV2.TrackedMovie
+typealias StreamingService = LibrarySchemaV2.StreamingService
 
 /// Every version the Library's store has had, oldest first, and how a store moves from
-/// each to the next. A store written before the schema was versioned is V1 as it is, so
-/// there is nothing to move yet; each later schema change adds a version and its stage.
+/// each to the next. A store written before the schema was versioned is V1 as it is.
 enum LibraryMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [LibrarySchemaV1.self]
+        [LibrarySchemaV1.self, LibrarySchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [v1ToV2]
     }
+
+    /// V2 only loosens what V1 required and moves the images out of the rows, so SwiftData
+    /// infers the move of every value. But moving an image to external storage turns one
+    /// that was nil into zero bytes, and a row would draw that as a Poster or Logo rather
+    /// than the placeholder. No adopted image is ever empty, so after the move an empty one
+    /// is put back to nil.
+    static let v1ToV2 = MigrationStage.custom(
+        fromVersion: LibrarySchemaV1.self,
+        toVersion: LibrarySchemaV2.self,
+        willMigrate: nil,
+        didMigrate: { context in
+            for series in try context.fetch(FetchDescriptor<LibrarySchemaV2.TrackedSeries>())
+            where series.poster?.isEmpty == true {
+                series.poster = nil
+            }
+            for movie in try context.fetch(FetchDescriptor<LibrarySchemaV2.TrackedMovie>())
+            where movie.poster?.isEmpty == true {
+                movie.poster = nil
+            }
+            for service in try context.fetch(FetchDescriptor<LibrarySchemaV2.StreamingService>())
+            where service.logo?.isEmpty == true {
+                service.logo = nil
+            }
+            try context.save()
+        }
+    )
 }

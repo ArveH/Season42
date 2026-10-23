@@ -1,23 +1,28 @@
 import Foundation
 import SwiftData
 
-extension LibrarySchemaV1 {
+extension LibrarySchemaV2 {
     /// A series the user has added to their own data. Created only through `Library`,
     /// which is the sole owner of the rules these fields have to satisfy.
     @Model
     final class TrackedSeries {
-        var title: String
+        // Every stored property is optional or has a declaration default, so CloudKit can
+        // mirror it (ADR-0022). The defaults are never what a series is created with: the
+        // initialiser sets every one, and `Library` decides what it is set to.
+        var title: String = ""
         /// What the series is about, as the user typed it.
-        var summary: String
+        var summary: String = ""
 
         /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
         /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
         /// once copied, nothing refreshes it, and the Library and Watching tabs draw it with the
-        /// BFF stopped, unreachable or never deployed (ADR-0013).
-        var poster: Data?
+        /// BFF stopped, unreachable or never deployed (ADR-0013). Kept outside the store's rows, as the largest value a series holds.
+        @Attribute(.externalStorage) var poster: Data?
 
-        var seasons: Seasons
-        var status: WatchStatus
+        // Not `= [1]`: SwiftData reads an array literal here as an array rather than as
+        // `Seasons`, and traps at launch with "Composite Coder only supports Keyed Container".
+        var seasons: Seasons = Seasons(episodeCounts: [1])
+        var status: WatchStatus = WatchStatus.planned
         var position: Position?
         /// Where the user watches it, or nil if they watch it nowhere they have registered.
         var streamingService: StreamingService?
@@ -26,7 +31,7 @@ extension LibrarySchemaV1 {
         /// beside the Next Episode Date rather than replacing it: both are kept, and only the
         /// row chooses between them (ADR-0016).
         var releaseSlot: ReleaseSlot?
-        var addedAt: Date
+        var addedAt: Date = Date.distantPast
         /// Watched At: when the user last moved through the series, by marking an episode
         /// watched or by taking one back, or nil if they never have. The name is narrower than
         /// what it holds: this is not when an episode was last seen (ADR-0014).
