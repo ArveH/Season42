@@ -396,9 +396,18 @@ extension Library {
     /// the app stores.
     static let schema = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
 
-    /// The on-device store the app runs against.
-    static func onDisk() throws -> Library {
-        try onDisk(configuration: ModelConfiguration(schema: schema))
+    /// The on-device store the app runs against, opened only once protected data can be
+    /// read: before the first unlock since boot the store is unreadable, not broken.
+    static func onDisk(protectedData: some ProtectedData) async throws -> Library {
+        await protectedData.waitUntilAvailable()
+        return try onDisk(configuration: ModelConfiguration(schema: schema))
+    }
+
+    /// The on-device store at an explicit location, opened the way the app opens its own —
+    /// after waiting for protected data.
+    static func onDisk(at url: URL, protectedData: some ProtectedData) async throws -> Library {
+        await protectedData.waitUntilAvailable()
+        return try onDisk(at: url)
     }
 
     /// The on-device store at an explicit location, opened the way the app opens its own:
