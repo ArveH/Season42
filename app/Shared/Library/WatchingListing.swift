@@ -24,20 +24,18 @@ import SwiftData
 @Observable
 final class WatchingListing {
     private let library: Library
-    private let defaults: UserDefaults
+    private let orderStore: any WatchingOrderStore
 
     /// Which Watching Order is in force. A preference about a listing rather than the
-    /// user's own data, so it is kept in `UserDefaults` and never in the Library store
-    /// (ADR-0005). Picking one is one of the three moments the snapshot is re-taken.
+    /// user's own data, so it is kept in the order store the app hands over and never in
+    /// the Library store (ADR-0005). Picking one is one of the three moments the snapshot
+    /// is re-taken.
     var order: WatchingOrder {
         didSet {
-            defaults.set(order.rawValue, forKey: Self.orderKey)
+            orderStore.write(order.rawValue)
             retake()
         }
     }
-
-    /// The key the choice is remembered under.
-    static let orderKey = "watchingOrder"
 
     /// How the user has narrowed the tab: the Watching tab's own Library Filter, of which
     /// the tab offers the search text alone for now. Settable, so the view binds the
@@ -55,11 +53,10 @@ final class WatchingListing {
     /// mutation saves, so the identifiers are permanent by the time they are taken.
     private var snapshot: [PersistentIdentifier] = []
 
-    init(library: Library, defaults: UserDefaults = .standard) {
+    init(library: Library, orderStore: any WatchingOrderStore) {
         self.library = library
-        self.defaults = defaults
-        order = defaults.string(forKey: Self.orderKey)
-            .flatMap(WatchingOrder.init(rawValue:)) ?? .lastWatched
+        self.orderStore = orderStore
+        order = orderStore.read().flatMap(WatchingOrder.init(rawValue:)) ?? .lastWatched
         retake()
     }
 
