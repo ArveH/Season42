@@ -19,32 +19,24 @@ struct LibraryExport: Encodable {
     /// its service by name and the file reads the way the app does.
     struct Service: Encodable {
         let name: String
-        let logo: Data?
-
-        enum CodingKeys: CodingKey { case name, logo }
-
-        func encode(to encoder: any Encoder) throws {
-            var fields = encoder.container(keyedBy: CodingKeys.self)
-            try fields.encode(name, forKey: .name)
-            try fields.encode(logo, forKey: .logo)
-        }
+        @NullWhenUnset var logo: Data?
     }
 
     struct Series: Encodable {
         let title: String
         let description: String
-        let poster: Data?
+        @NullWhenUnset var poster: Data?
         /// One episode count per season, in season order.
         let seasons: [Int]
         let status: WatchStatus
-        let position: Position?
+        @NullWhenUnset var position: Position?
         /// The name of the Streaming Service it names, one of `streamingServices`.
-        let streamingService: String?
-        let nextEpisodeDate: Date?
-        let releaseSlot: Slot?
+        @NullWhenUnset var streamingService: String?
+        @NullWhenUnset var nextEpisodeDate: Date?
+        @NullWhenUnset var releaseSlot: Slot?
         let addedAt: Date
         /// Watched At (ADR-0014).
-        let watchedAt: Date?
+        @NullWhenUnset var watchedAt: Date?
 
         /// A Release Slot as its two stored parts, without the `hour` and `minute` a
         /// form reads it as.
@@ -52,53 +44,18 @@ struct LibraryExport: Encodable {
             let weekday: Int
             let minutesPastMidnight: Int
         }
-
-        enum CodingKeys: CodingKey {
-            case title, description, poster, seasons, status, position, streamingService
-            case nextEpisodeDate, releaseSlot, addedAt, watchedAt
-        }
-
-        func encode(to encoder: any Encoder) throws {
-            var fields = encoder.container(keyedBy: CodingKeys.self)
-            try fields.encode(title, forKey: .title)
-            try fields.encode(description, forKey: .description)
-            try fields.encode(poster, forKey: .poster)
-            try fields.encode(seasons, forKey: .seasons)
-            try fields.encode(status, forKey: .status)
-            try fields.encode(position, forKey: .position)
-            try fields.encode(streamingService, forKey: .streamingService)
-            try fields.encode(nextEpisodeDate, forKey: .nextEpisodeDate)
-            try fields.encode(releaseSlot, forKey: .releaseSlot)
-            try fields.encode(addedAt, forKey: .addedAt)
-            try fields.encode(watchedAt, forKey: .watchedAt)
-        }
     }
 
     struct Movie: Encodable {
         let title: String
         let description: String
-        let poster: Data?
+        @NullWhenUnset var poster: Data?
         /// The name of the Streaming Service it names, one of `streamingServices`.
-        let streamingService: String?
+        @NullWhenUnset var streamingService: String?
         let addedAt: Date
         let isWatched: Bool
         /// When the user last marked it watched, which an un-mark leaves in place.
-        let watchedAt: Date?
-
-        enum CodingKeys: CodingKey {
-            case title, description, poster, streamingService, addedAt, isWatched, watchedAt
-        }
-
-        func encode(to encoder: any Encoder) throws {
-            var fields = encoder.container(keyedBy: CodingKeys.self)
-            try fields.encode(title, forKey: .title)
-            try fields.encode(description, forKey: .description)
-            try fields.encode(poster, forKey: .poster)
-            try fields.encode(streamingService, forKey: .streamingService)
-            try fields.encode(addedAt, forKey: .addedAt)
-            try fields.encode(isWatched, forKey: .isWatched)
-            try fields.encode(watchedAt, forKey: .watchedAt)
-        }
+        @NullWhenUnset var watchedAt: Date?
     }
 }
 
@@ -149,5 +106,25 @@ extension Library {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(export)
+    }
+}
+
+/// An optional field of the Library Export, written as `null` when unset: a synthesized
+/// `Encodable` leaves an unset optional out, and the Export names every field in every entry.
+@propertyWrapper
+struct NullWhenUnset<Value: Encodable>: Encodable {
+    var wrappedValue: Value?
+
+    init(wrappedValue: Value?) {
+        self.wrappedValue = wrappedValue
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var field = encoder.singleValueContainer()
+        if let wrappedValue {
+            try field.encode(wrappedValue)
+        } else {
+            try field.encodeNil()
+        }
     }
 }
