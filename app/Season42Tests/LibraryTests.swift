@@ -484,13 +484,6 @@ struct LibraryTests {
         #expect(throws: LibraryStoreError.self) { try Library.onDisk(at: storeURL) }
         #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
     }
-
-    /// A directory of its own for a store, so a test can see everything left beside it.
-    private func temporaryStoreDirectory(named name: String = UUID().uuidString) throws -> URL {
-        let directory = URL.temporaryDirectory.appending(path: name)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
-    }
 }
 
 /// `Seasons` is the one piece of arithmetic the facade delegates to, and the add form

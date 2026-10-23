@@ -68,12 +68,6 @@ struct ProtectedDataTests {
         try FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))
             .sorted()
     }
-
-    private func temporaryStoreDirectory() throws -> URL {
-        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
-    }
 }
 
 /// A device that has not been unlocked since boot until the test unlocks it.
