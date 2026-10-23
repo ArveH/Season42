@@ -2,7 +2,9 @@
 
 SwiftUI iPhone app (bundle id `com.season42.app`). Targets: `Season42` (app) and `Season42Tests` (Swift Testing, hosted in the app).
 
-Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed. The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the privacy manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships.
+Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed.
+
+`Shared/` holds the rules the Watch App will compile too: the Library, its models (Tracked Series, Tracked Movie, Streaming Service and their value types) and `WatchingListing`. It is a third synchronized group, a member of the app target rather than a framework of its own, so a file added there joins every target that lists the group and nothing in it needs `public`. What goes in it imports Foundation and SwiftData and nothing else — no SwiftUI, no UIKit — and a view, a search or anything that reaches the BFF stays in `Season42/`. Tests keep `@testable import Season42`. The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the privacy manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships.
 
 The only thing it reaches the network for is searching — for a Streaming Service's Logo, or for a series or a movie to enter into the Library — and every search goes to the BFF (ADR-0007) — see `bff/README.md`. Everything else works with the BFF stopped, an adopted Logo included, because the bytes are on the device.
 
@@ -32,6 +34,18 @@ xcodebuild -project Season42.xcodeproj -scheme Season42 \
 xcrun simctl boot "iPhone 17 Pro"
 xcrun simctl install booted <path to Season42.app from DerivedData>
 xcrun simctl launch booted com.season42.app
+```
+
+### Launching as if before the first unlock
+
+The simulator never locks protected data, so the app always opens its Library at once
+there. To see it wait instead, as it does when woken before the device's first unlock since
+boot (ADR-0023), launch a debug build with `-simulateLockedLaunch [seconds]` (3 if no
+seconds are given): a spinner shows until then, and the Library opens after. In Xcode, tick
+the argument under Edit Scheme ▸ Run ▸ Arguments; from the command line:
+
+```sh
+xcrun simctl launch booted com.season42.app -simulateLockedLaunch 5
 ```
 
 ## Driving it, to reproduce a bug

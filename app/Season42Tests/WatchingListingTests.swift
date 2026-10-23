@@ -11,19 +11,19 @@ struct WatchingListingTests {
     // MARK: - Which order is in force
 
     @Test func lastWatchedIsTheOrderUntilTheUserPicksAnother() throws {
-        let defaults = try TestDefaults()
-        let listing = WatchingListing(library: try Library.inMemory(), defaults: defaults.suite)
+        let orderStore = TestOrderStore()
+        let listing = WatchingListing(library: try Library.inMemory(), orderStore: orderStore)
 
         #expect(listing.order == .lastWatched)
     }
 
     @Test func onlySeriesWithStatusWatchingAreListed() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         for status in WatchStatus.allCases {
             try library.addTrackedSeries(title: status.title, seasons: [10], status: status)
         }
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         #expect(listing.series.map(\.title) == ["Watching"])
     }
@@ -31,12 +31,12 @@ struct WatchingListingTests {
     // MARK: - Last watched
 
     @Test func lastWatchedListsTheMostRecentlyWatchedSeriesFirst() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         clock.advance()
         library.markNextEpisodeWatched(severance)
@@ -54,14 +54,14 @@ struct WatchingListingTests {
     }
 
     @Test func lastWatchedListsSeriesWithoutAStampBelowTheOnesWithOneMostRecentlyAddedFirst() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         try library.addTrackedSeries(title: "Older", seasons: [12], status: .watching)
         clock.advance()
         try library.addTrackedSeries(title: "Newer", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         clock.advance()
         library.markNextEpisodeWatched(severance)
@@ -73,13 +73,13 @@ struct WatchingListingTests {
     // MARK: - Title
 
     @Test func titleListsSeriesAlphabeticallyWhateverTheirStamps() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         clock.advance()
         library.markNextEpisodeWatched(severance)
 
@@ -89,13 +89,13 @@ struct WatchingListingTests {
     }
 
     @Test func titleOrdersWithoutRegardToCase() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Zoo", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "the office", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "Andor", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "The Office", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.order = .title
 
@@ -106,12 +106,12 @@ struct WatchingListingTests {
     }
 
     @Test func titleOrdersWithoutRegardToDiacritics() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "Élite", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "Dark", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.order = .title
 
@@ -119,12 +119,12 @@ struct WatchingListingTests {
     }
 
     @Test func titleDoesNotStripALeadingThe() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "The Bear", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "Severance", seasons: [10], status: .watching)
         try library.addTrackedSeries(title: "Bear", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.order = .title
 
@@ -134,14 +134,14 @@ struct WatchingListingTests {
     // MARK: - Held still
 
     @Test func markingAnEpisodeWatchedLeavesEveryRowInPlace() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         clock.advance()
         library.markNextEpisodeWatched(andor)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
 
         clock.advance()
@@ -151,7 +151,7 @@ struct WatchingListingTests {
     }
 
     @Test func takingAWatchBackLeavesEveryRowInPlace() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
@@ -160,7 +160,7 @@ struct WatchingListingTests {
         library.markNextEpisodeWatched(severance)
         clock.advance()
         library.markNextEpisodeWatched(andor)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
 
         clock.advance()
@@ -170,11 +170,11 @@ struct WatchingListingTests {
     }
 
     @Test func editingASeriesLeavesEveryRowInPlace() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.order = .title
         #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
 
@@ -184,14 +184,14 @@ struct WatchingListingTests {
     }
 
     @Test func pickingAnOrderRetakesTheSnapshot() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         clock.advance()
         library.markNextEpisodeWatched(andor)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         clock.advance()
         library.markNextEpisodeWatched(severance)
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
@@ -204,14 +204,14 @@ struct WatchingListingTests {
     }
 
     @Test func arrivingOnTheTabRetakesTheSnapshot() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         clock.advance()
         library.markNextEpisodeWatched(andor)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         clock.advance()
         library.markNextEpisodeWatched(severance)
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
@@ -222,12 +222,12 @@ struct WatchingListingTests {
     }
 
     @Test func aSeriesDeletedWhileHeldStillDropsOutAndTheRestKeepTheirPlaces() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.series.map(\.title) == ["Severance", "Andor", "Fargo"])
 
         library.delete(.series(andor))
@@ -238,12 +238,12 @@ struct WatchingListingTests {
     // MARK: - Lapsed Rows
 
     @Test func answeringFinishedLeavesTheRowInPlaceLapsed() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         library.setStatus(.finished, on: andor)
 
@@ -253,11 +253,11 @@ struct WatchingListingTests {
     }
 
     @Test func answeringWaitingLapsesTheRowAndKeepsItOutOfTheWaitingListing() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.waiting.map(\.title) == ["Fargo"])
 
         library.setStatus(.waiting, on: andor)
@@ -268,10 +268,10 @@ struct WatchingListingTests {
     }
 
     @Test func changingTheStatusInTheEditFormLapsesTheRowTheSameWay() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         try library.edit(andor, title: "Andor", seasons: [12], status: .dropped)
 
@@ -280,12 +280,12 @@ struct WatchingListingTests {
     }
 
     @Test func settingTheStatusBackToWatchingUnLapsesTheRowWhereItStands() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.finished, on: andor)
 
         library.setStatus(.watching, on: andor)
@@ -295,11 +295,11 @@ struct WatchingListingTests {
     }
 
     @Test func retakingTheSnapshotSweepsLapsedRowsOut() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.waiting, on: andor)
         #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
 
@@ -310,11 +310,11 @@ struct WatchingListingTests {
     }
 
     @Test func aLapsedRowThatIsDeletedDropsOutAtOnce() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.finished, on: andor)
 
         library.delete(.series(andor))
@@ -323,26 +323,26 @@ struct WatchingListingTests {
     }
 
     @Test func lapsingWritesNothingToTheLibrary() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         library.setStatus(.finished, on: andor)
         #expect(listing.isLapsed(andor))
 
         // A second listing over the same Library knows nothing of the lapse: the row is
         // derived from this listing's snapshot, and nothing about it was stored.
-        let another = WatchingListing(library: library, defaults: defaults.suite)
+        let another = WatchingListing(library: library, orderStore: orderStore)
         #expect(another.series.isEmpty)
         #expect(library.watching.isEmpty)
     }
 
     @Test func aSeriesTheSnapshotNeverHeldIsNotALapsedRow() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         #expect(!listing.isLapsed(fargo))
         #expect(listing.waiting.map(\.title) == ["Fargo"])
@@ -351,7 +351,7 @@ struct WatchingListingTests {
     // MARK: - Joined rows
 
     @Test func aWaitingSeriesSetToWatchingJoinsTheListingAtTheBottom() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
@@ -361,7 +361,7 @@ struct WatchingListingTests {
         )
         clock.advance()
         library.markNextEpisodeWatched(severance)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.series.map(\.title) == ["Severance", "Andor"])
 
         library.setStatus(.watching, on: fargo)
@@ -372,14 +372,14 @@ struct WatchingListingTests {
     }
 
     @Test func twoJoinersAreAppendedInTheOrderInForce() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         let severance = try library.addTrackedSeries(
             title: "Severance", seasons: [9], status: .waiting
         )
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.order = .title
 
         library.setStatus(.watching, on: severance)
@@ -389,11 +389,11 @@ struct WatchingListingTests {
     }
 
     @Test func aJoinedRowSetBackToWaitingReturnsToTheWaitingListingAtOnce() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.watching, on: fargo)
         #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
 
@@ -405,11 +405,11 @@ struct WatchingListingTests {
     }
 
     @Test func retakingTheSnapshotSortsJoinersIn() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.order = .title
         library.setStatus(.watching, on: andor)
         #expect(listing.series.map(\.title) == ["Severance", "Andor"])
@@ -420,17 +420,17 @@ struct WatchingListingTests {
     }
 
     @Test func joiningWritesNothingToTheLibrary() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         library.setStatus(.watching, on: fargo)
         #expect(listing.series.map(\.title) == ["Fargo"])
 
         // A fresh listing lists it too, but only because the Library says it is Watching:
         // the join itself left nothing behind but the Status change the user asked for.
-        let another = WatchingListing(library: library, defaults: defaults.suite)
+        let another = WatchingListing(library: library, orderStore: orderStore)
         #expect(another.series.map(\.title) == ["Fargo"])
         #expect(!another.isLapsed(fargo))
     }
@@ -438,33 +438,33 @@ struct WatchingListingTests {
     // MARK: - Where the choice is kept
 
     @Test func theChosenOrderSurvivesAnAppRelaunch() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.order = .title
 
-        let relaunched = WatchingListing(library: library, defaults: defaults.suite)
+        let relaunched = WatchingListing(library: library, orderStore: orderStore)
         #expect(relaunched.order == .title)
     }
 
     @Test func theChosenOrderIsNotKeptInTheLibrary() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.order = .title
 
-        let otherDefaults = try TestDefaults()
-        let overTheSameLibrary = WatchingListing(library: library, defaults: otherDefaults.suite)
+        let otherOrderStore = TestOrderStore()
+        let overTheSameLibrary = WatchingListing(library: library, orderStore: otherOrderStore)
         #expect(overTheSameLibrary.order == .lastWatched)
     }
 
     @Test func aChoiceThatCannotBeReadFallsBackToLastWatched() throws {
-        let defaults = try TestDefaults()
-        defaults.suite.set("by-hunch", forKey: WatchingListing.orderKey)
+        let orderStore = TestOrderStore()
+        orderStore.write("by-hunch")
 
-        let listing = WatchingListing(library: try Library.inMemory(), defaults: defaults.suite)
+        let listing = WatchingListing(library: try Library.inMemory(), orderStore: orderStore)
 
         #expect(listing.order == .lastWatched)
     }
@@ -476,12 +476,12 @@ struct WatchingListingTests {
     // matching rule is `LibraryFilter`'s and is tested there, not again here.
 
     @Test func theSearchTextNarrowsTheWatchingListingToTitlesContainingIt() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.filter.searchText = "an"
 
@@ -489,12 +489,12 @@ struct WatchingListingTests {
     }
 
     @Test func theSameTextNarrowsTheWaitingListing() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
         try library.addTrackedSeries(title: "The Bear", seasons: [8], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.filter.searchText = "bear"
 
@@ -503,7 +503,7 @@ struct WatchingListingTests {
     }
 
     @Test func rowsThatRemainKeepTheSnapshotsOrderAndClearingRestoresEveryRowInItsPlace() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
@@ -515,7 +515,7 @@ struct WatchingListingTests {
         library.markNextEpisodeWatched(andor)
         clock.advance()
         library.markNextEpisodeWatched(fargo)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         #expect(listing.series.map(\.title) == ["Fargo", "Andor", "Severance"])
 
         listing.filter.searchText = "an"
@@ -526,14 +526,14 @@ struct WatchingListingTests {
     }
 
     @Test func narrowingNeverRetakesTheSnapshot() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let clock = TestClock()
         let library = try Library.inMemory(now: clock.now)
         let severance = try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         clock.advance()
         library.markNextEpisodeWatched(andor)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         clock.advance()
         library.markNextEpisodeWatched(severance)
         #expect(listing.series.map(\.title) == ["Andor", "Severance"])
@@ -546,25 +546,25 @@ struct WatchingListingTests {
     }
 
     @Test func narrowingWritesNothing() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
 
         listing.filter.searchText = "andor"
 
         #expect(library.watching.count == 2)
-        let another = WatchingListing(library: library, defaults: defaults.suite)
+        let another = WatchingListing(library: library, orderStore: orderStore)
         #expect(another.series.count == 2)
     }
 
     @Test func aLapsedRowMatchesLikeAnyOtherRow() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
         let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.waiting, on: andor)
 
         listing.filter.searchText = "andor"
@@ -575,11 +575,11 @@ struct WatchingListingTests {
     }
 
     @Test func aJoinedRowMatchesLikeAnyOtherRow() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         let fargo = try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         library.setStatus(.watching, on: fargo)
 
         listing.filter.searchText = "fargo"
@@ -589,11 +589,11 @@ struct WatchingListingTests {
     }
 
     @Test func retakingTheSnapshotKeepsTheFilter() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
         try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.filter.searchText = "fargo"
 
         listing.retake()
@@ -606,26 +606,26 @@ struct WatchingListingTests {
     }
 
     @Test func aNewListingStartsWithNoFilter() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.filter.searchText = "nothing like this"
 
-        let relaunched = WatchingListing(library: library, defaults: defaults.suite)
+        let relaunched = WatchingListing(library: library, orderStore: orderStore)
 
         #expect(relaunched.filter == LibraryFilter())
         #expect(relaunched.series.map(\.title) == ["Andor"])
     }
 
     @Test func theListingIsEmptyOnlyWhenItHoldsNothingToListWhateverTheFilterSays() throws {
-        let defaults = try TestDefaults()
+        let orderStore = TestOrderStore()
         let library = try Library.inMemory()
-        let empty = WatchingListing(library: library, defaults: defaults.suite)
+        let empty = WatchingListing(library: library, orderStore: orderStore)
         #expect(empty.isEmpty)
 
         try library.addTrackedSeries(title: "Andor", seasons: [12], status: .waiting)
-        let listing = WatchingListing(library: library, defaults: defaults.suite)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
         listing.filter.searchText = "nothing like this"
 
         #expect(!listing.isEmpty)

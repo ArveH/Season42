@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The Settings tab: the user's preferences about the app, what build they are running, and
-/// the app's one permanent TMDB notice. Every rule about what a preference is and where it is
-/// kept lives in `AppSettings`; this view only offers the choices.
+/// The Settings tab: the user's preferences about the app, the Library Export, what build they
+/// are running, and the app's one permanent TMDB notice. Every rule about what a preference is
+/// and where it is kept lives in `AppSettings`, and what the export holds is the Library's;
+/// this view only offers them.
 ///
 /// About and the attribution are here because this is the tab that is always reachable and
 /// never transient — the notice TMDB's terms ask of the application belongs somewhere the user
@@ -14,6 +15,7 @@ struct SettingsView: View {
     private static let privacyPage = URL(string: "https://arveh.github.io/Season42/privacy/")!
     private static let supportPage = URL(string: "https://arveh.github.io/Season42/support/")!
 
+    let library: Library
     @Bindable var settings: AppSettings
 
     private let build = AppBuild.main
@@ -36,6 +38,8 @@ struct SettingsView: View {
                     Text("System follows the device's own setting.")
                 }
 
+                exportSection
+
                 aboutSection
 
                 // Last in the Form, bare and headerless, exactly as the search sheets drop
@@ -43,6 +47,23 @@ struct SettingsView: View {
                 TmdbAttribution(.wholeApp)
             }
             .navigationTitle("Settings")
+        }
+    }
+
+    /// The Library Export: the whole Library as one file, handed to the system sheet so the
+    /// user picks where their copy goes.
+    private var exportSection: some View {
+        Section {
+            ShareLink(
+                item: LibraryExportFile(library: library),
+                preview: SharePreview("Season42 Library")
+            ) {
+                Label("Export Library", systemImage: "square.and.arrow.up")
+            }
+        } header: {
+            Text("Library")
+        } footer: {
+            Text("Your whole Library as one file, to keep wherever you choose.")
         }
     }
 
@@ -60,10 +81,10 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(settings: AppSettings(defaults: UserDefaults(suiteName: "preview")!))
+    SettingsView(library: try! Library.inMemory(), settings: AppSettings(defaults: UserDefaults(suiteName: "preview")!))
 }
 
 #Preview("Dark") {
-    SettingsView(settings: AppSettings(defaults: UserDefaults(suiteName: "preview")!))
+    SettingsView(library: try! Library.inMemory(), settings: AppSettings(defaults: UserDefaults(suiteName: "preview")!))
         .preferredColorScheme(.dark)
 }

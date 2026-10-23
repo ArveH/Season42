@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import Season42
 
@@ -289,50 +290,236 @@ struct LibraryTests {
         #expect(relaunched.trackedSeries.first?.position == Position(season: 1, episode: 4))
     }
 
-    /// A store the app's schema cannot open — one written by a shape of the models that
-    /// no longer exists — is thrown away and written again empty, rather than taking the
-    /// launch with it (ADR-0009). A file that is not a store at all stands in for it:
-    /// what matters is that opening failed, not why.
-    @Test func aStoreThatCannotBeOpenedIsReplacedByAnEmptyOne() throws {
-        let storeURL = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).store")
-        defer {
-            for suffix in ["", "-wal", "-shm"] {
-                try? FileManager.default.removeItem(
-                    at: storeURL.deletingLastPathComponent()
-                        .appending(path: storeURL.lastPathComponent + suffix)
-                )
-            }
-        }
-        try Data("not a store".utf8).write(to: storeURL)
-
-        let library = Library(container: try Library.container(at: storeURL))
-
-        #expect(library.entries.isEmpty)
-
-        // And what replaced it is a working store, not one that merely opened once.
-        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let relaunched = Library(container: try Library.container(at: storeURL))
-
-        #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
-    }
-
-    /// The store the app itself runs against lives in `Application Support`, so the
-    /// discarding has to survive a space in the path — a directory read that percent
-    /// encodes one finds nothing to delete, and the fresh open fails on the store that
-    /// is still sitting there.
-    @Test func aStoreInADirectoryWithASpaceInItsNameIsDiscardedToo() throws {
-        let directory = URL.temporaryDirectory.appending(path: "Application Support \(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    /// A bare container is for tests reopening a store they wrote; only the Library the app
+    /// opens can say a store was kept aside, so a container never keeps one aside — a store
+    /// it can't open is a failure, and is left where it was.
+    @Test func aContainerOnAStoreThatWontOpenThrowsAndLeavesTheStoreAlone() throws {
+        let directory = try temporaryStoreDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
         try Data("not a store".utf8).write(to: storeURL)
 
-        let library = Library(container: try Library.container(at: storeURL))
-        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        #expect(throws: (any Error).self) { try Library.container(at: storeURL) }
+        #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
+    }
 
-        let relaunched = Library(container: try Library.container(at: storeURL))
+    /// A store names its tables after the models' entities, so a store already on a device
+    /// opens only while they keep the names they were written under — whatever version of
+    /// the schema the models are declared in.
+    @Test func theModelsKeepTheEntityNamesTheStoreWasWrittenUnder() {
+        #expect(Library.schema.entities.map(\.name).sorted()
+            == ["StreamingService", "TrackedMovie", "TrackedSeries"])
+    }
+
+    /// A store written before the schema was versioned — opened, as the app used to, with a
+    /// plain `Schema` of the same models — opens through the migration plan with every
+    /// value and every Streaming Service link it held (ADR-0023).
+    @Test func aStoreWrittenBeforeTheSchemaWasVersionedOpensWithEverythingInIt() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        let addedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let nextEpisodeDate = Date(timeIntervalSince1970: 1_800_500_000)
+
+        do {
+            let unversioned = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
+            let container = try ModelContainer(
+                for: unversioned,
+                configurations: ModelConfiguration(schema: unversioned, url: storeURL)
+            )
+            let old = Library(container: container, now: { addedAt })
+            let tv = try old.addStreamingService(name: "Apple TV+", logo: Data("logo".utf8))
+            let bare = try old.addStreamingService(name: "Netflix")
+            let series = try old.addTrackedSeries(TrackedSeriesDraft(
+                title: "Severance",
+                summary: "Work and life, severed.",
+                poster: Data("poster".utf8),
+                seasons: [9, 10],
+                status: .watching,
+                position: Position(season: 1, episode: 4),
+                streamingService: tv,
+                nextEpisodeDate: nextEpisodeDate,
+                releaseSlot: ReleaseSlot(weekday: 6, hour: 3, minute: 0)
+            ))
+            old.markNextEpisodeWatched(series)
+            try old.addTrackedSeries(TrackedSeriesDraft(title: "Dark", seasons: [10], status: .planned))
+            let movie = try old.addTrackedMovie(
+                title: "Arrival",
+                summary: "Heptapods.",
+                poster: Data("movie poster".utf8),
+                streamingService: tv
+            )
+            old.setWatched(true, on: movie)
+            try old.addTrackedMovie(title: "Heat", streamingService: bare)
+        }
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+
+        #expect(library.keptAsideStore == nil)
+        #expect(Set(library.trackedSeries.map(\.title)) == ["Severance", "Dark"])
+        let severance = try #require(library.trackedSeries.first { $0.title == "Severance" })
+        #expect(severance.summary == "Work and life, severed.")
+        #expect(severance.poster == Data("poster".utf8))
+        #expect(severance.seasons == [9, 10])
+        #expect(severance.status == .watching)
+        #expect(severance.position == Position(season: 1, episode: 5))
+        #expect(severance.nextEpisodeDate == nextEpisodeDate)
+        #expect(severance.releaseSlot == ReleaseSlot(weekday: 6, hour: 3, minute: 0))
+        #expect(severance.addedAt == addedAt)
+        #expect(severance.lastWatchedAt == addedAt)
+        #expect(severance.streamingService?.name == "Apple TV+")
+        let dark = try #require(library.trackedSeries.first { $0.title == "Dark" })
+        #expect(dark.status == .planned)
+        #expect(dark.position == nil)
+        #expect(dark.streamingService == nil)
+
+        #expect(Set(library.trackedMovies.map(\.title)) == ["Arrival", "Heat"])
+        let arrival = try #require(library.trackedMovies.first { $0.title == "Arrival" })
+        #expect(arrival.summary == "Heptapods.")
+        #expect(arrival.poster == Data("movie poster".utf8))
+        #expect(arrival.isWatched)
+        #expect(arrival.watchedAt == addedAt)
+        #expect(arrival.streamingService?.name == "Apple TV+")
+        let heat = try #require(library.trackedMovies.first { $0.title == "Heat" })
+        #expect(heat.streamingService?.name == "Netflix")
+
+        #expect(library.streamingServices.map(\.name) == ["Apple TV+", "Netflix"])
+        let tv = try #require(library.streamingServices.first)
+        #expect(tv.logo == Data("logo".utf8))
+        #expect(Set(tv.series.map(\.title)) == ["Severance"])
+        #expect(Set(tv.movies.map(\.title)) == ["Arrival"])
+        let netflix = try #require(library.streamingServices.last)
+        #expect(netflix.logo == nil)
+        #expect(netflix.series.isEmpty)
+        #expect(netflix.movies.map(\.title) == ["Heat"])
+    }
+
+    /// A store the app's schema cannot open — one written by a shape of the models that
+    /// no longer exists — is moved aside and kept, and a fresh store opens in its place,
+    /// rather than taking the launch with it (ADR-0023). A file that is not a store at all
+    /// stands in for it: what matters is that opening failed, not why.
+    @Test func aStoreThatCannotBeOpenedIsKeptAsideAndAnEmptyOneOpens() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+
+        #expect(library.entries.isEmpty)
+        let keptAside = try #require(library.keptAsideStore)
+        #expect(try Data(contentsOf: keptAside) == Data("not a store".utf8))
+
+        // And what replaced it is a working store, not one that merely opened once.
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let relaunched = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
+        #expect(relaunched.keptAsideStore == nil)
+    }
+
+    /// Everything SQLite and SwiftData keep beside a store goes with it, under the names it
+    /// had: a write-ahead log left behind would be replayed into the fresh store, and one
+    /// moved under another name is no use to a recovery by hand.
+    @Test func aStoreIsKeptAsideWithEverythingKeptBesideIt() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data("not a store".utf8).write(to: directory.appending(path: "default.store"))
+        try Data("log".utf8).write(to: directory.appending(path: "default.store-wal"))
+        try Data("memory".utf8).write(to: directory.appending(path: "default.store-shm"))
+        let support = directory.appending(path: ".default_SUPPORT")
+        try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        try Data("poster".utf8).write(to: support.appending(path: "poster"))
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: directory.appending(path: "default.store"))
+
+        let keptAside = try #require(library.keptAsideStore).deletingLastPathComponent()
+        #expect(try Data(contentsOf: keptAside.appending(path: "default.store-wal")) == Data("log".utf8))
+        // SQLite rewrites the shared-memory index while it tries the open — it is scratch,
+        // rebuilt from the log — so only that it went along is the store's to keep.
+        #expect(FileManager.default.fileExists(
+            atPath: keptAside.appending(path: "default.store-shm").path(percentEncoded: false)
+        ))
+        #expect(
+            try Data(contentsOf: keptAside.appending(path: ".default_SUPPORT/poster"))
+                == Data("poster".utf8)
+        )
+    }
+
+    /// The store the app itself runs against lives in `Application Support`, so keeping a
+    /// store aside has to survive a space in the path — a directory read that percent
+    /// encodes one finds nothing to move, and the fresh open fails on the store that is
+    /// still sitting there.
+    @Test func aStoreInADirectoryWithASpaceInItsNameIsKeptAsideToo() throws {
+        let directory = try temporaryStoreDirectory(named: "Application Support \(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+
+        let relaunched = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+
+        #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
+        let keptAside = try #require(library.keptAsideStore)
+        #expect(try Data(contentsOf: keptAside) == Data("not a store".utf8))
+    }
+
+    /// The directory a store is kept aside in is named for the store and when it was kept,
+    /// on the Library's own clock, so a hand recovery can tell which launch put it there.
+    @Test func aStoreIsKeptAsideUnderItsNameAndWhenItWasKept() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+        let keptAt = try Date("2026-10-23T12:00:00Z", strategy: .iso8601)
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL, now: { keptAt })
+
+        let keptAside = try #require(library.keptAsideStore)
+        #expect(keptAside.deletingLastPathComponent().lastPathComponent
+            == "default.store kept aside 2026-10-23T120000Z")
+    }
+
+    /// A second store that won't open is kept beside the first, not over it — both
+    /// within the same second, which is as close together as two launches can be.
+    @Test func aSecondStoreKeptAsideDoesNotOverwriteTheFirst() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("first".utf8).write(to: storeURL)
+        let first = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+        try FileManager.default.removeItem(at: storeURL)
+        for suffix in ["-wal", "-shm"] {
+            try? FileManager.default.removeItem(at: directory.appending(path: "default.store" + suffix))
+        }
+        try Data("second".utf8).write(to: storeURL)
+
+        let second = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
+
+        let firstKept = try #require(first.keptAsideStore)
+        let secondKept = try #require(second.keptAsideStore)
+        #expect(firstKept != secondKept)
+        #expect(try Data(contentsOf: firstKept) == Data("first".utf8))
+        #expect(try Data(contentsOf: secondKept) == Data("second".utf8))
+    }
+
+    /// Where the store can be neither moved aside nor replaced, the open fails with both
+    /// errors — the first is the one that says why the store had to go — and the store is
+    /// still where it was: nothing deletes it to make room.
+    @Test func aStoreThatCanBeNeitherKeptAsideNorReplacedFailsWithBothErrorsAndStays() throws {
+        let directory = try temporaryStoreDirectory()
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: directory.path(percentEncoded: false))
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path(percentEncoded: false))
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        #expect(throws: LibraryStoreError.self) { try Library.onDiskOnAnUnlockedDevice(at: storeURL) }
+        #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
     }
 }
 
