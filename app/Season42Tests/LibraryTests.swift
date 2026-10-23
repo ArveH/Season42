@@ -290,6 +290,19 @@ struct LibraryTests {
         #expect(relaunched.trackedSeries.first?.position == Position(season: 1, episode: 4))
     }
 
+    /// A bare container is for tests reopening a store they wrote; only the Library the app
+    /// opens can say a store was kept aside, so a container never keeps one aside — a store
+    /// it can't open is a failure, and is left where it was.
+    @Test func aContainerOnAStoreThatWontOpenThrowsAndLeavesTheStoreAlone() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+
+        #expect(throws: (any Error).self) { try Library.container(at: storeURL) }
+        #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
+    }
+
     /// A store written before the schema was versioned — opened, as the app used to, with a
     /// plain `Schema` of the same models — opens through the migration plan with every
     /// value and every Streaming Service link it held (ADR-0023).

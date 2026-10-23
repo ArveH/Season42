@@ -428,10 +428,11 @@ extension Library {
         return Library(container: opened.container, keptAsideStore: opened.keptAsideStore)
     }
 
-    /// A throwaway store for tests and previews.
+    /// A throwaway store for tests and previews. It has no file to keep aside, so a
+    /// failure to open it is a real one and is thrown.
     static func inMemoryContainer() throws -> ModelContainer {
-        try container(
-            configuration: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        try migratedContainer(
+            ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         )
     }
 
@@ -442,27 +443,23 @@ extension Library {
         Library(container: try inMemoryContainer(), now: now, calendar: calendar)
     }
 
-    /// A store at an explicit location. Tests use it to reopen the same file the way a
-    /// relaunch does; the app itself takes the default location via `onDisk()`.
+    /// A container on the store at an explicit location, for tests that reopen the same
+    /// file the way a relaunch does. It never keeps a store aside — only a Library from
+    /// `onDisk` can tell the user it did — so a store it can't open is thrown on and left
+    /// where it is.
     static func container(at url: URL) throws -> ModelContainer {
-        try container(configuration: ModelConfiguration(schema: schema, url: url))
+        try migratedContainer(ModelConfiguration(schema: schema, url: url))
     }
 
-    private static func container(configuration: ModelConfiguration) throws -> ModelContainer {
-        try open(configuration: configuration).container
-    }
-
-    /// Opens a store, and where the schema in the app can't open the one on disk, moves
-    /// that store aside — kept, never deleted (ADR-0023) — and writes a fresh one in its
-    /// place, so the app still opens. Every container of the Library comes through here.
+    /// Opens the store on disk, and where the schema in the app can't open it, moves it
+    /// aside — kept, never deleted (ADR-0023) — and writes a fresh one in its place, so the
+    /// app still opens. Every Library the app opens comes through here.
     private static func open(
         configuration: ModelConfiguration
     ) throws -> (container: ModelContainer, keptAsideStore: URL?) {
         do {
             return (try migratedContainer(configuration), nil)
         } catch {
-            // An in-memory store has no file to keep, so its failure is a real one.
-            guard !configuration.isStoredInMemoryOnly else { throw error }
             do {
                 let keptAside = try keepStoreAside(at: configuration.url)
                 return (try migratedContainer(configuration), keptAside)
