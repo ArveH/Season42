@@ -393,8 +393,8 @@ final class Library {
 
 extension Library {
     /// The schema of everything the user owns — which, since ADR-0005, is everything
-    /// the app stores.
-    static let schema = Schema([TrackedSeries.self, TrackedMovie.self, StreamingService.self])
+    /// the app stores — at its current version in `LibraryMigrationPlan`.
+    static let schema = Schema(versionedSchema: LibrarySchemaV1.self)
 
     /// The on-device store the app runs against.
     static func onDisk() throws -> Library {
@@ -443,13 +443,13 @@ extension Library {
         configuration: ModelConfiguration
     ) throws -> (container: ModelContainer, keptAsideStore: URL?) {
         do {
-            return (try ModelContainer(for: schema, configurations: configuration), nil)
+            return (try migratedContainer(configuration), nil)
         } catch {
             // An in-memory store has no file to keep, so its failure is a real one.
             guard !configuration.isStoredInMemoryOnly else { throw error }
             do {
                 let keptAside = try keepStoreAside(at: configuration.url)
-                return (try ModelContainer(for: schema, configurations: configuration), keptAside)
+                return (try migratedContainer(configuration), keptAside)
             } catch let secondError {
                 // Both errors, because the first one says why the store had to go and is
                 // the only one worth reading — the second says only that a fresh store
@@ -457,6 +457,18 @@ extension Library {
                 throw LibraryStoreError(opening: error, andAfterKeepingAside: secondError)
             }
         }
+    }
+
+    /// A container on the store, brought up to the current schema through
+    /// `LibraryMigrationPlan` — the one way the Library's store is ever opened.
+    private static func migratedContainer(
+        _ configuration: ModelConfiguration
+    ) throws -> ModelContainer {
+        try ModelContainer(
+            for: schema,
+            migrationPlan: LibraryMigrationPlan.self,
+            configurations: configuration
+        )
     }
 
     /// Moves everything the store is kept in — the SQLite file, the write-ahead log,
