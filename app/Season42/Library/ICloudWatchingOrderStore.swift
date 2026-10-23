@@ -23,16 +23,12 @@ struct ICloudWatchingOrderStore: WatchingOrderStore {
         self.local = local
     }
 
-    /// iCloud's choice, or the device's where iCloud has none — which it then carries into
-    /// iCloud, so a choice made before the move reaches the Watch App without being made
-    /// again.
+    /// iCloud's choice, or the device's where iCloud has none. The device's is not carried
+    /// into iCloud here: at launch iCloud may not have downloaded the choice made on another
+    /// device yet, and pushing this device's older one would overwrite it. The next choice
+    /// the user makes goes to both.
     func read() -> String? {
-        if let choice = cloud.string(forKey: Self.key) {
-            return choice
-        }
-        guard let choice = local.string(forKey: Self.key) else { return nil }
-        cloud.set(choice, forKey: Self.key)
-        return choice
+        cloud.string(forKey: Self.key) ?? local.string(forKey: Self.key)
     }
 
     func write(_ rawValue: String) {

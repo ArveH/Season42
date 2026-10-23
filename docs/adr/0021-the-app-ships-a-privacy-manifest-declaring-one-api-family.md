@@ -1,5 +1,10 @@
 # The app ships a privacy manifest, and it declares one API family
 
+**Amended by [ADR-0022](0022-the-library-syncs-through-the-users-icloud.md):** the Watching Order
+now also goes through iCloud's key-value store, which the Watch App reads. That is not a
+required-reason API, and the copy kept in `UserDefaults` is still read back only by the app, so
+the manifest below is unchanged.
+
 Apple enforces `PrivacyInfo.xcprivacy` for third-party SDKs. This app ships none — it has no
 package dependencies at all — so nothing is rejected today for its absence, and the question is
 not whether the app is allowed to submit without one but whether the answers should be written

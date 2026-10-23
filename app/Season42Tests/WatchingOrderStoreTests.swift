@@ -21,7 +21,7 @@ struct WatchingOrderStoreTests {
         #expect(listing.order == .title)
     }
 
-    @Test func aChoiceMadeBeforeTheMoveIsCarriedIntoICloud() throws {
+    @Test func readingTheChoiceNeverWritesToICloud() throws {
         let cloud = try TestDefaults()
         let local = try TestDefaults()
         local.suite.set("title", forKey: "watchingOrder")
@@ -31,7 +31,7 @@ struct WatchingOrderStoreTests {
             orderStore: ICloudWatchingOrderStore(cloud: cloud.suite, local: local.suite)
         )
 
-        #expect(cloud.suite.string(forKey: "watchingOrder") == "title")
+        #expect(cloud.suite.string(forKey: "watchingOrder") == nil)
     }
 
     @Test func aChoiceIsKeptInICloud() throws {
@@ -60,7 +60,7 @@ struct WatchingOrderStoreTests {
         #expect(local.suite.string(forKey: "watchingOrder") == "title")
     }
 
-    @Test func aChoiceMadeOnAnotherDeviceWinsOverThisOnesOld() throws {
+    @Test func aChoiceMadeOnAnotherDeviceWinsOverThisDevicesEarlierOne() throws {
         let cloud = try TestDefaults()
         let local = try TestDefaults()
         cloud.suite.set("title", forKey: "watchingOrder")
