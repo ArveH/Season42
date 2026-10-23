@@ -26,6 +26,12 @@ final class Library {
     /// name rather than scanned like a feed, so unlike the two above it is not by date.
     private(set) var streamingServices: [StreamingService] = []
 
+    /// Where the store this Library replaced was moved to, when the one on disk couldn't be
+    /// opened and had to be kept aside (ADR-0023); nil when the store opened as it was. The
+    /// app says so to the user — a Library that comes up empty must not look like one that
+    /// was always empty.
+    let keptAsideStore: URL?
+
     /// What the Library tab lists: everything the user tracks, series and movies
     /// interleaved, most recently added first.
     var entries: [LibraryEntry] {
@@ -41,9 +47,11 @@ final class Library {
     init(
         container: ModelContainer,
         now: @escaping @MainActor () -> Date = Date.init,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        keptAsideStore: URL? = nil
     ) {
         self.container = container
+        self.keptAsideStore = keptAsideStore
         self.now = now
         self.calendar = calendar
         reload()
@@ -390,7 +398,18 @@ extension Library {
 
     /// The on-device store the app runs against.
     static func onDisk() throws -> Library {
-        Library(container: try container(configuration: ModelConfiguration(schema: schema)))
+        try onDisk(configuration: ModelConfiguration(schema: schema))
+    }
+
+    /// The on-device store at an explicit location, opened the way the app opens its own:
+    /// a store that won't open is kept aside and the Library says where.
+    static func onDisk(at url: URL) throws -> Library {
+        try onDisk(configuration: ModelConfiguration(schema: schema, url: url))
+    }
+
+    private static func onDisk(configuration: ModelConfiguration) throws -> Library {
+        let opened = try open(configuration: configuration)
+        return Library(container: opened.container, keptAsideStore: opened.keptAsideStore)
     }
 
     /// A throwaway store for tests and previews.
@@ -413,62 +432,99 @@ extension Library {
         try container(configuration: ModelConfiguration(schema: schema, url: url))
     }
 
-    /// Opens a store, and where the schema in the app can't open the one on disk, throws
-    /// that store away and writes a fresh one in its place (ADR-0009). A store the app
-    /// can't read holds nothing it can hand the user, so the only question is whether the
-    /// app opens at all.
     private static func container(configuration: ModelConfiguration) throws -> ModelContainer {
+        try open(configuration: configuration).container
+    }
+
+    /// Opens a store, and where the schema in the app can't open the one on disk, moves
+    /// that store aside — kept, never deleted (ADR-0023) — and writes a fresh one in its
+    /// place, so the app still opens. Every container of the Library comes through here.
+    private static func open(
+        configuration: ModelConfiguration
+    ) throws -> (container: ModelContainer, keptAsideStore: URL?) {
         do {
-            return try ModelContainer(for: schema, configurations: configuration)
+            return (try ModelContainer(for: schema, configurations: configuration), nil)
         } catch {
+            // An in-memory store has no file to keep, so its failure is a real one.
             guard !configuration.isStoredInMemoryOnly else { throw error }
-            discardStore(at: configuration.url)
             do {
-                return try ModelContainer(for: schema, configurations: configuration)
+                let keptAside = try keepStoreAside(at: configuration.url)
+                return (try ModelContainer(for: schema, configurations: configuration), keptAside)
             } catch let secondError {
                 // Both errors, because the first one says why the store had to go and is
                 // the only one worth reading — the second says only that a fresh store
-                // couldn't be written either.
-                throw LibraryStoreError(opening: error, andAfterDiscarding: secondError)
+                // couldn't take its place.
+                throw LibraryStoreError(opening: error, andAfterKeepingAside: secondError)
             }
         }
     }
 
-    /// Deletes everything the store is kept in: the SQLite file, the write-ahead log,
+    /// Moves everything the store is kept in — the SQLite file, the write-ahead log,
     /// shared-memory and journal files SQLite keeps beside it, and the support directory
-    /// SwiftData puts large values in. Leaving any of them behind is leaving the store
-    /// half there, which is what the fresh open would then fail on.
-    private static func discardStore(at url: URL) {
+    /// SwiftData puts large values in — into a dated directory beside it, under the names
+    /// they had, so they still belong together for a recovery by hand. Leaving any of them
+    /// behind is leaving the store half there, which is what the fresh open would then fail
+    /// on. Returns where the store file itself now is.
+    private static func keepStoreAside(at url: URL) throws -> URL {
+        let fileManager = FileManager.default
         let directory = url.deletingLastPathComponent()
         let store = url.lastPathComponent
         // `default.store` is kept company by `default.store-wal` and `.default_SUPPORT`,
         // so both the file's own name and its name without the extension are prefixes to
         // look for — and a leading dot is not part of either.
         let base = url.deletingPathExtension().lastPathComponent
-        let beside = (try? FileManager.default.contentsOfDirectory(
+        let beside = try fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
-        )) ?? []
-        for file in beside {
+        ).filter { file in
             let name = file.lastPathComponent
-            guard name == store
+            return name == store
                 || name.hasPrefix(store + "-")
                 || name.drop(while: { $0 == "." }).hasPrefix(base + "_")
-            else { continue }
-            try? FileManager.default.removeItem(at: file)
         }
+
+        let keptAside = try uniqueKeptAsideDirectory(for: store, in: directory)
+        try fileManager.createDirectory(at: keptAside, withIntermediateDirectories: false)
+        for file in beside {
+            try fileManager.moveItem(
+                at: file,
+                to: keptAside.appending(path: file.lastPathComponent)
+            )
+        }
+        return keptAside.appending(path: store)
+    }
+
+    /// `default.store kept aside 2026-10-23T120000Z`, with a number after it where a store
+    /// was already kept aside under that name — an earlier one is never overwritten.
+    private static func uniqueKeptAsideDirectory(
+        for store: String,
+        in directory: URL
+    ) throws -> URL {
+        let stamp = Date().formatted(
+            .iso8601.year().month().day().dateSeparator(.dash)
+                .time(includingFractionalSeconds: false).timeSeparator(.omitted)
+        )
+        let name = "\(store) kept aside \(stamp)Z"
+        var candidate = directory.appending(path: name)
+        var number = 2
+        while FileManager.default.fileExists(atPath: candidate.path(percentEncoded: false)) {
+            candidate = directory.appending(path: "\(name) \(number)")
+            number += 1
+        }
+        return candidate
     }
 }
 
-/// What a Library can fail to open with once it has already thrown the store away: the
-/// failure that condemned the store, and the one that stopped a fresh one taking its place.
+/// What a Library can fail to open with once its store wouldn't open: the failure that
+/// condemned the store, and the one that stopped it being kept aside or a fresh one
+/// taking its place.
 struct LibraryStoreError: Error, CustomStringConvertible {
     let opening: any Error
-    let andAfterDiscarding: any Error
+    let andAfterKeepingAside: any Error
 
     var description: String {
-        "opening the store failed (\(opening)), and so did writing a fresh one "
-            + "in its place (\(andAfterDiscarding))"
+        "opening the store failed (\(opening)), and so did keeping it aside and writing "
+            + "a fresh one in its place (\(andAfterKeepingAside))"
     }
 }
 
