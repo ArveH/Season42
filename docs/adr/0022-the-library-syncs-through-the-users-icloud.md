@@ -50,5 +50,12 @@ order the user picked on the phone. Appearance does not: a watch app is always d
 - Two things are proven by a spike against CloudKit's development environment before any of this
   reaches the user's Library: that the Codable values (`Seasons`, `Position`, `ReleaseSlot`,
   `WatchStatus`) sync, and that turning sync on for a store that already holds data uploads it.
+- Signing out of iCloud empties the Library on that device: CloudKit's mirroring clears the local
+  copy when the account goes, so the next person on the device doesn't see it (seen in the
+  simulator, logged as `AccountLogout`). The Library is still in iCloud and comes back when the
+  same account signs in again. Signing in to a different Apple ID brings in that account's
+  Library instead. Entries made while signed out stay on the device and upload at the next
+  sign-in. The system clears the copy, not the app, so ADR-0023's "kept, never deleted" still
+  holds for everything the app does. The Library Export is the copy that survives all of this.
 - iCloud pushes can wake the app in the background, which is the launch ADR-0009 warned it had
   never had. ADR-0023 is what makes that safe.
