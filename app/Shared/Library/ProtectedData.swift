@@ -8,6 +8,9 @@ import Foundation
 /// The app answers from the system; tests hand in a device they unlock themselves.
 @MainActor
 protocol ProtectedData {
+    /// Whether protected data can be read now.
+    var isAvailable: Bool { get }
+
     /// Returns once protected data can be read — at once, when it already can.
     func waitUntilAvailable() async
 }

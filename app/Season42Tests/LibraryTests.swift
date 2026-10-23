@@ -332,7 +332,7 @@ struct LibraryTests {
             try old.addTrackedMovie(title: "Heat", streamingService: bare)
         }
 
-        let library = try Library.onDisk(at: storeURL)
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         #expect(library.keptAsideStore == nil)
         #expect(Set(library.trackedSeries.map(\.title)) == ["Severance", "Dark"])
@@ -383,7 +383,7 @@ struct LibraryTests {
         let storeURL = directory.appending(path: "default.store")
         try Data("not a store".utf8).write(to: storeURL)
 
-        let library = try Library.onDisk(at: storeURL)
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         #expect(library.entries.isEmpty)
         let keptAside = try #require(library.keptAsideStore)
@@ -391,7 +391,7 @@ struct LibraryTests {
 
         // And what replaced it is a working store, not one that merely opened once.
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
-        let relaunched = try Library.onDisk(at: storeURL)
+        let relaunched = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
         #expect(relaunched.keptAsideStore == nil)
@@ -410,7 +410,7 @@ struct LibraryTests {
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         try Data("poster".utf8).write(to: support.appending(path: "poster"))
 
-        let library = try Library.onDisk(at: directory.appending(path: "default.store"))
+        let library = try Library.onDiskOnAnUnlockedDevice(at: directory.appending(path: "default.store"))
 
         let keptAside = try #require(library.keptAsideStore).deletingLastPathComponent()
         #expect(try Data(contentsOf: keptAside.appending(path: "default.store-wal")) == Data("log".utf8))
@@ -435,10 +435,10 @@ struct LibraryTests {
         let storeURL = directory.appending(path: "default.store")
         try Data("not a store".utf8).write(to: storeURL)
 
-        let library = try Library.onDisk(at: storeURL)
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
         try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
 
-        let relaunched = try Library.onDisk(at: storeURL)
+        let relaunched = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         #expect(relaunched.trackedSeries.map(\.title) == ["Severance"])
         let keptAside = try #require(library.keptAsideStore)
@@ -452,14 +452,14 @@ struct LibraryTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
         try Data("first".utf8).write(to: storeURL)
-        let first = try Library.onDisk(at: storeURL)
+        let first = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
         try FileManager.default.removeItem(at: storeURL)
         for suffix in ["-wal", "-shm"] {
             try? FileManager.default.removeItem(at: directory.appending(path: "default.store" + suffix))
         }
         try Data("second".utf8).write(to: storeURL)
 
-        let second = try Library.onDisk(at: storeURL)
+        let second = try Library.onDiskOnAnUnlockedDevice(at: storeURL)
 
         let firstKept = try #require(first.keptAsideStore)
         let secondKept = try #require(second.keptAsideStore)
@@ -481,7 +481,7 @@ struct LibraryTests {
             try? FileManager.default.removeItem(at: directory)
         }
 
-        #expect(throws: LibraryStoreError.self) { try Library.onDisk(at: storeURL) }
+        #expect(throws: LibraryStoreError.self) { try Library.onDiskOnAnUnlockedDevice(at: storeURL) }
         #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
     }
 }

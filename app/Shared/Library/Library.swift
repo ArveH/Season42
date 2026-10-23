@@ -396,27 +396,34 @@ extension Library {
     /// the app stores — at its current version in `LibraryMigrationPlan`.
     static let schema = Schema(versionedSchema: LibrarySchemaV1.self)
 
-    /// The on-device store the app runs against, opened only once protected data can be
-    /// read: before the first unlock since boot the store is unreadable, not broken.
-    static func onDisk(protectedData: some ProtectedData) async throws -> Library {
+    /// The on-device store, opened there and then when protected data can already be read —
+    /// every launch but a background one before the first unlock since boot — so the app
+    /// has its Library before its first frame. Nil when protected data can't be read yet:
+    /// the store is unreadable then, not broken, and is left as it is for `onDisk` to open
+    /// once it can be (ADR-0023).
+    ///
+    /// `url` is where the store is; nil is the app's own, at SwiftData's default location.
+    static func onDiskIfReadable(
+        at url: URL? = nil,
+        protectedData: some ProtectedData
+    ) throws -> Library? {
+        guard protectedData.isAvailable else { return nil }
+        return try opened(at: url)
+    }
+
+    /// The on-device store, opened once protected data can be read — at once, when it
+    /// already can. A store that won't open is kept aside and the Library says where.
+    static func onDisk(
+        at url: URL? = nil,
+        protectedData: some ProtectedData
+    ) async throws -> Library {
         await protectedData.waitUntilAvailable()
-        return try onDisk(configuration: ModelConfiguration(schema: schema))
+        return try opened(at: url)
     }
 
-    /// The on-device store at an explicit location, opened the way the app opens its own —
-    /// after waiting for protected data.
-    static func onDisk(at url: URL, protectedData: some ProtectedData) async throws -> Library {
-        await protectedData.waitUntilAvailable()
-        return try onDisk(at: url)
-    }
-
-    /// The on-device store at an explicit location, opened the way the app opens its own:
-    /// a store that won't open is kept aside and the Library says where.
-    static func onDisk(at url: URL) throws -> Library {
-        try onDisk(configuration: ModelConfiguration(schema: schema, url: url))
-    }
-
-    private static func onDisk(configuration: ModelConfiguration) throws -> Library {
+    private static func opened(at url: URL?) throws -> Library {
+        let configuration = url.map { ModelConfiguration(schema: schema, url: $0) }
+            ?? ModelConfiguration(schema: schema)
         let opened = try open(configuration: configuration)
         return Library(container: opened.container, keptAsideStore: opened.keptAsideStore)
     }

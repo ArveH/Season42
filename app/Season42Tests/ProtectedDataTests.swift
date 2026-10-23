@@ -47,9 +47,9 @@ struct ProtectedDataTests {
         #expect(library.keptAsideStore == nil)
     }
 
-    /// The everyday launch: protected data is already there, and the store opens without
-    /// waiting on anything.
-    @Test func anUnlockedDeviceOpensTheStoreAtOnce() async throws {
+    /// The everyday launch: protected data is already there, and the store opens there and
+    /// then — before the first frame, as it always did — without waiting on anything.
+    @Test func anUnlockedDeviceOpensTheStoreAtOnce() throws {
         let directory = try temporaryStoreDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let storeURL = directory.appending(path: "default.store")
@@ -58,10 +58,27 @@ struct ProtectedDataTests {
         let device = LockedDevice()
         device.unlock()
 
-        let library = try await Library.onDisk(at: storeURL, protectedData: device)
+        let library = try #require(try Library.onDiskIfReadable(at: storeURL, protectedData: device))
 
         #expect(library.trackedSeries.map(\.title) == ["Severance"])
         #expect(!device.wasEverWaitedFor)
+    }
+
+    /// A launch before the first unlock can't open the store there and then, and doesn't
+    /// try: it leaves the store as it is, for an open that waits, rather than waiting itself.
+    @Test func aLockedDeviceLeavesTheStoreUnopenedWithoutWaiting() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+        let device = LockedDevice()
+
+        let library = try Library.onDiskIfReadable(at: storeURL, protectedData: device)
+
+        #expect(library == nil)
+        #expect(!device.wasEverWaitedFor)
+        #expect(try contents(of: directory) == ["default.store"])
+        #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
     }
 
     private func contents(of directory: URL) throws -> [String] {
@@ -78,6 +95,7 @@ private final class LockedDevice: ProtectedData {
     private(set) var wasEverWaitedFor = false
 
     var isBeingWaitedFor: Bool { !waiters.isEmpty }
+    var isAvailable: Bool { isUnlocked }
 
     func unlock() {
         isUnlocked = true
