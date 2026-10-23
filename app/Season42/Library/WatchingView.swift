@@ -17,7 +17,12 @@ struct WatchingView: View {
 
     init(library: Library) {
         self.library = library
-        _listing = State(initialValue: WatchingListing(library: library, orderStore: UserDefaultsWatchingOrderStore()))
+        _listing = State(
+            initialValue: WatchingListing(
+                library: library,
+                orderStore: UserDefaultsWatchingOrderStore()
+            )
+        )
     }
 
     var body: some View {
