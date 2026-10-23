@@ -13,6 +13,9 @@ struct Season42App: App {
     private let protectedData: any ProtectedData
 
     init() {
+        // Asks iCloud for the Watching Order last picked on any device, rather than waiting
+        // for the system to get round to it.
+        NSUbiquitousKeyValueStore.default.synchronize()
         let protectedData = LaunchProtectedData.from()
         self.protectedData = protectedData
         let library: Library?
