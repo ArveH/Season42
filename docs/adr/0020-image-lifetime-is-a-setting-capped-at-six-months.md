@@ -118,7 +118,7 @@ what a store is actually worth, and no argument about whether the bytes changed 
 
 The two stores no longer promise permanence, and the doc comments that said they did are corrected
 rather than quietly left. `LogoStore`, `PosterStore` and the Logo Store and Poster Store entries in
-`CONTEXT.md` all say what is now true: a hit costs no TMDB call, and an image costs one fetch per
+`GLOSSARY.md` all say what is now true: a hit costs no TMDB call, and an image costs one fetch per
 lifetime rather than one for the life of the store.
 
 At the default, the store is a within-session saving rather than a standing one, and the TMDB
