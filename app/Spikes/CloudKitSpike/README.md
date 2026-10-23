@@ -32,6 +32,13 @@ unchanged. One screen shows:
 
 Each change also rewrites `Documents/spike-report.txt` in the app's sandbox.
 
+## One-time setup
+
+`./icloud-setup.sh` walks you through it: the iCloud container and App ID in the developer
+portal, a real iPhone plus a simulator signed into the same Apple ID, and a signed device build.
+Sync between two simulators is unreliable, so use a real device for at least one side. It saves
+the device and simulator UDIDs to `.env` here (gitignored).
+
 ## Build and run
 
 ```sh
@@ -41,8 +48,24 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -allowProvisioningUpdates build
 ```
 
+**Sync is off and the store is empty by default.** A plain launch only checks the iCloud
+account, and nothing reaches CloudKit until you seed and turn sync on (protocol below).
+
 Launch arguments override the on-screen toggles for one launch: `-syncOn YES|NO`,
-`-seedIfEmpty YES`, `-wipeStore YES`.
+`-seedIfEmpty YES`, `-wipeStore YES`. From the command line (with `DEVELOPER_DIR` set as above):
+
+```sh
+# iPhone: devicectl needs -- before the app's arguments
+xcrun devicectl device process launch --device <iPhone UDID> --terminate-existing \
+  com.season42.app.cloudkitspike -- -syncOn YES
+# Simulator: simctl passes them straight through
+xcrun simctl launch --terminate-running-process <simulator UDID> \
+  com.season42.app.cloudkitspike -syncOn YES
+# Read the report off the iPhone
+xcrun devicectl device copy from --device <iPhone UDID> --domain-type appDataContainer \
+  --domain-identifier com.season42.app.cloudkitspike \
+  --source Documents/spike-report.txt --destination spike-report.txt
+```
 
 ## Protocol
 
@@ -65,6 +88,14 @@ only to the spike's own container.
    the other shows the change.
 
 **Question 3:** in the record listing, Poster and Logo fields shown as `ASSET` went up as assets.
+
+**Seeing it in the CloudKit Console** (<https://icloud.developer.apple.com/dashboard/>): pick
+`iCloud.com.season42.app.cloudkitspike` → **Development**. Record types show under
+**Schema → Record Types** after the first export. Records are under **Records**, in the
+**Private** database and zone `com.apple.coredata.cloudkit.zone` (not `_defaultZone`), and only
+show when you're signed in as the test Apple ID. If a query says "recordName is not marked
+queryable", add a Queryable index on `recordName` for that type under **Schema → Indexes**. Only
+the Console needs it.
 
 ## Findings so far
 
