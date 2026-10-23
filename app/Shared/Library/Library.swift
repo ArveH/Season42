@@ -405,27 +405,36 @@ extension Library {
     /// `url` is where the store is; nil is the app's own, at SwiftData's default location.
     static func onDiskIfReadable(
         at url: URL? = nil,
-        protectedData: some ProtectedData
+        protectedData: some ProtectedData,
+        now: @escaping @MainActor () -> Date = Date.init
     ) throws -> Library? {
         guard protectedData.isAvailable else { return nil }
-        return try opened(at: url)
+        return try opened(at: url, now: now)
     }
 
     /// The on-device store, opened once protected data can be read — at once, when it
     /// already can. A store that won't open is kept aside and the Library says where.
     static func onDisk(
         at url: URL? = nil,
-        protectedData: some ProtectedData
+        protectedData: some ProtectedData,
+        now: @escaping @MainActor () -> Date = Date.init
     ) async throws -> Library {
         await protectedData.waitUntilAvailable()
-        return try opened(at: url)
+        return try opened(at: url, now: now)
     }
 
-    private static func opened(at url: URL?) throws -> Library {
+    private static func opened(
+        at url: URL?,
+        now: @escaping @MainActor () -> Date
+    ) throws -> Library {
         let configuration = url.map { ModelConfiguration(schema: schema, url: $0) }
             ?? ModelConfiguration(schema: schema)
-        let opened = try open(configuration: configuration)
-        return Library(container: opened.container, keptAsideStore: opened.keptAsideStore)
+        let opened = try open(configuration: configuration, now: now())
+        return Library(
+            container: opened.container,
+            now: now,
+            keptAsideStore: opened.keptAsideStore
+        )
     }
 
     /// A throwaway store for tests and previews. It has no file to keep aside, so a
@@ -455,13 +464,14 @@ extension Library {
     /// aside — kept, never deleted (ADR-0023) — and writes a fresh one in its place, so the
     /// app still opens. Every Library the app opens comes through here.
     private static func open(
-        configuration: ModelConfiguration
+        configuration: ModelConfiguration,
+        now: Date
     ) throws -> (container: ModelContainer, keptAsideStore: URL?) {
         do {
             return (try migratedContainer(configuration), nil)
         } catch {
             do {
-                let keptAside = try keepStoreAside(at: configuration.url)
+                let keptAside = try keepStoreAside(at: configuration.url, on: now)
                 return (try migratedContainer(configuration), keptAside)
             } catch let secondError {
                 // Both errors, because the first one says why the store had to go and is
@@ -490,7 +500,7 @@ extension Library {
     /// they had, so they still belong together for a recovery by hand. Leaving any of them
     /// behind is leaving the store half there, which is what the fresh open would then fail
     /// on. Returns where the store file itself now is.
-    private static func keepStoreAside(at url: URL) throws -> URL {
+    private static func keepStoreAside(at url: URL, on now: Date) throws -> URL {
         let fileManager = FileManager.default
         let directory = url.deletingLastPathComponent()
         let store = url.lastPathComponent
@@ -508,7 +518,7 @@ extension Library {
                 || name.drop(while: { $0 == "." }).hasPrefix(base + "_")
         }
 
-        let keptAside = try uniqueKeptAsideDirectory(for: store, in: directory)
+        let keptAside = try uniqueKeptAsideDirectory(for: store, in: directory, keptOn: now)
         try fileManager.createDirectory(at: keptAside, withIntermediateDirectories: false)
         for file in beside {
             try fileManager.moveItem(
@@ -523,9 +533,10 @@ extension Library {
     /// was already kept aside under that name — an earlier one is never overwritten.
     private static func uniqueKeptAsideDirectory(
         for store: String,
-        in directory: URL
+        in directory: URL,
+        keptOn now: Date
     ) throws -> URL {
-        let stamp = Date().formatted(
+        let stamp = now.formatted(
             .iso8601.year().month().day().dateSeparator(.dash)
                 .time(includingFractionalSeconds: false).timeSeparator(.omitted)
         )

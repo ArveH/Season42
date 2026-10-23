@@ -11,8 +11,11 @@ func temporaryStoreDirectory(named name: String = UUID().uuidString) throws -> U
 extension Library {
     /// The store at `url`, opened the way an everyday launch opens the app's own: protected
     /// data is already there, so the open happens at once.
-    static func onDiskOnAnUnlockedDevice(at url: URL) throws -> Library {
-        guard let library = try onDiskIfReadable(at: url, protectedData: UnlockedDevice())
+    static func onDiskOnAnUnlockedDevice(
+        at url: URL,
+        now: @escaping @MainActor () -> Date = Date.init
+    ) throws -> Library {
+        guard let library = try onDiskIfReadable(at: url, protectedData: UnlockedDevice(), now: now)
         else { throw UnlockedDeviceRefused() }
         return library
     }

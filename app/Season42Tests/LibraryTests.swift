@@ -458,6 +458,22 @@ struct LibraryTests {
         #expect(try Data(contentsOf: keptAside) == Data("not a store".utf8))
     }
 
+    /// The directory a store is kept aside in is named for the store and when it was kept,
+    /// on the Library's own clock, so a hand recovery can tell which launch put it there.
+    @Test func aStoreIsKeptAsideUnderItsNameAndWhenItWasKept() throws {
+        let directory = try temporaryStoreDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appending(path: "default.store")
+        try Data("not a store".utf8).write(to: storeURL)
+        let keptAt = try Date("2026-10-23T12:00:00Z", strategy: .iso8601)
+
+        let library = try Library.onDiskOnAnUnlockedDevice(at: storeURL, now: { keptAt })
+
+        let keptAside = try #require(library.keptAsideStore)
+        #expect(keptAside.deletingLastPathComponent().lastPathComponent
+            == "default.store kept aside 2026-10-23T120000Z")
+    }
+
     /// A second store that won't open is kept beside the first, not over it — both
     /// within the same second, which is as close together as two launches can be.
     @Test func aSecondStoreKeptAsideDoesNotOverwriteTheFirst() throws {
