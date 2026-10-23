@@ -1,60 +1,62 @@
 import Foundation
 import SwiftData
 
-/// A series the user has added to their own data. Created only through `Library`,
-/// which is the sole owner of the rules these fields have to satisfy.
-@Model
-final class TrackedSeries {
-    var title: String
-    /// What the series is about, as the user typed it.
-    var summary: String
+extension LibrarySchemaV1 {
+    /// A series the user has added to their own data. Created only through `Library`,
+    /// which is the sole owner of the rules these fields have to satisfy.
+    @Model
+    final class TrackedSeries {
+        var title: String
+        /// What the series is about, as the user typed it.
+        var summary: String
 
-    /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
-    /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
-    /// once copied, nothing refreshes it, and the Library and Watching tabs draw it with the
-    /// BFF stopped, unreachable or never deployed (ADR-0013).
-    var poster: Data?
+        /// The Poster the user adopted with a copy, as image bytes, or nil where they adopted
+        /// none. Bytes and not a link, and no TMDB id beside them: a Poster is the user's own
+        /// once copied, nothing refreshes it, and the Library and Watching tabs draw it with the
+        /// BFF stopped, unreachable or never deployed (ADR-0013).
+        var poster: Data?
 
-    var seasons: Seasons
-    var status: WatchStatus
-    var position: Position?
-    /// Where the user watches it, or nil if they watch it nowhere they have registered.
-    var streamingService: StreamingService?
-    var nextEpisodeDate: Date?
-    /// The Release Slot, or nil where the user has recorded no weekly pattern. It sits
-    /// beside the Next Episode Date rather than replacing it: both are kept, and only the
-    /// row chooses between them (ADR-0016).
-    var releaseSlot: ReleaseSlot?
-    var addedAt: Date
-    /// Watched At: when the user last moved through the series, by marking an episode
-    /// watched or by taking one back, or nil if they never have. The name is narrower than
-    /// what it holds: this is not when an episode was last seen (ADR-0014).
-    var lastWatchedAt: Date?
+        var seasons: Seasons
+        var status: WatchStatus
+        var position: Position?
+        /// Where the user watches it, or nil if they watch it nowhere they have registered.
+        var streamingService: StreamingService?
+        var nextEpisodeDate: Date?
+        /// The Release Slot, or nil where the user has recorded no weekly pattern. It sits
+        /// beside the Next Episode Date rather than replacing it: both are kept, and only the
+        /// row chooses between them (ADR-0016).
+        var releaseSlot: ReleaseSlot?
+        var addedAt: Date
+        /// Watched At: when the user last moved through the series, by marking an episode
+        /// watched or by taking one back, or nil if they never have. The name is narrower than
+        /// what it holds: this is not when an episode was last seen (ADR-0014).
+        var lastWatchedAt: Date?
 
-    init(
-        title: String,
-        summary: String,
-        poster: Data? = nil,
-        seasons: Seasons,
-        status: WatchStatus,
-        position: Position?,
-        streamingService: StreamingService?,
-        nextEpisodeDate: Date?,
-        releaseSlot: ReleaseSlot? = nil,
-        addedAt: Date,
-        lastWatchedAt: Date? = nil
-    ) {
-        self.title = title
-        self.summary = summary
-        self.poster = poster
-        self.seasons = seasons
-        self.status = status
-        self.position = position
-        self.streamingService = streamingService
-        self.nextEpisodeDate = nextEpisodeDate
-        self.releaseSlot = releaseSlot
-        self.addedAt = addedAt
-        self.lastWatchedAt = lastWatchedAt
+        init(
+            title: String,
+            summary: String,
+            poster: Data? = nil,
+            seasons: Seasons,
+            status: WatchStatus,
+            position: Position?,
+            streamingService: StreamingService?,
+            nextEpisodeDate: Date?,
+            releaseSlot: ReleaseSlot? = nil,
+            addedAt: Date,
+            lastWatchedAt: Date? = nil
+        ) {
+            self.title = title
+            self.summary = summary
+            self.poster = poster
+            self.seasons = seasons
+            self.status = status
+            self.position = position
+            self.streamingService = streamingService
+            self.nextEpisodeDate = nextEpisodeDate
+            self.releaseSlot = releaseSlot
+            self.addedAt = addedAt
+            self.lastWatchedAt = lastWatchedAt
+        }
     }
 }
 

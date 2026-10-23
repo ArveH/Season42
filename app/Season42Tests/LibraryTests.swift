@@ -303,6 +303,14 @@ struct LibraryTests {
         #expect(try Data(contentsOf: storeURL) == Data("not a store".utf8))
     }
 
+    /// A store names its tables after the models' entities, so a store already on a device
+    /// opens only while they keep the names they were written under — whatever version of
+    /// the schema the models are declared in.
+    @Test func theModelsKeepTheEntityNamesTheStoreWasWrittenUnder() {
+        #expect(Library.schema.entities.map(\.name).sorted()
+            == ["StreamingService", "TrackedMovie", "TrackedSeries"])
+    }
+
     /// A store written before the schema was versioned — opened, as the app used to, with a
     /// plain `Schema` of the same models — opens through the migration plan with every
     /// value and every Streaming Service link it held (ADR-0023).
