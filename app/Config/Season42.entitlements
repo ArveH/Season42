@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- CloudKit's silent pushes, which tell the app another device changed the Library.
+	     Xcode signs a distribution build with production in place of development. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- The Library syncs through this container (ADR-0022). The Watch App names the same
+	     one, so it must match Library.iCloudContainer. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.season42.app</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+	<!-- The Watching Order's key-value store. Spelled out rather than taken from the
+	     bundle identifier, so the Watch App can name the same store. -->
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)com.season42.app</string>
+</dict>
+</plist>

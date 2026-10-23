@@ -32,6 +32,10 @@ final class Library {
     /// was always empty.
     let keptAsideStore: URL?
 
+    /// The registration that re-reads the store when CloudKit has written to it.
+    @ObservationIgnored
+    nonisolated(unsafe) private var remoteChanges: (any NSObjectProtocol)?
+
     /// What the Library tab lists: everything the user tracks, series and movies
     /// interleaved, most recently added first.
     var entries: [LibraryEntry] {
@@ -55,6 +59,36 @@ final class Library {
         self.now = now
         self.calendar = calendar
         reload()
+        observeRemoteChanges()
+    }
+
+    deinit {
+        if let remoteChanges {
+            NotificationCenter.default.removeObserver(remoteChanges)
+        }
+    }
+
+    /// Re-reads the store whenever something other than this Library has written to it —
+    /// CloudKit, bringing in a change made on another device (ADR-0022). The listings are
+    /// otherwise re-taken only on this Library's own writes, and an imported change would
+    /// show only after a relaunch.
+    ///
+    /// Any store's notification will do: re-reading this one when another changed costs a
+    /// fetch and nothing more.
+    private func observeRemoteChanges() {
+        remoteChanges = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            // CloudKit posts from a queue of its own; a post on the main thread is re-read
+            // there and then, so whoever posted it sees the result straight away.
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.reload() }
+            } else {
+                Task { @MainActor in self?.reload() }
+            }
+        }
     }
 
     // MARK: - Tracking a series by hand
@@ -396,6 +430,24 @@ extension Library {
     /// the app stores — at its current version in `LibraryMigrationPlan`.
     static let schema = Schema(versionedSchema: LibrarySchemaV2.self)
 
+    /// The iCloud container the Library syncs through, in the user's private database
+    /// (ADR-0022). Named after the app rather than the iPhone, because the Watch App syncs
+    /// through the same one. Never renamed: a new container is a Library left behind.
+    static let iCloudContainer = "iCloud.com.season42.app"
+
+    /// How the store at `url` is opened. Nil is the app's own store, at SwiftData's default
+    /// location, and the only one that syncs. A store at an explicit location is a test's,
+    /// and must never push its throwaway data into the user's iCloud.
+    ///
+    /// Where no iCloud account is available to the app, the app's own store still opens and
+    /// works on the device alone; it starts syncing once there is one.
+    static func storeConfiguration(at url: URL?) -> ModelConfiguration {
+        guard let url else {
+            return ModelConfiguration(schema: schema, cloudKitDatabase: .private(iCloudContainer))
+        }
+        return ModelConfiguration(schema: schema, url: url, cloudKitDatabase: .none)
+    }
+
     /// The on-device store, opened there and then when protected data can already be read —
     /// every launch but a background one before the first unlock since boot — so the app
     /// has its Library before its first frame. Nil when protected data can't be read yet:
@@ -427,9 +479,7 @@ extension Library {
         at url: URL?,
         now: @escaping @MainActor () -> Date
     ) throws -> Library {
-        let configuration = url.map { ModelConfiguration(schema: schema, url: $0) }
-            ?? ModelConfiguration(schema: schema)
-        let opened = try open(configuration: configuration, now: now())
+        let opened = try open(configuration: storeConfiguration(at: url), now: now())
         return Library(
             container: opened.container,
             now: now,
@@ -441,7 +491,7 @@ extension Library {
     /// failure to open it is a real one and is thrown.
     static func inMemoryContainer() throws -> ModelContainer {
         try migratedContainer(
-            ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
     }
 
@@ -457,7 +507,7 @@ extension Library {
     /// `onDisk` can tell the user it did — so a store it can't open is thrown on and left
     /// where it is.
     static func container(at url: URL) throws -> ModelContainer {
-        try migratedContainer(ModelConfiguration(schema: schema, url: url))
+        try migratedContainer(storeConfiguration(at: url))
     }
 
     /// Opens the store on disk, and where the schema in the app can't open it, moves it

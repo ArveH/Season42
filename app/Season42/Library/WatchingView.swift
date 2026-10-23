@@ -20,7 +20,7 @@ struct WatchingView: View {
         _listing = State(
             initialValue: WatchingListing(
                 library: library,
-                orderStore: UserDefaultsWatchingOrderStore()
+                orderStore: ICloudWatchingOrderStore()
             )
         )
     }

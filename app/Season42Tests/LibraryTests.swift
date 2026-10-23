@@ -360,7 +360,7 @@ struct LibraryTests {
             let v1 = Schema(versionedSchema: LibrarySchemaV1.self)
             let container = try ModelContainer(
                 for: v1,
-                configurations: ModelConfiguration(schema: v1, url: storeURL)
+                configurations: ModelConfiguration(schema: v1, url: storeURL, cloudKitDatabase: .none)
             )
             let context = ModelContext(container)
             let tv = LibrarySchemaV1.StreamingService(name: "Apple TV+", logo: Data("logo".utf8))

@@ -2,8 +2,8 @@ import Foundation
 
 /// Where the Watching Order is kept between launches: read the stored raw value, write one.
 /// `WatchingListing` holds one of these rather than a particular store, so where the choice
-/// lives is the app's to say — `UserDefaults` on the iPhone for now, iCloud's key-value
-/// store once the order is shared with the Watch App — and a test passes one in memory.
+/// lives is the app's to say — iCloud's key-value store on the iPhone, shared with the
+/// Watch App (ADR-0022) — and a test passes one in memory.
 ///
 /// It stores the raw value and nothing more. Turning that into a `WatchingOrder`, and
 /// falling back when it can't be, is the listing's rule and stays with the listing.
