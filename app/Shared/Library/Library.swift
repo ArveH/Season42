@@ -32,6 +32,10 @@ final class Library {
     /// was always empty.
     let keptAsideStore: URL?
 
+    /// The registration that re-reads the store when CloudKit has written to it.
+    @ObservationIgnored
+    nonisolated(unsafe) private var remoteChanges: (any NSObjectProtocol)?
+
     /// What the Library tab lists: everything the user tracks, series and movies
     /// interleaved, most recently added first.
     var entries: [LibraryEntry] {
@@ -55,6 +59,36 @@ final class Library {
         self.now = now
         self.calendar = calendar
         reload()
+        observeRemoteChanges()
+    }
+
+    deinit {
+        if let remoteChanges {
+            NotificationCenter.default.removeObserver(remoteChanges)
+        }
+    }
+
+    /// Re-reads the store whenever something other than this Library has written to it —
+    /// CloudKit, bringing in a change made on another device (ADR-0022). The listings are
+    /// otherwise re-taken only on this Library's own writes, and an imported change would
+    /// show only after a relaunch.
+    ///
+    /// Any store's notification will do: re-reading this one when another changed costs a
+    /// fetch and nothing more.
+    private func observeRemoteChanges() {
+        remoteChanges = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            // CloudKit posts from a queue of its own; a post on the main thread is re-read
+            // there and then, so whoever posted it sees the result straight away.
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.reload() }
+            } else {
+                Task { @MainActor in self?.reload() }
+            }
+        }
     }
 
     // MARK: - Tracking a series by hand

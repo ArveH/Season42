@@ -28,4 +28,22 @@ struct LibrarySyncTests {
             $0.cloudKitContainerIdentifier == nil
         })
     }
+
+    /// What CloudKit imports is written to the store behind the Library's back, by a context
+    /// of its own, and announced with a remote-change notification. A Library that didn't
+    /// re-read on it showed the other device's changes only after a relaunch.
+    @Test func aChangeSyncedInFromAnotherDeviceShowsWithoutARelaunch() throws {
+        let url = try temporaryStoreDirectory().appending(path: "Library.store")
+        let library = Library(container: try Library.container(at: url))
+        let importer = Library(container: try Library.container(at: url))
+        try importer.addTrackedSeries(
+            title: "Severance",
+            seasons: Seasons(episodeCounts: [9]),
+            status: .watching
+        )
+
+        NotificationCenter.default.post(name: .NSPersistentStoreRemoteChange, object: nil)
+
+        #expect(library.trackedSeries.map(\.title) == ["Severance"])
+    }
 }
