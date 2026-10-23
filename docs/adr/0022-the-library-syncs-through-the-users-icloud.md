@@ -35,6 +35,13 @@ order the user picked on the phone. Appearance does not: a watch app is always d
   behind [ADR-0023](0023-an-unopenable-library-store-is-kept-and-migrated.md).
 - The whole Library syncs to the watch, Tracked Movies, Posters and Logos included: one store
   cannot sync part of itself. The Watch App draws Posters and Logos, so the bytes earn their place.
+- Posters and Logos move to SwiftData external storage in the same schema change, reversing what
+  [ADR-0007](0007-a-bff-fetches-provider-logos-the-app-keeps-the-bytes.md) and
+  [ADR-0013](0013-a-poster-is-adopted-as-bytes-and-no-tmdb-id-is-kept.md) chose for an on-device
+  store: a store that now has a second copy on another device is worth keeping lean. CloudKit
+  still sends them as bytes inside the record, not as separate assets (the spike, #137), so a
+  record is still capped at 1 MB in total. TMDB's `w342` Posters sit far below that: the
+  largest in the user's Library was 97 KB when V2 was written.
 - Conflicts are last-writer-wins. The same series marked on both devices before either has synced
   advances once, not twice; that needs two devices on one series within seconds, and is put
   right by hand.
