@@ -1,0 +1,2 @@
+// PROTOTYPE — the CloudKit spike for #137. Signs with the developer's own team, as the app does.
+#include? "../../../Config/Local.xcconfig"

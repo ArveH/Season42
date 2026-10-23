@@ -1,0 +1,244 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5E0000000000000000000B01 /* Seasons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000F01 /* Seasons.swift */; };
+		5E0000000000000000000B02 /* Position.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000F02 /* Position.swift */; };
+		5E0000000000000000000B03 /* ReleaseSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000F03 /* ReleaseSlot.swift */; };
+		5E0000000000000000000B04 /* WatchStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E0000000000000000000F04 /* WatchStatus.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5E0000000000000000000A01 /* CloudKitSpike.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CloudKitSpike.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E0000000000000000000F01 /* Seasons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Seasons.swift; path = ../../Shared/Library/Seasons.swift; sourceTree = SOURCE_ROOT; };
+		5E0000000000000000000F02 /* Position.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Position.swift; path = ../../Shared/Library/Position.swift; sourceTree = SOURCE_ROOT; };
+		5E0000000000000000000F03 /* ReleaseSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ReleaseSlot.swift; path = ../../Shared/Library/ReleaseSlot.swift; sourceTree = SOURCE_ROOT; };
+		5E0000000000000000000F04 /* WatchStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WatchStatus.swift; path = ../../Shared/Library/WatchStatus.swift; sourceTree = SOURCE_ROOT; };
+		5E0000000000000000000F05 /* Spike.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Spike.xcconfig; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5E0000000000000000000C01 /* CloudKitSpike */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CloudKitSpike;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5E0000000000000000000D02 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5E0000000000000000000E01 = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000C01 /* CloudKitSpike */,
+				5E0000000000000000000E03 /* Shared value types */,
+				5E0000000000000000000F05 /* Spike.xcconfig */,
+				5E0000000000000000000E02 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5E0000000000000000000E02 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000A01 /* CloudKitSpike.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5E0000000000000000000E03 /* Shared value types */ = {
+			isa = PBXGroup;
+			children = (
+				5E0000000000000000000F01 /* Seasons.swift */,
+				5E0000000000000000000F02 /* Position.swift */,
+				5E0000000000000000000F03 /* ReleaseSlot.swift */,
+				5E0000000000000000000F04 /* WatchStatus.swift */,
+			);
+			name = "Shared value types";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5E0000000000000000000A11 /* CloudKitSpike */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E0000000000000000000A14 /* Build configuration list for PBXNativeTarget "CloudKitSpike" */;
+			buildPhases = (
+				5E0000000000000000000D01 /* Sources */,
+				5E0000000000000000000D02 /* Frameworks */,
+				5E0000000000000000000D03 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E0000000000000000000C01 /* CloudKitSpike */,
+			);
+			name = CloudKitSpike;
+			productName = CloudKitSpike;
+			productReference = 5E0000000000000000000A01 /* CloudKitSpike.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5E0000000000000000000A12 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+			};
+			buildConfigurationList = 5E0000000000000000000A13 /* Build configuration list for PBXProject "CloudKitSpike" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5E0000000000000000000E01;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5E0000000000000000000E02 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5E0000000000000000000A11 /* CloudKitSpike */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5E0000000000000000000D03 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E0000000000000000000D01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E0000000000000000000B01 /* Seasons.swift in Sources */,
+				5E0000000000000000000B02 /* Position.swift in Sources */,
+				5E0000000000000000000B03 /* ReleaseSlot.swift in Sources */,
+				5E0000000000000000000B04 /* WatchStatus.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5E0000000000000000000A15 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E0000000000000000000F05 /* Spike.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5E0000000000000000000A16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E0000000000000000000F05 /* Spike.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		5E0000000000000000000A17 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/CloudKitSpike.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "CK Spike";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.season42.app.cloudkitspike;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		5E0000000000000000000A18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/CloudKitSpike.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Config/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "CK Spike";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.season42.app.cloudkitspike;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E0000000000000000000A13 /* Build configuration list for PBXProject "CloudKitSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0000000000000000000A15 /* Debug */,
+				5E0000000000000000000A16 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E0000000000000000000A14 /* Build configuration list for PBXNativeTarget "CloudKitSpike" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E0000000000000000000A17 /* Debug */,
+				5E0000000000000000000A18 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5E0000000000000000000A12 /* Project object */;
+}
