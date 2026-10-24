@@ -10,9 +10,6 @@ struct StreamingServicesView: View {
     @State private var deleting: StreamingService?
     @State private var failureMessage: String?
 
-    /// The Logo slot grows with the name beside it, as the one in a row does.
-    @ScaledMetric(relativeTo: .body) private var logoHeight = 24
-
     var body: some View {
         NavigationStack {
             Group {
@@ -51,6 +48,7 @@ struct StreamingServicesView: View {
             .streamingServiceNamingSheet(
                 naming: $naming,
                 library: library,
+                offersMerge: true,
                 onFailure: { failureMessage = $0 }
             )
             .confirmationDialog(
@@ -84,27 +82,14 @@ struct StreamingServicesView: View {
 
     /// A row, tappable on its text to rename what it names, showing how many entries name
     /// this service — which is what makes the delete warning below unsurprising.
-    ///
-    /// The count is asked of the Library rather than read off the service, so that the row
-    /// is redrawn when an entry starts or stops naming it (ADR-0018).
-    ///
-    /// The Logo is drawn beside the name rather than instead of it, as the rows elsewhere
-    /// do: this is the tab where services are managed, so the name has to stay readable.
     private func row(for service: StreamingService) -> some View {
-        HStack {
-            StreamingServiceLogo(service: service, height: logoHeight)
-                .frame(width: 44)
-                // The name is right beside it, so the slot has nothing of its own to say.
-                .accessibilityHidden(true)
-            Text(service.name)
-            Spacer()
-            Text("^[\(library.entryCount(of: service)) entry](inflect: true)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .contentShape(.rect)
-        .onTapGesture { naming = .renaming(service) }
-        .padding(.vertical, 2)
+        StreamingServiceRow(
+            name: service.name,
+            logo: service.logo,
+            entryCount: library.entryCount(of: service)
+        )
+            .contentShape(.rect)
+            .onTapGesture { naming = .renaming(service) }
     }
 
     /// What deleting costs. A service nothing names goes quietly; one that entries name
@@ -121,6 +106,44 @@ struct StreamingServicesView: View {
             Nothing you track is deleted.
             """
         )
+    }
+}
+
+/// A Streaming Service as the tab draws it: its Logo slot, its name and how many entries
+/// name it. The list a merge picks its target from draws the same row, so two services
+/// with one name can be told apart by their Logo and count.
+///
+/// The count is the Library's, handed in rather than read off the service, so that the
+/// row is redrawn when an entry starts or stops naming it (ADR-0018).
+///
+/// Values rather than the service: the caller reads them while drawing its list, so a
+/// change to one redraws the list and the row with it. A row holding the model redrew on
+/// its own when a merge deleted its service, before the list had dropped it, and reading
+/// a deleted service's Logo traps.
+///
+/// The Logo is drawn beside the name rather than instead of it, as the rows elsewhere
+/// do: these are where services are managed, so the name has to stay readable.
+struct StreamingServiceRow: View {
+    let name: String
+    let logo: Data?
+    let entryCount: Int
+
+    /// The Logo slot grows with the name beside it.
+    @ScaledMetric(relativeTo: .body) private var logoHeight = 24
+
+    var body: some View {
+        HStack {
+            StreamingServiceLogo(logo: logo, height: logoHeight)
+                .frame(width: 44)
+                // The name is right beside it, so the slot has nothing of its own to say.
+                .accessibilityHidden(true)
+            Text(name)
+            Spacer()
+            Text("^[\(entryCount) entry](inflect: true)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
     }
 }
 

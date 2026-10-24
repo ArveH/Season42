@@ -248,6 +248,33 @@ final class Library {
         save()
     }
 
+    /// Merges one Streaming Service into another, which is how the user fixes the duplicates
+    /// an iCloud sync can bring in: nothing merges them on its own (ADR-0025).
+    ///
+    /// In one save, every Tracked Series and Tracked Movie naming `service` names `target`
+    /// instead, `target` takes the Logo `service` has stored if it has none of its own, and
+    /// `service` is deleted. `target` keeps its own name. Here rather than in the UI because
+    /// it spans services and entries in one transaction, as deleting does (ADR-0006).
+    ///
+    /// Merging a service into itself does nothing, as does merging when either was deleted
+    /// on another device while the sheet was open (ADR-0024).
+    func mergeStreamingService(_ service: StreamingService, into target: StreamingService) {
+        guard let service = current(service), let target = current(target) else { return }
+        let id = service.persistentModelID
+        guard id != target.persistentModelID else { return }
+        for series in trackedSeries where series.streamingService?.persistentModelID == id {
+            series.streamingService = target
+        }
+        for movie in trackedMovies where movie.streamingService?.persistentModelID == id {
+            movie.streamingService = target
+        }
+        if target.logo == nil {
+            target.logo = service.logo
+        }
+        context.delete(service)
+        save()
+    }
+
     /// How many Library Entries name this Streaming Service: what the Streaming Services
     /// tab shows beside it, and what the delete confirmation counts before it un-sets them.
     ///

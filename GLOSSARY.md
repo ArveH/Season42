@@ -160,16 +160,21 @@ drawn.
 _Avoid_: schedule, subtitle, next-up line
 
 **Streaming Service**:
-One of the services the user has registered, kept as a list they add to, rename and delete
-themselves, and optionally carrying a Logo. A Tracked Series or Tracked Movie names at most
-one of them as where the user watches it, and names the service itself rather than a copy of
-its name, so renaming one renames it everywhere it is named. An entry may name none. Says
+One of the services the user has registered, kept as a list they add to, rename, merge and
+delete themselves, and optionally carrying a Logo. A Tracked Series or Tracked Movie names at
+most one of them as where the user watches it, and names the service itself rather than a copy
+of its name, so renaming one renames it everywhere it is named. An entry may name none. Says
 nothing about global availability: it is where this user watches, not where the thing can be
 watched.
 
 How many entries name one is the Library's to answer, not the service's: the Streaming Services
 tab draws that count beside each service and the delete confirmation counts it before un-setting
 them, and a count read back off the service itself is one no view is told has changed (ADR-0018).
+
+No two services the user registers share a name, case aside, but an iCloud sync can bring in
+a duplicate from another device. Nothing merges duplicates on its own: the user merges one
+service into another, which moves every entry on it to the other, gives the other its Logo if
+the other has none, and deletes it (ADR-0025).
 _Avoid_: channel, platform, provider, label
 
 **Logo**:
