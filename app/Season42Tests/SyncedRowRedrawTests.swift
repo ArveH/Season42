@@ -111,6 +111,7 @@ struct SyncedRowRedrawTests {
         } onChange: {
             probe.tell()
         }
+        let onScreen = try #require(devices.thisPhone.trackedSeries.first)
 
         let service = try devices.otherDevice.addStreamingService(name: "Apple TV+")
         try devices.otherDevice.edit(
@@ -122,6 +123,7 @@ struct SyncedRowRedrawTests {
         )
         syncLands()
 
+        #expect(devices.thisPhone.trackedSeries.first !== onScreen)
         #expect(probe.wasTold)
     }
 
@@ -211,6 +213,34 @@ struct SyncedRowRedrawTests {
         #expect(devices.thisPhone.trackedSeries.isEmpty)
         syncLands()
         #expect(devices.otherDevice.trackedSeries.isEmpty)
+    }
+
+    @Test func anEditOfASeriesDeletedElsewhereClosesEvenWithABlankTitle() throws {
+        let devices = try twoDevicesOnOneStore()
+        let heldBySheet = try devices.thisPhone.addTrackedSeries(
+            title: "Severance", seasons: Seasons(episodeCounts: [9]), status: .watching
+        )
+        syncLands()
+        devices.otherDevice.delete(.series(try seriesOnTheOtherDevice(devices)))
+        syncLands()
+
+        let saved = try devices.thisPhone.edit(
+            heldBySheet, title: " ", seasons: Seasons(episodeCounts: [9]), status: .watching
+        )
+
+        #expect(saved == nil)
+    }
+
+    @Test func anEditOfAMovieDeletedElsewhereClosesEvenWithABlankTitle() throws {
+        let devices = try twoDevicesOnOneStore()
+        let heldBySheet = try devices.thisPhone.addTrackedMovie(title: "Arrival").entry
+        syncLands()
+        devices.otherDevice.delete(.movie(try #require(devices.otherDevice.trackedMovies.first)))
+        syncLands()
+
+        let saved = try devices.thisPhone.edit(heldBySheet, title: "")
+
+        #expect(saved == nil)
     }
 
     @Test func anEditOfAMovieDeletedElsewhereDoesNotBringItBack() throws {

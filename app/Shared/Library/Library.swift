@@ -278,7 +278,8 @@ final class Library {
         let name = name.trimmed
         guard !name.isEmpty else { throw LibraryError.streamingServiceNameIsBlank }
         let clash = streamingServices.contains {
-            $0.persistentModelID != service?.persistentModelID && $0.name.caseInsensitiveCompare(name) == .orderedSame
+            $0.persistentModelID != service?.persistentModelID
+                && $0.name.caseInsensitiveCompare(name) == .orderedSame
         }
         guard !clash else { throw LibraryError.streamingServiceAlreadyExists(name: name) }
         return name
@@ -305,9 +306,11 @@ final class Library {
         _ series: TrackedSeries,
         to draft: TrackedSeriesDraft
     ) throws -> SavedEntry<TrackedSeries>? {
+        // Looked up before anything is checked: a series that has gone is not a mistake the
+        // user can fix, and the form closes over it rather than refusing (ADR-0024).
+        guard let series = current(series) else { return nil }
         let title = try validatedTitle(draft.title, blankTitleIs: .seriesTitleIsBlank)
         try checkSeasons(draft.seasons, hold: draft.position)
-        guard let series = current(series) else { return nil }
         let service = picked(draft.streamingService, for: title)
 
         series.title = title
@@ -342,8 +345,9 @@ final class Library {
         streamingService: StreamingService?,
         isWatched: Bool
     ) throws -> SavedEntry<TrackedMovie>? {
-        let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
+        // Looked up first, for the same reason as a series is.
         guard let movie = current(movie) else { return nil }
+        let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
         let service = picked(streamingService, for: title)
 
         movie.title = title
@@ -480,6 +484,7 @@ final class Library {
         return (nil, ServiceDeletedElsewhere(serviceName: service.name, entryTitle: title))
     }
 
+    /// Swaps in a fresh context and re-reads from it, when iCloud has brought in a change.
     private func syncLanded() {
         context = ModelContext(container)
         reload()
