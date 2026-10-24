@@ -4,7 +4,10 @@ import SwiftUI
 /// the phone, and the Waiting listing below it. Every rule about the order lives in
 /// `WatchingListing`, as on the phone; this view names things and draws them.
 ///
-/// Read-only for now: nothing on a row can be tapped.
+/// Read-only for now: nothing on a row can be tapped, so nothing on the Watch App lapses a
+/// row either. A series whose Status was changed on the phone is held where it is, drawn
+/// as it was, until the next re-take sweeps it — never as a Lapsed Row (see Watch App in
+/// GLOSSARY.md).
 struct WatchingListView: View {
     @State private var listing: WatchingListing
     @State private var iCloud = ICloudAccount()
@@ -38,11 +41,14 @@ struct WatchingListView: View {
     private var content: some View {
         if iCloud.isUnavailable {
             ContentUnavailableView(
-                "iCloud is off",
+                "No iCloud",
                 systemImage: "icloud.slash",
-                description: Text("Sign in to iCloud on this watch to see your Library here.")
+                description: Text(
+                    "Season42 lists your Library from iCloud. Sign in to iCloud on this "
+                        + "Apple Watch to see it here."
+                )
             )
-        } else if watching.isEmpty && listing.waiting.isEmpty {
+        } else if listing.isEmpty {
             ContentUnavailableView(
                 "Nothing on the go",
                 systemImage: "play.circle",
@@ -50,9 +56,9 @@ struct WatchingListView: View {
             )
         } else {
             List {
-                if !watching.isEmpty {
+                if !listing.series.isEmpty {
                     Section {
-                        ForEach(watching) { SeriesRow(series: $0) }
+                        ForEach(listing.series) { SeriesRow(series: $0) }
                     }
                 }
                 if !listing.waiting.isEmpty {
@@ -62,13 +68,6 @@ struct WatchingListView: View {
                 }
             }
         }
-    }
-
-    /// The Watching listing less its Lapsed Rows. Nothing on the Watch App can lapse a row
-    /// yet, so every one is a series whose Status was changed on the phone — and those are
-    /// not drawn on the watch at all (see Watch App in GLOSSARY.md).
-    private var watching: [TrackedSeries] {
-        listing.series.filter { !listing.isLapsed($0) }
     }
 }
 
@@ -90,7 +89,7 @@ private struct SeriesRow: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            whereAndWhere
+            positionAndService
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             NextEpisodeLineView(line: series.nextEpisodeLine)
@@ -101,7 +100,7 @@ private struct SeriesRow: View {
     /// The Position, then the Streaming Service's Logo, or its name where it has none —
     /// one run of text in the name case, so it wraps at large text sizes.
     @ViewBuilder
-    private var whereAndWhere: some View {
+    private var positionAndService: some View {
         let position = series.position?.shorthand ?? "Not started"
         if let service = series.streamingService,
            let logo = service.logo.flatMap(UIImage.init(data:)) {

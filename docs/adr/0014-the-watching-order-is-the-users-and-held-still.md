@@ -107,3 +107,13 @@ deliberate re-take is, and it changes nothing about the freeze: rows still hold 
 tap, a sheet closing is still not an arrival, and the search text and the Waiting listing are
 untouched by it. There is nothing to fetch, so the platform's spinner shows for as long as the
 instant re-take takes and no longer.
+
+## Addendum, 2026-10-24: the Watch App re-takes when it comes to the front
+
+The Watch App (#140) has no tabs to arrive on, no order picker and no pull. Its re-takes are
+the app launching and the app becoming active, which on a watch is the user raising their wrist
+to look: the nearest thing it has to arriving on the tab. Each of those re-takes also reads the
+Watching Order afresh from iCloud's key-value store (ADR-0022), since the order in force there
+is whichever the user last picked on the phone. Reading it writes nothing back. Between re-takes
+the listing is held still exactly as on the phone: a change synced in from the phone moves no
+row, and a series deleted there drops out at once.

@@ -49,13 +49,17 @@ struct Season42WatchApp: App {
             .alert("Your Library couldn't be opened", isPresented: $tellingOfKeptAsideStore) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Season42 kept it aside, untouched, and started a fresh Library.")
+                Text(
+                    "Season42 kept it aside, untouched, and started a fresh Library. "
+                        + "Nothing was deleted."
+                )
             }
         }
     }
 
     /// Reachable only when the store could be neither kept aside nor replaced by a fresh
-    /// one, as on the iPhone: there is no useful degraded mode.
+    /// one; the app is nothing without the user's own data (ADR-0005), and there is no
+    /// useful degraded mode.
     private static func fail(opening error: any Error) -> Never {
         fatalError("Could not open the Library store: \(error)")
     }
