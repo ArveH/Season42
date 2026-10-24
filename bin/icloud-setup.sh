@@ -202,11 +202,12 @@ run_wizard() {
 TOTAL_STAGES=4
 
 # Developer portal setup for iCloud sync of the Library (#139, ADR-0022).
-# The container is shared with the Watch App later (#140), so it is named
-# after the app, not the phone.
+# The container is shared with the Watch App (#140), so it is named after the
+# app, not the phone, and both App IDs need it.
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$REPO_DIR/app"
 BUNDLE_ID="com.season42.app"
+WATCH_BUNDLE_ID="$BUNDLE_ID.watchkitapp"
 CONTAINER_ID="iCloud.$BUNDLE_ID"
 LOCAL_XCCONFIG="$APP_DIR/Config/Local.xcconfig"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
@@ -239,7 +240,7 @@ pause "Press Enter once Xcode has your developer account"
 
 # ── 2 ─────────────────────────────────────────────────────────────────────
 stage "Developer portal: register the iCloud container"
-say "This is the real app's container. The iPhone app and, later, the Watch App both use it."
+say "This is the real app's container. The iPhone app and the Watch App both use it."
 warn "Container IDs can't be deleted, renamed or reused. Check the spelling before you click Register."
 open_url "https://developer.apple.com/account/resources/identifiers/list/cloudContainer"
 step "Identifiers, filtered to iCloud Containers. If $CONTAINER_ID is listed, skip to the next stage."
@@ -255,16 +256,21 @@ else
 fi
 
 # ── 3 ─────────────────────────────────────────────────────────────────────
-stage "Developer portal: App ID with iCloud and Push"
+stage "Developer portal: App IDs with iCloud and Push"
 open_url "https://developer.apple.com/account/resources/identifiers/list"
-step "Open the App ID for $BUNDLE_ID. Xcode-made ones are named like 'XC com season42 app'."
-step "If it's missing: + → App IDs → App → Continue → Explicit Bundle ID: $BUNDLE_ID, Description: Season42."
-step "Under Capabilities, tick iCloud and choose 'Include CloudKit support'."
-step "Tick Push Notifications. No certificate is needed: CloudKit sends its own pushes."
-step "Save (or Continue → Register for a new App ID)."
-step "Open the App ID again → iCloud row → Edit/Configure → tick $CONTAINER_ID → Continue → Save."
-note "Changing capabilities invalidates this App ID's existing profiles. The next device build fetches new ones."
-pause "Press Enter once the App ID has iCloud (with $CONTAINER_ID) and Push"
+say "Two App IDs, the same steps for each: the iPhone app's, then the Watch App's."
+for app_id in "$BUNDLE_ID" "$WATCH_BUNDLE_ID"; do
+  say ""
+  say "$app_id"
+  step "Open the App ID for $app_id. Xcode-made ones are named like 'XC ${app_id//./ }'."
+  step "If it's missing: + → App IDs → App → Continue → Explicit Bundle ID: $app_id, Description: Season42."
+  step "Under Capabilities, tick iCloud and choose 'Include CloudKit support'."
+  step "Tick Push Notifications. No certificate is needed: CloudKit sends its own pushes."
+  step "Save (or Continue → Register for a new App ID)."
+  step "Open the App ID again → iCloud row → Edit/Configure → tick $CONTAINER_ID → Continue → Save."
+  pause "Press Enter once $app_id has iCloud (with $CONTAINER_ID) and Push"
+done
+note "Changing capabilities invalidates an App ID's existing profiles. The next device build fetches new ones."
 
 # ── 4 ─────────────────────────────────────────────────────────────────────
 stage "Check: CloudKit Console and a signed build"
@@ -277,7 +283,7 @@ note "Schema → Record Types and Records stay empty until a #139 build with syn
 note "Later, to see records: Records → Private Database → zone com.apple.coredata.cloudkit.zone, signed in as the syncing Apple ID."
 warn "Never click 'Deploy Schema Changes to Production' here. After that the schema can only grow (ADR-0022). It's a separate step, not part of #139."
 say ""
-entitlements=$(grep -rl --include='*.entitlements' "$CONTAINER_ID" "$APP_DIR/Season42" 2>/dev/null | head -n1 || true)
+entitlements=$(grep -rl --include='*.entitlements' "$CONTAINER_ID" "$APP_DIR/Config" 2>/dev/null | head -n1 || true)
 if [[ -z "$entitlements" ]]; then
   note "The app has no entitlements naming $CONTAINER_ID yet, which is expected: #139 adds them."
   note "The first device build in #139 (with -allowProvisioningUpdates) is the check that this portal setup is right."

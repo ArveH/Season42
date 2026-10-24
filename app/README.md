@@ -1,10 +1,14 @@
 # Season42 iOS app
 
-SwiftUI iPhone app (bundle id `com.season42.app`). Targets: `Season42` (app) and `Season42Tests` (Swift Testing, hosted in the app).
+SwiftUI iPhone app (bundle id `com.season42.app`) and its Watch App (`com.season42.app.watchkitapp`). Targets: `Season42` (app), `Season42Tests` (Swift Testing, hosted in the app) and `Season42 Watch` (the Watch App, embedded in the iPhone app and built with it).
 
-Both targets use filesystem-synchronized groups — files added under `Season42/` or `Season42Tests/` join the right target automatically; no pbxproj edits needed.
+Every target uses filesystem-synchronized groups — files added under `Season42/`, `Season42Tests/` or `Season42Watch/` join the right target automatically; no pbxproj edits needed.
 
-`Shared/` holds the rules the Watch App will compile too: the Library, its models (Tracked Series, Tracked Movie, Streaming Service and their value types) and `WatchingListing`. It is a third synchronized group, a member of the app target rather than a framework of its own, so a file added there joins every target that lists the group and nothing in it needs `public`. What goes in it imports Foundation and SwiftData and nothing else — no SwiftUI, no UIKit — and a view, a search or anything that reaches the BFF stays in `Season42/`. Tests keep `@testable import Season42`. The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the privacy manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships.
+`Shared/` holds the rules the Watch App compiles too: the Library, its models (Tracked Series, Tracked Movie, Streaming Service and their value types) and `WatchingListing`. It is a synchronized group of its own, a member of both app targets rather than a framework, so a file added there joins every target that lists the group and nothing in it needs `public`. What goes in it imports Foundation and SwiftData and nothing else — no SwiftUI, no UIKit — and a view, a search or anything that reaches the BFF stays in `Season42/`. Tests keep `@testable import Season42`; nothing in `Season42Watch/` is tested, which is why it stays thin.
+
+Two files under `Season42/` are also members of the Watch App, through an exception set on the group rather than a copy: `AppIcon.icon` and `Library/NextEpisodeLineView.swift`. Tick a file's Watch App membership in Xcode's File inspector to add another; it must build for watchOS, which rules out anything using `UIGraphicsImageRenderer`, as the Poster and Logo previews do.
+
+The app's bundled resources are its asset catalog and `Season42/PrivacyInfo.xcprivacy` — the privacy manifest ([ADR-0021](../docs/adr/0021-the-app-ships-a-privacy-manifest-declaring-one-api-family.md)), which nothing at runtime reads and `PrivacyManifestTests` asserts the built bundle still ships. The Watch App ships `Season42Watch/PrivacyInfo.xcprivacy`, declaring the same one API family for the same reason (the Watching Order's `UserDefaults` copy); no test reads that one, so keep the two alike by hand.
 
 The only thing it reaches the network for is searching — for a Streaming Service's Logo, or for a series or a movie to enter into the Library — and every search goes to the BFF (ADR-0007) — see `bff/README.md`. Everything else works with the BFF stopped, an adopted Logo included, because the bytes are on the device.
 
@@ -18,7 +22,7 @@ The only thing it reaches the network for is searching — for a Streaming Servi
 
 ## iCloud
 
-The Library syncs through the user's private CloudKit database in `iCloud.com.season42.app`, and the Watching Order through iCloud's key-value store (ADR-0022). `Config/Season42.entitlements` names both, and push for CloudKit's silent notifications. The App ID needs the iCloud (with CloudKit, and that container ticked) and Push Notifications capabilities in the developer portal; `bin/icloud-setup.sh` walks through it.
+The Library syncs through the user's private CloudKit database in `iCloud.com.season42.app`, and the Watching Order through iCloud's key-value store (ADR-0022). `Config/Season42.entitlements` names both, and push for CloudKit's silent notifications; `Config/Season42Watch.entitlements` names the same ones for the Watch App, which runs on its own and reaches iCloud without the phone. Each App ID needs the iCloud (with CloudKit, and that container ticked) and Push Notifications capabilities in the developer portal; `bin/icloud-setup.sh` walks through it.
 
 Builds sync against CloudKit's **development** environment. Deploying the schema to production makes it add-only for good, so it is a deliberate step of its own, never part of a feature ticket. Install from Xcode, not TestFlight, until it has been taken.
 
@@ -33,6 +37,15 @@ Requires an Xcode that is recent enough to open the project *and* has a usable i
 xcodebuild -project Season42.xcodeproj -scheme Season42 \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build   # or: test
 ```
+
+The Watch App on its own, for a quick compile:
+
+```sh
+xcodebuild -project Season42.xcodeproj -scheme "Season42 Watch" \
+  -destination 'generic/platform=watchOS Simulator' build
+```
+
+Running it needs a watchOS simulator runtime (`xcodebuild -downloadPlatform watchOS`). It shows "iCloud is off" until the simulated watch is signed in to iCloud.
 
 ## Run in the simulator
 

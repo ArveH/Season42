@@ -469,6 +469,37 @@ struct WatchingListingTests {
         #expect(listing.order == .lastWatched)
     }
 
+    // The Watch App has no picker: the order in force there is whichever was last picked
+    // on the phone, which reaches it through the order store while it is running.
+
+    @Test func aRetakeInTheStoredOrderTakesUpAChoiceMadeOnAnotherDevice() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let onTheWatch = WatchingListing(library: library, orderStore: orderStore)
+        #expect(onTheWatch.series.map(\.title) == ["Andor", "Severance"])
+
+        let onThePhone = WatchingListing(library: library, orderStore: orderStore)
+        onThePhone.order = .title
+        try library.addTrackedSeries(title: "Bluey", seasons: [52], status: .watching)
+        onTheWatch.retakeInStoredOrder()
+
+        #expect(onTheWatch.order == .title)
+        #expect(onTheWatch.series.map(\.title) == ["Andor", "Bluey", "Severance"])
+    }
+
+    @Test func aRetakeInTheStoredOrderWritesNothingBack() throws {
+        let orderStore = TestOrderStore()
+        orderStore.write("by-hunch")
+        let listing = WatchingListing(library: try Library.inMemory(), orderStore: orderStore)
+
+        listing.retakeInStoredOrder()
+
+        #expect(listing.order == .lastWatched)
+        #expect(orderStore.read() == "by-hunch")
+    }
+
     // MARK: - Narrowing by title
 
     // The Watching tab's Library Filter: its own, offering the search text alone, and a
