@@ -1,5 +1,8 @@
 # Streaming Services are registered once and referenced, not typed onto every entry
 
+**Status: amended by [ADR-0025](0025-duplicate-streaming-services-are-merged-by-the-user.md)**:
+an iCloud sync can bring in a second service of the same name, and the user merges it by hand.
+
 A Streaming Service is a stored thing with a name, registered in a tab of its own. A Tracked
 Series or Tracked Movie names at most one by holding a reference to it, so renaming a service
 renames it everywhere it is named. The free-text field on the two forms is gone, replaced by a

@@ -44,3 +44,12 @@ names the target and counts the entries that will move is the safeguard, as it i
   with no service, by ADR-0006's delete rule. Last writer wins, as ADR-0022 accepts.
 - The merge is offered only from the Streaming Services tab, not from the service picker inside
   an entry form.
+- **The Streaming Services tab's row, and the merge list that shares it, take values rather than
+  the service.** This looks like the option
+  [ADR-0024](0024-an-icloud-sync-hands-every-view-new-objects.md) rejected, but it is not that
+  option. The list reads the name, Logo and count off the Library's listings while it draws, so
+  a sync or a write redraws the list, and the rows with it. ADR-0024's worry was a row with
+  nothing above it reading the model, and here the parent always reads it. The reason is a
+  merge: a row holding the model redrew on its own once the merge had deleted its service,
+  before the list dropped it, and reading a deleted service's Logo traps. The merge sheet's
+  list is drawn from values for the same reason.

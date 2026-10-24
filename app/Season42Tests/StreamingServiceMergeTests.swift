@@ -128,7 +128,7 @@ struct StreamingServiceMergeTests {
 
     /// Every other service, in the tab's order, and not only those with a similar name:
     /// "TV 2 Play" and "TV2 Play" are not the same name, but are the user's to merge.
-    @Test func renamingASheetOffersEveryOtherServiceInTheTabsOrder() throws {
+    @Test func aServiceBeingRenamedIsOfferedEveryOtherServiceInTheTabsOrder() throws {
         let library = try Library.inMemory()
         try library.service("TV2 Play")
         let renaming = try library.service("TV 2 Play")

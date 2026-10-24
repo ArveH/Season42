@@ -113,13 +113,13 @@ struct StreamingServicesView: View {
 /// name it. The list a merge picks its target from draws the same row, so two services
 /// with one name can be told apart by their Logo and count.
 ///
-/// The count is the Library's, handed in rather than read off the service, so that the
-/// row is redrawn when an entry starts or stops naming it (ADR-0018).
+/// The caller asks the Library for the count rather than reading it off the service, so
+/// that its list is redrawn when an entry starts or stops naming it (ADR-0018).
 ///
 /// Values rather than the service: the caller reads them while drawing its list, so a
 /// change to one redraws the list and the row with it. A row holding the model redrew on
 /// its own when a merge deleted its service, before the list had dropped it, and reading
-/// a deleted service's Logo traps.
+/// a deleted service's Logo traps (ADR-0025).
 ///
 /// The Logo is drawn beside the name rather than instead of it, as the rows elsewhere
 /// do: these are where services are managed, so the name has to stay readable.

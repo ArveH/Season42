@@ -119,8 +119,7 @@ private struct StreamingServiceNamingSheetModifier: ViewModifier {
     /// service's fields traps.
     private func merging(for naming: ServiceNaming) -> ServiceMerging? {
         guard offersMerge, case .renaming(let held) = naming else { return nil }
-        let id = held.persistentModelID
-        guard let service = library.streamingServices.first(where: { $0.persistentModelID == id })
+        guard let service = library.listedStreamingService(withID: held.persistentModelID)
         else { return nil }
         let targets = naming.mergeTargets(in: library.streamingServices)
         guard !targets.isEmpty else { return nil }
@@ -145,8 +144,7 @@ private struct StreamingServiceNamingSheetModifier: ViewModifier {
     /// but not saved is dropped with the sheet, as Cancel would drop it.
     private func merge(_ service: StreamingService, into targetID: PersistentIdentifier) {
         defer { naming = nil }
-        guard let target = library.streamingServices.first(where: { $0.persistentModelID == targetID })
-        else { return }
+        guard let target = library.listedStreamingService(withID: targetID) else { return }
         library.mergeStreamingService(service, into: target)
     }
 
@@ -424,7 +422,12 @@ private struct MergeTargetList: View {
         let count = merging.entriesToMove
         let name = merging.serviceName
         guard count > 0 else {
-            return Text("No entries will move. \(name) will be deleted. This can't be undone.")
+            return Text(
+                """
+                No entries will move to \(target.name). \(name) will be deleted. This can't be \
+                undone.
+                """
+            )
         }
         return Text(
             """

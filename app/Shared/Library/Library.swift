@@ -275,6 +275,13 @@ final class Library {
         save()
     }
 
+    /// The Streaming Service with this persistent ID as `streamingServices` lists it, or nil
+    /// once it is gone: for a view holding an ID, or a service from before a sync, that
+    /// needs the one in the listing now (ADR-0024).
+    func listedStreamingService(withID id: PersistentIdentifier) -> StreamingService? {
+        streamingServices.first { $0.persistentModelID == id }
+    }
+
     /// How many Library Entries name this Streaming Service: what the Streaming Services
     /// tab shows beside it, and what the delete confirmation counts before it un-sets them.
     ///
