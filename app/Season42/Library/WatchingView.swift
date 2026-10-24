@@ -14,6 +14,8 @@ struct WatchingView: View {
     @State private var listing: WatchingListing
     /// The series whose form is up, or nil when none is.
     @State private var editing: TrackedSeries?
+    /// What the open form reported about a Streaming Service deleted elsewhere (ADR-0024).
+    @State private var serviceDeletedElsewhere = ServiceDeletedElsewhereTelling()
 
     init(library: Library) {
         self.library = library
@@ -68,9 +70,12 @@ struct WatchingView: View {
             }
             .navigationTitle("Watching")
             .searchable(text: $listing.filter.searchText, prompt: "Search titles")
-            .sheet(item: $editing) { series in
-                TrackedSeriesFormView(library: library, editing: series)
+            .sheet(item: $editing, onDismiss: { serviceDeletedElsewhere.formClosed() }) { series in
+                TrackedSeriesFormView(library: library, editing: series) {
+                    serviceDeletedElsewhere.held = $0
+                }
             }
+            .serviceDeletedElsewhereAlert($serviceDeletedElsewhere.telling)
         }
         // The stack appears when the tab is selected and not again when a sheet over it
         // closes, which is exactly the "arrival" `retake` asks for.

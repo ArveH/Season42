@@ -69,7 +69,7 @@ struct StreamingServiceTests {
             status: .finished,
             streamingService: service
         )
-        let movie = try library.addTrackedMovie(title: "Dune", streamingService: service)
+        let movie = try library.addTrackedMovie(title: "Dune", streamingService: service).entry
 
         try library.renameStreamingService(service, to: "Max")
 
@@ -121,7 +121,7 @@ struct StreamingServiceTests {
             status: .watching,
             streamingService: service
         )
-        let movie = try library.addTrackedMovie(title: "The Wave", streamingService: service)
+        let movie = try library.addTrackedMovie(title: "The Wave", streamingService: service).entry
 
         library.deleteStreamingService(service)
 
@@ -174,7 +174,7 @@ struct StreamingServiceTests {
     @Test func namingAServiceOnAnEntryThatHadNoneCountsIt() throws {
         let library = try Library.inMemory()
         let service = try library.addStreamingService(name: "Netflix")
-        let movie = try library.addTrackedMovie(title: "Okja")
+        let movie = try library.addTrackedMovie(title: "Okja").entry
 
         try library.edit(movie, title: "Okja", streamingService: service)
 
@@ -184,7 +184,7 @@ struct StreamingServiceTests {
     @Test func aDeletedEntryStopsBeingCounted() throws {
         let library = try Library.inMemory()
         let service = try library.addStreamingService(name: "Netflix")
-        let movie = try library.addTrackedMovie(title: "Okja", streamingService: service)
+        let movie = try library.addTrackedMovie(title: "Okja", streamingService: service).entry
 
         library.delete(.movie(movie))
 

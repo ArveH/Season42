@@ -35,9 +35,10 @@ extension Library {
                 nextEpisodeDate: nextEpisodeDate,
                 releaseSlot: releaseSlot
             )
-        )
+        ).entry
     }
 
+    @discardableResult
     func edit(
         _ series: TrackedSeries,
         title: String,
@@ -49,7 +50,7 @@ extension Library {
         streamingService: StreamingService? = nil,
         nextEpisodeDate: Date? = nil,
         releaseSlot: ReleaseSlot? = nil
-    ) throws {
+    ) throws -> SavedEntry<TrackedSeries>? {
         try updateTrackedSeries(
             series,
             to: TrackedSeriesDraft(
@@ -66,6 +67,7 @@ extension Library {
         )
     }
 
+    @discardableResult
     func edit(
         _ movie: TrackedMovie,
         title: String,
@@ -73,7 +75,7 @@ extension Library {
         poster: Data? = nil,
         streamingService: StreamingService? = nil,
         isWatched: Bool = false
-    ) throws {
+    ) throws -> SavedEntry<TrackedMovie>? {
         try updateTrackedMovie(
             movie,
             title: title,

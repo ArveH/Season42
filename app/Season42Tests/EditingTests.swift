@@ -245,7 +245,7 @@ struct EditingTests {
 
     @Test func everyFieldOfAMovieCanBeChanged() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arival")
+        let movie = try library.addTrackedMovie(title: "Arival").entry
 
         try library.updateTrackedMovie(
             movie,
@@ -265,7 +265,7 @@ struct EditingTests {
     @Test func markingAMovieWatchedThroughAnEditStampsTheDate() throws {
         var clock = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { clock })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         clock = clock.addingTimeInterval(3600)
         try library.edit(movie, title: "Arrival", isWatched: true)
@@ -278,7 +278,7 @@ struct EditingTests {
     @Test func anEditThatLeavesTheWatchedStateAloneKeepsTheStamp() throws {
         var clock = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { clock })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
         let watchedAt = movie.watchedAt
 
@@ -291,7 +291,7 @@ struct EditingTests {
     @Test func unmarkingAMovieThroughAnEditKeepsTheStamp() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
 
         try library.edit(movie, title: "Arrival", isWatched: false)
@@ -303,7 +303,7 @@ struct EditingTests {
     @Test(arguments: ["", "   "])
     func anEditThatBlanksAMovieTitleIsRejected(title: String) throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         #expect(throws: LibraryError.movieTitleIsBlank) {
             try library.edit(movie, title: title)
@@ -316,7 +316,7 @@ struct EditingTests {
         let movie = try library.addTrackedMovie(
             title: "Dune",
             streamingService: try library.service("Netflix")
-        )
+        ).entry
 
         try library.edit(movie, title: "  Dune  ", streamingService: movie.streamingService)
 
@@ -339,7 +339,7 @@ struct EditingTests {
 
     @Test func aDeletedMovieLeavesTheLibraryForGood() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         library.delete(.movie(movie))
 
@@ -355,7 +355,7 @@ struct EditingTests {
 
         let library = Library(container: try Library.container(at: storeURL))
         let series = try library.addTrackedSeries(title: "Severence", seasons: [9], status: .planned)
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         try library.edit(
             series,
             title: "Severance",

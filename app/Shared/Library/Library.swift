@@ -8,7 +8,12 @@ import SwiftData
 @Observable
 final class Library {
     private let container: ModelContainer
-    private var context: ModelContext { container.mainContext }
+    /// Where the Library reads and writes. Replaced by a fresh one whenever iCloud brings in
+    /// a change, so every view is handed new objects and draws again (ADR-0024); a sheet
+    /// opened before that holds objects from the one before, which is why every method looks
+    /// up what it is handed (`current(_:)`).
+    @ObservationIgnored
+    private var context: ModelContext
     /// Where every timestamp the Library stamps comes from; tests hand it a clock they move.
     private let now: @MainActor () -> Date
     /// The calendar the Waiting order works a Release Slot's next occurrence out in.
@@ -55,6 +60,7 @@ final class Library {
         keptAsideStore: URL? = nil
     ) {
         self.container = container
+        self.context = container.mainContext
         self.keptAsideStore = keptAsideStore
         self.now = now
         self.calendar = calendar
@@ -73,8 +79,12 @@ final class Library {
     /// otherwise re-taken only on this Library's own writes, and an imported change would
     /// show only after a relaunch.
     ///
+    /// The re-read is from a fresh context: a merged change never went through the objects
+    /// the rows already hold, so nothing would tell them, and a new object is a change every
+    /// view notices (ADR-0024).
+    ///
     /// Any store's notification will do: re-reading this one when another changed costs a
-    /// fetch and nothing more.
+    /// fetch and a redraw, and nothing more.
     private func observeRemoteChanges() {
         remoteChanges = NotificationCenter.default.addObserver(
             forName: .NSPersistentStoreRemoteChange,
@@ -84,9 +94,9 @@ final class Library {
             // CloudKit posts from a queue of its own; a post on the main thread is re-read
             // there and then, so whoever posted it sees the result straight away.
             if Thread.isMainThread {
-                MainActor.assumeIsolated { self?.reload() }
+                MainActor.assumeIsolated { self?.syncLanded() }
             } else {
-                Task { @MainActor in self?.reload() }
+                Task { @MainActor in self?.syncLanded() }
             }
         }
     }
@@ -95,11 +105,14 @@ final class Library {
 
     /// Adds a hand-entered Tracked Series from what the user typed.
     ///
+    /// - Returns: the series as stored, saying so if the Streaming Service picked for it had
+    ///   been deleted on another device and it was saved without one.
     /// - Throws: `LibraryError` if any field is unusable; nothing is stored in that case.
     @discardableResult
-    func addTrackedSeries(_ draft: TrackedSeriesDraft) throws -> TrackedSeries {
+    func addTrackedSeries(_ draft: TrackedSeriesDraft) throws -> SavedEntry<TrackedSeries> {
         let title = try validatedTitle(draft.title, blankTitleIs: .seriesTitleIsBlank)
         try checkSeasons(draft.seasons, hold: draft.position)
+        let service = picked(draft.streamingService, for: title)
 
         let series = TrackedSeries(
             title: title,
@@ -108,7 +121,7 @@ final class Library {
             seasons: draft.seasons,
             status: draft.status,
             position: draft.position,
-            streamingService: draft.streamingService,
+            streamingService: service.stillThere,
             nextEpisodeDate: draft.nextEpisodeDate,
             releaseSlot: draft.releaseSlot,
             addedAt: now()
@@ -116,7 +129,7 @@ final class Library {
         context.insert(series)
         try context.save()
         reload()
-        return series
+        return SavedEntry(entry: series, serviceDeletedElsewhere: service.deletedElsewhere)
     }
 
     /// The title as it should be stored — nothing an entry of either kind may be without.
@@ -149,6 +162,8 @@ final class Library {
     ///
     /// - Parameter poster: the Poster bytes copied off a search, or nil for a movie entered by
     ///   hand — which is every movie until a copy brings one.
+    /// - Returns: the movie as stored, saying so if the Streaming Service picked for it had
+    ///   been deleted on another device and it was saved without one.
     /// - Throws: `LibraryError.movieTitleIsBlank` if there is no title; nothing is stored then.
     @discardableResult
     func addTrackedMovie(
@@ -156,26 +171,28 @@ final class Library {
         summary: String = "",
         poster: Data? = nil,
         streamingService: StreamingService? = nil
-    ) throws -> TrackedMovie {
+    ) throws -> SavedEntry<TrackedMovie> {
         let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
+        let service = picked(streamingService, for: title)
 
         let movie = TrackedMovie(
             title: title,
             summary: summary.trimmed,
             poster: poster,
-            streamingService: streamingService,
+            streamingService: service.stillThere,
             addedAt: now()
         )
         context.insert(movie)
         try context.save()
         reload()
-        return movie
+        return SavedEntry(entry: movie, serviceDeletedElsewhere: service.deletedElsewhere)
     }
 
     /// Marks a movie watched, stamping when, or puts it back on the watchlist. As with a
     /// series un-watch, un-marking leaves the stamp alone: it records when the user last
     /// saw the movie, not whether they have — that is what `isWatched` is for.
     func setWatched(_ watched: Bool, on movie: TrackedMovie) {
+        guard let movie = current(movie) else { return }
         movie.isWatched = watched
         if watched {
             movie.watchedAt = now()
@@ -208,6 +225,7 @@ final class Library {
     ///   service is untouched then. Restyling a service's own name — "netflix" to
     ///   "Netflix" — is not a clash with itself.
     func renameStreamingService(_ service: StreamingService, to name: String) throws {
+        guard let service = current(service) else { return }
         service.name = try validatedServiceName(name, keeping: service)
         save()
     }
@@ -216,6 +234,7 @@ final class Library {
     /// The name is untouched either way: the two are the user's to set apart, and nothing
     /// ever revisits an adopted Logo of its own accord (ADR-0007).
     func setLogo(_ logo: Data?, on service: StreamingService) {
+        guard let service = current(service) else { return }
         service.logo = logo
         save()
     }
@@ -224,6 +243,7 @@ final class Library {
     /// than deleted: cancelling a subscription says nothing about what the user tracks
     /// (ADR-0006). The UI is what tells them how many first — `entryCount(of:)` counts them.
     func deleteStreamingService(_ service: StreamingService) {
+        guard let service = current(service) else { return }
         context.delete(service)
         save()
     }
@@ -237,9 +257,13 @@ final class Library {
     /// changed — so the tab went on drawing `0 entries` until the app was relaunched. These
     /// listings are re-taken on every write, so a count read through the Library is a count
     /// the reader is told about (ADR-0018).
+    ///
+    /// An entry names the service when their persistent IDs match, not when they are the
+    /// same object: a view can hold a service from before an iCloud sync (ADR-0024).
     func entryCount(of service: StreamingService) -> Int {
-        trackedSeries.filter { $0.streamingService === service }.count
-            + trackedMovies.filter { $0.streamingService === service }.count
+        let id = service.persistentModelID
+        return trackedSeries.filter { $0.streamingService?.persistentModelID == id }.count
+            + trackedMovies.filter { $0.streamingService?.persistentModelID == id }.count
     }
 
     /// The name as it should be stored.
@@ -254,7 +278,8 @@ final class Library {
         let name = name.trimmed
         guard !name.isEmpty else { throw LibraryError.streamingServiceNameIsBlank }
         let clash = streamingServices.contains {
-            $0 !== service && $0.name.caseInsensitiveCompare(name) == .orderedSame
+            $0.persistentModelID != service?.persistentModelID
+                && $0.name.caseInsensitiveCompare(name) == .orderedSame
         }
         guard !clash else { throw LibraryError.streamingServiceAlreadyExists(name: name) }
         return name
@@ -268,12 +293,25 @@ final class Library {
     /// What the app stamps rather than the user types, `addedAt` and `lastWatchedAt`, is
     /// left alone: renaming a series is not watching it.
     ///
-    /// The draft is the series whole: what it does not carry is cleared, not kept.
+    /// The draft is the series whole: what it does not carry is cleared, not kept — and that
+    /// holds when the series was changed on another device while the sheet was open, too:
+    /// the last writer wins (ADR-0024).
     ///
+    /// - Returns: the series as stored, saying so if the Streaming Service picked for it had
+    ///   been deleted on another device and it was saved without one; nil when the series
+    ///   itself was deleted there, in which case nothing is written.
     /// - Throws: `LibraryError` if any field is unusable; the series is untouched then.
-    func updateTrackedSeries(_ series: TrackedSeries, to draft: TrackedSeriesDraft) throws {
+    @discardableResult
+    func updateTrackedSeries(
+        _ series: TrackedSeries,
+        to draft: TrackedSeriesDraft
+    ) throws -> SavedEntry<TrackedSeries>? {
+        // Looked up before anything is checked: a series that has gone is not a mistake the
+        // user can fix, and the form closes over it rather than refusing (ADR-0024).
+        guard let series = current(series) else { return nil }
         let title = try validatedTitle(draft.title, blankTitleIs: .seriesTitleIsBlank)
         try checkSeasons(draft.seasons, hold: draft.position)
+        let service = picked(draft.streamingService, for: title)
 
         series.title = title
         series.summary = draft.summary.trimmed
@@ -281,10 +319,11 @@ final class Library {
         series.seasons = draft.seasons
         series.status = draft.status
         series.position = draft.position
-        series.streamingService = draft.streamingService
+        series.streamingService = service.stillThere
         series.nextEpisodeDate = draft.nextEpisodeDate
         series.releaseSlot = draft.releaseSlot
         save()
+        return SavedEntry(entry: series, serviceDeletedElsewhere: service.deletedElsewhere)
     }
 
     /// Rewrites a Tracked Movie with what the user edited it to. As with a series, every
@@ -293,7 +332,11 @@ final class Library {
     /// - Parameter isWatched: the watched state to leave the movie in. Only a change of it
     ///   stamps the date, exactly as `setWatched(_:on:)` does, so an edit that renames the
     ///   movie never counts as watching it again.
+    /// - Returns: the movie as stored, saying so if the Streaming Service picked for it had
+    ///   been deleted on another device and it was saved without one; nil when the movie
+    ///   itself was deleted there, in which case nothing is written.
     /// - Throws: `LibraryError.movieTitleIsBlank` if there is no title; nothing changes then.
+    @discardableResult
     func updateTrackedMovie(
         _ movie: TrackedMovie,
         title: String,
@@ -301,25 +344,33 @@ final class Library {
         poster: Data?,
         streamingService: StreamingService?,
         isWatched: Bool
-    ) throws {
+    ) throws -> SavedEntry<TrackedMovie>? {
+        // Looked up first, for the same reason as a series is.
+        guard let movie = current(movie) else { return nil }
         let title = try validatedTitle(title, blankTitleIs: .movieTitleIsBlank)
+        let service = picked(streamingService, for: title)
 
         movie.title = title
         movie.summary = summary.trimmed
         movie.poster = poster
-        movie.streamingService = streamingService
+        movie.streamingService = service.stillThere
         if isWatched != movie.isWatched {
             setWatched(isWatched, on: movie)
         }
         save()
+        return SavedEntry(entry: movie, serviceDeletedElsewhere: service.deletedElsewhere)
     }
 
     /// Removes a Library Entry for good. There is no undo and nothing is kept: the user
     /// asked for it to be gone.
     func delete(_ entry: LibraryEntry) {
         switch entry {
-        case .series(let series): context.delete(series)
-        case .movie(let movie): context.delete(movie)
+        case .series(let series):
+            guard let series = current(series) else { return }
+            context.delete(series)
+        case .movie(let movie):
+            guard let movie = current(movie) else { return }
+            context.delete(movie)
         }
         save()
     }
@@ -337,7 +388,7 @@ final class Library {
     /// next season at a season boundary. Does nothing once the Position is at the last
     /// episode the series knows about — that is the app's cue to ask Finished or Waiting.
     func markNextEpisodeWatched(_ series: TrackedSeries) {
-        guard let next = series.nextEpisode else { return }
+        guard let series = current(series), let next = series.nextEpisode else { return }
         series.position = next
         series.lastWatchedAt = now()
         save()
@@ -351,7 +402,7 @@ final class Library {
     /// and the old rule was leaving a series stamped with a watch the user had taken back
     /// (ADR-0014).
     func unwatchLastEpisode(_ series: TrackedSeries) {
-        guard series.position != nil else { return }
+        guard let series = current(series), series.position != nil else { return }
         series.position = series.previousEpisode
         series.lastWatchedAt = now()
         save()
@@ -361,6 +412,7 @@ final class Library {
     /// takes a series out of `watching`, and not off the Watching tab: the row lapses where
     /// it stands until the listing is re-taken, which is `WatchingListing`'s to decide.
     func setStatus(_ status: WatchStatus, on series: TrackedSeries) {
+        guard let series = current(series) else { return }
         series.status = status
         save()
     }
@@ -403,6 +455,38 @@ final class Library {
     /// save leaves the in-memory Library as the user sees it and is not surfaced.
     private func save() {
         try? context.save()
+        reload()
+    }
+
+    /// The object in the current context for one a view handed in — which, for a sheet or
+    /// dialog opened before an iCloud sync, is from an earlier context (ADR-0024). Nil when
+    /// it is no longer in the store: deleted on another device, so whatever the user asked of
+    /// it does nothing rather than writing it back.
+    ///
+    /// A fetch rather than `model(for:)`, which hands back an object for an ID the store no
+    /// longer has.
+    private func current<Model: PersistentModel>(_ model: Model) -> Model? {
+        let id = model.persistentModelID
+        var byID = FetchDescriptor<Model>(predicate: #Predicate { $0.persistentModelID == id })
+        byID.fetchLimit = 1
+        return (try? context.fetch(byID))?.first
+    }
+
+    /// The Streaming Service a sheet picked, as it is in the current context — or, when it
+    /// was deleted on another device while the sheet was open, none, and what to tell the
+    /// user about the entry titled `title` being saved without it (ADR-0024).
+    private func picked(
+        _ service: StreamingService?,
+        for title: String
+    ) -> (stillThere: StreamingService?, deletedElsewhere: ServiceDeletedElsewhere?) {
+        guard let service else { return (nil, nil) }
+        if let stillThere = current(service) { return (stillThere, nil) }
+        return (nil, ServiceDeletedElsewhere(serviceName: service.name, entryTitle: title))
+    }
+
+    /// Swaps in a fresh context and re-reads from it, when iCloud has brought in a change.
+    private func syncLanded() {
+        context = ModelContext(container)
         reload()
     }
 

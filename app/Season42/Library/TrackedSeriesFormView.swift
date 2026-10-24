@@ -12,6 +12,11 @@ struct TrackedSeriesFormView: View {
     /// gets the search without knowing there is a network.
     let series: any SeriesSearching
 
+    /// Called when the entry was saved without the Streaming Service picked for it, because
+    /// that service was deleted on another device while the form was open. Whoever opened
+    /// the form tells the user, once it has closed.
+    let onServiceDeletedElsewhere: (ServiceDeletedElsewhere) -> Void
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -41,11 +46,13 @@ struct TrackedSeriesFormView: View {
     init(
         library: Library,
         editing tracked: TrackedSeries? = nil,
-        series: any SeriesSearching = BffClient()
+        series: any SeriesSearching = BffClient(),
+        onServiceDeletedElsewhere: @escaping (ServiceDeletedElsewhere) -> Void = { _ in }
     ) {
         self.library = library
         self.editing = tracked
         self.series = series
+        self.onServiceDeletedElsewhere = onServiceDeletedElsewhere
         _title = State(initialValue: tracked?.title ?? "")
         _summary = State(initialValue: tracked?.summary ?? "")
         _poster = State(initialValue: tracked?.poster)
@@ -319,12 +326,18 @@ struct TrackedSeriesFormView: View {
 
     /// Adding and editing differ in one thing — whether there is already a series to
     /// rewrite — so they say the fields once, as a draft, and differ only in that.
+    ///
+    /// A series deleted on another device while the form was open saves nothing, and the
+    /// form closes all the same: its row has already gone from behind it (ADR-0024).
     private func submit() {
         do {
-            if let editing {
+            let saved = if let editing {
                 try library.updateTrackedSeries(editing, to: draft)
             } else {
                 try library.addTrackedSeries(draft)
+            }
+            if let notice = saved?.serviceDeletedElsewhere {
+                onServiceDeletedElsewhere(notice)
             }
             dismiss()
         } catch {

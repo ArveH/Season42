@@ -92,7 +92,7 @@ struct LibraryExportTests {
             summary: "Linguistics, non-linearly.",
             poster: Data([0xFF, 0xD8, 0xFF]),
             streamingService: try library.service("Netflix")
-        )
+        ).entry
         clock.advance(by: 3_600)
         library.setWatched(true, on: movie)
 

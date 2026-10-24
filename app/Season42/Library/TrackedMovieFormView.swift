@@ -13,6 +13,11 @@ struct TrackedMovieFormView: View {
     /// gets the search without knowing there is a network.
     let movies: any MovieSearching
 
+    /// Called when the entry was saved without the Streaming Service picked for it, because
+    /// that service was deleted on another device while the form was open. Whoever opened
+    /// the form tells the user, once it has closed.
+    let onServiceDeletedElsewhere: (ServiceDeletedElsewhere) -> Void
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -29,11 +34,13 @@ struct TrackedMovieFormView: View {
     init(
         library: Library,
         editing movie: TrackedMovie? = nil,
-        movies: any MovieSearching = BffClient()
+        movies: any MovieSearching = BffClient(),
+        onServiceDeletedElsewhere: @escaping (ServiceDeletedElsewhere) -> Void = { _ in }
     ) {
         self.library = library
         self.editing = movie
         self.movies = movies
+        self.onServiceDeletedElsewhere = onServiceDeletedElsewhere
         _title = State(initialValue: movie?.title ?? "")
         _summary = State(initialValue: movie?.summary ?? "")
         _poster = State(initialValue: movie?.poster)
@@ -149,9 +156,11 @@ struct TrackedMovieFormView: View {
         isSearching = false
     }
 
+    /// A movie deleted on another device while the form was open saves nothing, and the
+    /// form closes all the same: its row has already gone from behind it (ADR-0024).
     private func submit() {
         do {
-            if let editing {
+            let saved = if let editing {
                 try library.updateTrackedMovie(
                     editing,
                     title: title,
@@ -167,6 +176,9 @@ struct TrackedMovieFormView: View {
                     poster: poster,
                     streamingService: streamingService
                 )
+            }
+            if let notice = saved?.serviceDeletedElsewhere {
+                onServiceDeletedElsewhere(notice)
             }
             dismiss()
         } catch {

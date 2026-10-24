@@ -13,7 +13,7 @@ struct TrackedMoviePosterTests {
     @Test func aMovieAddedWithAPosterKeepsTheBytes() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster)
+        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster).entry
 
         #expect(movie.poster == poster)
     }
@@ -22,7 +22,7 @@ struct TrackedMoviePosterTests {
     @Test func aMovieAddedWithoutOneHasNoPoster() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         #expect(movie.poster == nil)
     }
@@ -31,7 +31,7 @@ struct TrackedMoviePosterTests {
     /// what Remove on the form is.
     @Test func anEditWithNoPosterClearsTheOneTheMovieHad() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster)
+        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster).entry
 
         try library.updateTrackedMovie(
             movie,
@@ -47,7 +47,7 @@ struct TrackedMoviePosterTests {
 
     @Test func anEditCanPutADifferentPosterOnTheMovie() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster)
+        let movie = try library.addTrackedMovie(title: "Arrival", poster: poster).entry
 
         try library.updateTrackedMovie(
             movie,

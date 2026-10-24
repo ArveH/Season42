@@ -1,5 +1,10 @@
 # A number a view draws is counted off the Library's listings
 
+**Status: amended by [ADR-0024](0024-an-icloud-sync-hands-every-view-new-objects.md)**: the count
+still comes off the Library's listings, but an entry names a service when their persistent IDs
+match, not when they are the same object. After an iCloud sync, a view can hold a service from an
+earlier context.
+
 How many Library Entries name a Streaming Service is answered by `Library.entryCount(of:)`,
 which counts the entries in the Library's own `trackedSeries` and `trackedMovies`. The two
 inverse relationships on `StreamingService` stay exactly as

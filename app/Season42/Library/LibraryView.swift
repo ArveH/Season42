@@ -10,6 +10,8 @@ struct LibraryView: View {
     @State private var filter = LibraryFilter()
     @State private var form: EntryForm?
     @State private var deleting: PendingDeletion?
+    /// What the open form reported about a Streaming Service deleted elsewhere (ADR-0024).
+    @State private var serviceDeletedElsewhere = ServiceDeletedElsewhereTelling()
 
     var body: some View {
         NavigationStack {
@@ -50,16 +52,28 @@ struct LibraryView: View {
                     }
                 }
             }
-            .sheet(item: $form) { form in
+            .sheet(item: $form, onDismiss: { serviceDeletedElsewhere.formClosed() }) { form in
+                let report = { serviceDeletedElsewhere.held = $0 }
                 switch form {
-                case .newSeries: TrackedSeriesFormView(library: library)
-                case .newMovie: TrackedMovieFormView(library: library)
+                case .newSeries:
+                    TrackedSeriesFormView(library: library, onServiceDeletedElsewhere: report)
+                case .newMovie:
+                    TrackedMovieFormView(library: library, onServiceDeletedElsewhere: report)
                 case .editing(.series(let series)):
-                    TrackedSeriesFormView(library: library, editing: series)
+                    TrackedSeriesFormView(
+                        library: library,
+                        editing: series,
+                        onServiceDeletedElsewhere: report
+                    )
                 case .editing(.movie(let movie)):
-                    TrackedMovieFormView(library: library, editing: movie)
+                    TrackedMovieFormView(
+                        library: library,
+                        editing: movie,
+                        onServiceDeletedElsewhere: report
+                    )
                 }
             }
+            .serviceDeletedElsewhereAlert($serviceDeletedElsewhere.telling)
             .confirmationDialog(
                 "Delete this entry?",
                 isPresented: .init(

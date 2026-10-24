@@ -23,7 +23,7 @@ struct MovieTests {
             title: "Arrival",
             summary: "Linguistics, non-linearly.",
             streamingService: try library.service("Netflix")
-        )
+        ).entry
 
         #expect(movie.title == "Arrival")
         #expect(movie.summary == "Linguistics, non-linearly.")
@@ -33,7 +33,7 @@ struct MovieTests {
     @Test func surroundingWhitespaceIsTrimmedFromTheTitle() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "  Dune  ")
+        let movie = try library.addTrackedMovie(title: "  Dune  ").entry
 
         #expect(movie.title == "Dune")
     }
@@ -41,7 +41,7 @@ struct MovieTests {
     @Test func aMovieCanBeTrackedWithNoStreamingService() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Dune")
+        let movie = try library.addTrackedMovie(title: "Dune").entry
 
         #expect(movie.streamingService == nil)
     }
@@ -61,7 +61,7 @@ struct MovieTests {
     @Test func aNewMovieIsUnwatched() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         #expect(!movie.isWatched)
         #expect(movie.watchedAt == nil)
@@ -70,7 +70,7 @@ struct MovieTests {
     @Test func markingAMovieWatchedStampsTheDate() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         library.setWatched(true, on: movie)
 
@@ -80,7 +80,7 @@ struct MovieTests {
 
     @Test func unmarkingAWatchedMoviePutsItBackOnTheWatchlist() throws {
         let library = try Library.inMemory()
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
 
         library.setWatched(false, on: movie)
@@ -95,7 +95,7 @@ struct MovieTests {
     @Test func unmarkingAMovieKeepsTheDateItWasWatched() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
 
         library.setWatched(false, on: movie)
@@ -106,7 +106,7 @@ struct MovieTests {
     @Test func markingAMovieWatchedAgainRestampsTheDate() throws {
         var clock = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { clock })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
 
         library.setWatched(false, on: movie)
@@ -124,7 +124,7 @@ struct MovieTests {
     @Test func aMovieNeverWatchedJustReadsNotWatched() throws {
         let library = try Library.inMemory()
 
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         #expect(movie.watchedState == ["Not watched"])
     }
@@ -132,7 +132,7 @@ struct MovieTests {
     @Test func aWatchedMovieReadsWhenItWasWatched() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
 
         library.setWatched(true, on: movie)
 
@@ -142,7 +142,7 @@ struct MovieTests {
     @Test func anUnmarkedMovieReadsNotWatchedAndWhenItWasLastSeen() throws {
         let watchedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let library = try Library.inMemory(now: { watchedAt })
-        let movie = try library.addTrackedMovie(title: "Arrival")
+        let movie = try library.addTrackedMovie(title: "Arrival").entry
         library.setWatched(true, on: movie)
 
         library.setWatched(false, on: movie)
@@ -185,7 +185,7 @@ struct MovieTests {
         let movie = try library.addTrackedMovie(
             title: "Arrival",
             streamingService: try library.service("Netflix")
-        )
+        ).entry
         library.setWatched(true, on: movie)
 
         let relaunched = Library(container: try Library.container(at: storeURL))
