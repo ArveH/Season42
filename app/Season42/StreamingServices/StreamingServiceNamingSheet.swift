@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// Whether the user is registering a service or renaming one they have. Both take a
@@ -40,6 +41,19 @@ enum ServiceNaming: Identifiable {
         case .renaming(let service): service.logo
         }
     }
+
+    /// The services this one can be merged into, in the order `services` lists them: every
+    /// other one, not only those with a similar name, since which two are the same service
+    /// is the user's call (ADR-0025). None for a service still being added, which has
+    /// nothing stored to merge.
+    ///
+    /// Told apart by persistent ID: the sheet may hold the service from before a sync
+    /// (ADR-0024).
+    func mergeTargets(in services: [StreamingService]) -> [StreamingService] {
+        guard case .renaming(let service) = self else { return [] }
+        let id = service.persistentModelID
+        return services.filter { $0.persistentModelID != id }
+    }
 }
 
 extension View {
@@ -47,12 +61,16 @@ extension View {
     /// or the picker in an entry form. Reports what `Library` refuses rather than showing
     /// it, because the two callers surface a failure in their own alert.
     ///
-    /// - Parameter logos: where a search for a Logo gets its answers. The default is the
-    ///   live BFF, so both entry points get the search without knowing there is a network.
+    /// - Parameters:
+    ///   - logos: where a search for a Logo gets its answers. The default is the live BFF,
+    ///     so both entry points get the search without knowing there is a network.
+    ///   - offersMerge: whether a service being renamed can be merged into another from
+    ///     here. Only the Streaming Services tab offers it, not the picker in an entry form.
     func streamingServiceNamingSheet(
         naming: Binding<ServiceNaming?>,
         library: Library,
         logos: any LogoSearching = BffClient(),
+        offersMerge: Bool = false,
         onFailure: @escaping (String) -> Void,
         onNamed: @escaping (StreamingService) -> Void = { _ in }
     ) -> some View {
@@ -61,6 +79,7 @@ extension View {
                 naming: naming,
                 library: library,
                 logos: logos,
+                offersMerge: offersMerge,
                 onFailure: onFailure,
                 onNamed: onNamed
             )
@@ -74,15 +93,59 @@ private struct StreamingServiceNamingSheetModifier: ViewModifier {
     @Binding var naming: ServiceNaming?
     let library: Library
     let logos: any LogoSearching
+    let offersMerge: Bool
     let onFailure: (String) -> Void
     let onNamed: (StreamingService) -> Void
 
     func body(content: Content) -> some View {
         content.sheet(item: $naming) { naming in
-            StreamingServiceNamingSheet(naming: naming, logos: logos) { name, logo in
+            StreamingServiceNamingSheet(
+                naming: naming,
+                logos: logos,
+                merging: merging(for: naming)
+            ) { name, logo in
                 submit(naming, as: name, with: logo)
             }
         }
+    }
+
+    /// What the sheet needs to offer a merge, or nil where none is offered: from anywhere
+    /// but the tab, when adding, when there is no other service to merge into, and once the
+    /// service is gone — merged, or deleted on another device.
+    ///
+    /// Everything the sheet draws is read here off the Library's own listing, never off the
+    /// service the sheet was handed: that one may be from before a sync (ADR-0024), or
+    /// deleted by the merge while the sheet is still going down, and reading a deleted
+    /// service's fields traps.
+    private func merging(for naming: ServiceNaming) -> ServiceMerging? {
+        guard offersMerge, case .renaming(let held) = naming else { return nil }
+        guard let service = library.listedStreamingService(withID: held.persistentModelID)
+        else { return nil }
+        let targets = naming.mergeTargets(in: library.streamingServices)
+        guard !targets.isEmpty else { return nil }
+        return ServiceMerging(
+            serviceName: service.name,
+            entriesToMove: library.entryCount(of: service),
+            targets: targets.map {
+                ServiceMerging.Target(
+                    id: $0.persistentModelID,
+                    name: $0.name,
+                    logo: $0.logo,
+                    entryCount: library.entryCount(of: $0)
+                )
+            },
+            merge: { targetID in
+                merge(service, into: targetID)
+            }
+        )
+    }
+
+    /// Merges what is stored, not what the sheet holds: a name typed or a Logo adopted
+    /// but not saved is dropped with the sheet, as Cancel would drop it.
+    private func merge(_ service: StreamingService, into targetID: PersistentIdentifier) {
+        defer { naming = nil }
+        guard let target = library.listedStreamingService(withID: targetID) else { return }
+        library.mergeStreamingService(service, into: target)
     }
 
     /// Saves, and takes the sheet down either way — what `Library` refuses is reported to
@@ -110,6 +173,27 @@ private struct StreamingServiceNamingSheetModifier: ViewModifier {
     }
 }
 
+/// What the naming sheet needs to offer merging the service it renames into another: the
+/// service's stored name and how many entries would move, the services it can go into, and
+/// the merge itself. Everything a merge does is `Library`'s; the sheet only picks the target
+/// and confirms.
+///
+/// Values rather than models, so nothing the sheet draws reads a service the merge has
+/// just deleted.
+struct ServiceMerging {
+    struct Target: Identifiable {
+        let id: PersistentIdentifier
+        let name: String
+        let logo: Data?
+        let entryCount: Int
+    }
+
+    let serviceName: String
+    let entriesToMove: Int
+    let targets: [Target]
+    let merge: (PersistentIdentifier) -> Void
+}
+
 /// The sheet itself: a name, a search for a Logo to go with it, and both saved or
 /// abandoned together. A sheet rather than an alert because an alert holds a text field
 /// and nothing else, and the search needs more room than that.
@@ -118,6 +202,9 @@ private struct StreamingServiceNamingSheetModifier: ViewModifier {
 /// what the user did to it.
 struct StreamingServiceNamingSheet: View {
     let naming: ServiceNaming
+
+    /// How to merge the service into another, or nil where the sheet offers no merge.
+    let merging: ServiceMerging?
 
     /// Called with the typed name and the adopted Logo when the user saves. Whoever
     /// presents the sheet is what takes it down afterwards, because the binding that
@@ -134,9 +221,11 @@ struct StreamingServiceNamingSheet: View {
     init(
         naming: ServiceNaming,
         logos: any LogoSearching,
+        merging: ServiceMerging? = nil,
         onSave: @escaping (String, Data?) -> Void
     ) {
         self.naming = naming
+        self.merging = merging
         self.onSave = onSave
         _search = State(
             initialValue: LogoSearch(
@@ -155,6 +244,9 @@ struct StreamingServiceNamingSheet: View {
                     adoptedLogoSection
                 }
                 resultsSection
+                if let merging {
+                    mergeSection(merging)
+                }
                 TmdbAttribution(.watchProviders)
             }
             .navigationTitle(naming.title)
@@ -266,6 +358,83 @@ struct StreamingServiceNamingSheet: View {
 
     private func runSearch() {
         Task { await search.search() }
+    }
+
+    /// The way to fix two services that are really one, such as the duplicates an iCloud
+    /// sync can bring in (ADR-0025).
+    private func mergeSection(_ merging: ServiceMerging) -> some View {
+        Section {
+            NavigationLink("Merge into…") {
+                MergeTargetList(merging: merging)
+            }
+        } footer: {
+            Text("Move every entry on this service to another one, then delete this one.")
+        }
+    }
+}
+
+/// Every other service, drawn as the Streaming Services tab draws it, so that two with one
+/// name are told apart by their Logo and count. Picking one asks before anything moves.
+private struct MergeTargetList: View {
+    let merging: ServiceMerging
+
+    @State private var target: ServiceMerging.Target?
+
+    var body: some View {
+        List(merging.targets) { target in
+            Button {
+                self.target = target
+            } label: {
+                StreamingServiceRow(
+                    name: target.name,
+                    logo: target.logo,
+                    entryCount: target.entryCount
+                )
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+        }
+        .navigationTitle("Merge into")
+        .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Merge into this streaming service?",
+            isPresented: .init(
+                get: { target != nil },
+                set: { if !$0 { target = nil } }
+            ),
+            presenting: target
+        ) { target in
+            Button("Merge into \(target.name)", role: .destructive) {
+                merging.merge(target.id)
+            }
+        } message: { target in
+            mergeWarning(into: target)
+        }
+    }
+
+    /// What merging does, counted by the Library as the delete confirmation counts
+    /// (ADR-0018). Named by the stored name, since a name typed but not saved goes with
+    /// the sheet.
+    ///
+    /// Returns a `Text` rather than a `String` so the count stays in a string literal, for
+    /// the inflection markup.
+    private func mergeWarning(into target: ServiceMerging.Target) -> Text {
+        let count = merging.entriesToMove
+        let name = merging.serviceName
+        guard count > 0 else {
+            return Text(
+                """
+                No entries will move to \(target.name). \(name) will be deleted. This can't be \
+                undone.
+                """
+            )
+        }
+        return Text(
+            """
+            ^[\(count) entry](inflect: true) will move to \(target.name), and \(name) will be \
+            deleted. This can't be undone.
+            """
+        )
     }
 }
 

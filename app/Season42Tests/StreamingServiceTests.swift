@@ -338,7 +338,7 @@ extension Library {
 
 /// Stand-ins for the image bytes a Logo holds. Nothing reads them as an image, so what
 /// matters is only that they are bytes, and that the two are told apart.
-private extension Data {
+extension Data {
     static let logo = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10])
     static let otherLogo = Data([0x89, 0x50, 0x4E, 0x47])
 }

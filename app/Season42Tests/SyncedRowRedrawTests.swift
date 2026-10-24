@@ -284,6 +284,63 @@ struct SyncedRowRedrawTests {
         #expect(devices.thisPhone.streamingServices.isEmpty)
     }
 
+    @Test func mergingAServiceDeletedElsewhereChangesNothing() throws {
+        let devices = try twoDevicesOnOneStore()
+        let heldBySheet = try devices.thisPhone.addStreamingService(name: "Netflix")
+        let target = try devices.thisPhone.addStreamingService(name: "Netflix Norge")
+        syncLands()
+        devices.otherDevice.deleteStreamingService(
+            try #require(devices.otherDevice.streamingServices.first { $0.name == "Netflix" })
+        )
+        syncLands()
+
+        devices.thisPhone.mergeStreamingService(heldBySheet, into: target)
+
+        #expect(devices.thisPhone.streamingServices.map(\.name) == ["Netflix Norge"])
+    }
+
+    @Test func mergingIntoAServiceDeletedElsewhereChangesNothing() throws {
+        let devices = try twoDevicesOnOneStore()
+        let heldBySheet = try devices.thisPhone.addStreamingService(name: "Netflix")
+        let target = try devices.thisPhone.addStreamingService(name: "Netflix Norge")
+        try devices.thisPhone.addTrackedSeries(
+            title: "Dark",
+            seasons: Seasons(episodeCounts: [10]),
+            status: .finished,
+            streamingService: heldBySheet
+        )
+        syncLands()
+        devices.otherDevice.deleteStreamingService(
+            try #require(devices.otherDevice.streamingServices.first { $0.name == "Netflix Norge" })
+        )
+        syncLands()
+
+        devices.thisPhone.mergeStreamingService(heldBySheet, into: target)
+
+        #expect(devices.thisPhone.streamingServices.map(\.name) == ["Netflix"])
+        #expect(devices.thisPhone.entryCount(of: heldBySheet) == 1)
+    }
+
+    /// A merge offered from a sheet opened before a sync moves the entries the store has now,
+    /// not the objects the sheet was handed.
+    @Test func mergingServicesHeldFromBeforeTheSyncMovesTheirEntries() throws {
+        let devices = try twoDevicesOnOneStore()
+        let heldBySheet = try devices.thisPhone.addStreamingService(name: "Netflix")
+        let target = try devices.thisPhone.addStreamingService(name: "Netflix Norge")
+        try devices.thisPhone.addTrackedSeries(
+            title: "Dark",
+            seasons: Seasons(episodeCounts: [10]),
+            status: .finished,
+            streamingService: heldBySheet
+        )
+        syncLands()
+
+        devices.thisPhone.mergeStreamingService(heldBySheet, into: target)
+
+        #expect(devices.thisPhone.streamingServices.map(\.name) == ["Netflix Norge"])
+        #expect(devices.thisPhone.entryCount(of: target) == 1)
+    }
+
     // MARK: - The picked Streaming Service deleted on another device
 
     /// A service picked in a sheet on this phone, then deleted on the other device before Save.
