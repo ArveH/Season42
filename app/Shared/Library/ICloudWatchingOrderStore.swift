@@ -1,8 +1,9 @@
 import Foundation
 
-/// The iPhone's Watching Order store: iCloud's key-value store, so the Watch App lists in
-/// the order the user picked on the phone (ADR-0022). The choice is also kept in
-/// `UserDefaults`, under the key it was kept under before the move, which does two things:
+/// The Watching Order store both apps use: iCloud's key-value store, so the Watch App lists
+/// in the order the user picked on the phone (ADR-0022). The Watch App only ever reads it.
+/// The choice is also kept in `UserDefaults`, under the key it was kept under before the
+/// move, which does two things:
 /// a choice made before the move is still the one in force after it, and the iPhone keeps
 /// its choice where no iCloud account is available to the app.
 ///
