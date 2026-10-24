@@ -10,6 +10,10 @@ struct LibraryView: View {
     @State private var filter = LibraryFilter()
     @State private var form: EntryForm?
     @State private var deleting: PendingDeletion?
+    /// An entry the open form saved without its Streaming Service, held until the form has
+    /// closed, and then the one the user is being told about (ADR-0024).
+    @State private var savedWithoutService: ServiceDeletedElsewhere?
+    @State private var tellingOfService: ServiceDeletedElsewhere?
 
     var body: some View {
         NavigationStack {
@@ -50,16 +54,28 @@ struct LibraryView: View {
                     }
                 }
             }
-            .sheet(item: $form) { form in
+            .sheet(item: $form, onDismiss: tellOfServiceDeletedElsewhere) { form in
+                let report = { savedWithoutService = $0 }
                 switch form {
-                case .newSeries: TrackedSeriesFormView(library: library)
-                case .newMovie: TrackedMovieFormView(library: library)
+                case .newSeries:
+                    TrackedSeriesFormView(library: library, onServiceDeletedElsewhere: report)
+                case .newMovie:
+                    TrackedMovieFormView(library: library, onServiceDeletedElsewhere: report)
                 case .editing(.series(let series)):
-                    TrackedSeriesFormView(library: library, editing: series)
+                    TrackedSeriesFormView(
+                        library: library,
+                        editing: series,
+                        onServiceDeletedElsewhere: report
+                    )
                 case .editing(.movie(let movie)):
-                    TrackedMovieFormView(library: library, editing: movie)
+                    TrackedMovieFormView(
+                        library: library,
+                        editing: movie,
+                        onServiceDeletedElsewhere: report
+                    )
                 }
             }
+            .serviceDeletedElsewhereAlert($tellingOfService)
             .confirmationDialog(
                 "Delete this entry?",
                 isPresented: .init(
@@ -78,6 +94,11 @@ struct LibraryView: View {
     }
 
     private var entries: [LibraryEntry] { library.entries(matching: filter) }
+
+    private func tellOfServiceDeletedElsewhere() {
+        tellingOfService = savedWithoutService
+        savedWithoutService = nil
+    }
 
     /// A row, tappable to edit what it names. The movie row keeps its own watched button,
     /// so the tap sits on the Poster and the text beside it rather than on the whole row —

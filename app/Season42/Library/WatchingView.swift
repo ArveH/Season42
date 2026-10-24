@@ -14,6 +14,10 @@ struct WatchingView: View {
     @State private var listing: WatchingListing
     /// The series whose form is up, or nil when none is.
     @State private var editing: TrackedSeries?
+    /// An entry the open form saved without its Streaming Service, held until the form has
+    /// closed, and then the one the user is being told about (ADR-0024).
+    @State private var savedWithoutService: ServiceDeletedElsewhere?
+    @State private var tellingOfService: ServiceDeletedElsewhere?
 
     init(library: Library) {
         self.library = library
@@ -68,13 +72,21 @@ struct WatchingView: View {
             }
             .navigationTitle("Watching")
             .searchable(text: $listing.filter.searchText, prompt: "Search titles")
-            .sheet(item: $editing) { series in
-                TrackedSeriesFormView(library: library, editing: series)
+            .sheet(item: $editing, onDismiss: tellOfServiceDeletedElsewhere) { series in
+                TrackedSeriesFormView(library: library, editing: series) {
+                    savedWithoutService = $0
+                }
             }
+            .serviceDeletedElsewhereAlert($tellingOfService)
         }
         // The stack appears when the tab is selected and not again when a sheet over it
         // closes, which is exactly the "arrival" `retake` asks for.
         .onAppear(perform: listing.retake)
+    }
+
+    private func tellOfServiceDeletedElsewhere() {
+        tellingOfService = savedWithoutService
+        savedWithoutService = nil
     }
 
     /// Every series the tab lists is still there — the search is simply hiding all of
