@@ -53,7 +53,7 @@ struct WatchingListView: View {
                         + "Apple Watch to see it here."
                 )
             )
-        } else if watching.isEmpty && listing.waiting.isEmpty {
+        } else if listing.isWatchAppEmpty {
             ContentUnavailableView(
                 "Nothing on the go",
                 systemImage: "play.circle",
@@ -61,10 +61,10 @@ struct WatchingListView: View {
             )
         } else {
             List {
-                if !watching.isEmpty {
+                if !listing.watchAppSeries.isEmpty {
                     Section {
-                        ForEach(watching) { series in
-                            // Every Lapsed Row left in `watching` was lapsed here.
+                        ForEach(listing.watchAppSeries) { series in
+                            // Every Lapsed Row left in `watchAppSeries` was lapsed here.
                             if listing.isLapsed(series) {
                                 LapsedRow(listing: listing, series: series)
                             } else {
@@ -80,13 +80,6 @@ struct WatchingListView: View {
                 }
             }
         }
-    }
-
-    /// The Watching listing less any series lapsed on the phone, which the Watch App leaves
-    /// out rather than drawing as a Lapsed Row. The Watch App has no Library Filter, so this
-    /// emptying out, with nothing Waiting, is "Nothing on the go".
-    private var watching: [TrackedSeries] {
-        listing.seriesWithoutLapsesFromElsewhere
     }
 }
 
@@ -138,7 +131,7 @@ private struct LapsedRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SeriesRow(series: series, inPlaceOfPosition: series.status.title)
+            SeriesRow(series: series, lapsedTo: series.status)
                 .opacity(0.5)
             Button("Back to Watching") { listing.setStatus(.watching, on: series) }
                 .buttonStyle(.bordered)
@@ -151,7 +144,8 @@ private struct LapsedRow: View {
 /// and the Next Episode Line.
 private struct SeriesRow: View {
     let series: TrackedSeries
-    var inPlaceOfPosition: String?
+    /// The Status a Lapsed Row says where the Position was; nil on every other row.
+    var lapsedTo: WatchStatus?
 
     @ScaledMetric(relativeTo: .headline) private var posterHeight = 45
     @ScaledMetric(relativeTo: .footnote) private var logoHeight = 16
@@ -178,7 +172,7 @@ private struct SeriesRow: View {
     /// one run of text in the name case, so it wraps at large text sizes.
     @ViewBuilder
     private var positionAndService: some View {
-        let position = inPlaceOfPosition ?? series.position?.shorthand ?? "Not started"
+        let position = lapsedTo?.title ?? series.position?.shorthand ?? "Not started"
         if let service = series.streamingService,
            let logo = service.logo.flatMap(UIImage.init(data:)) {
             HStack(spacing: 4) {

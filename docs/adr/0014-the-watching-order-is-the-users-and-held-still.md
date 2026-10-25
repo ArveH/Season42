@@ -116,4 +116,7 @@ to look: the nearest thing it has to arriving on the tab. Each of those re-takes
 Watching Order afresh from iCloud's key-value store (ADR-0022), since the order in force there
 is whichever the user last picked on the phone. Reading it writes nothing back. Between re-takes
 the listing is held still exactly as on the phone: a change synced in from the phone moves no
-row, and a series deleted there drops out at once.
+row, and a series deleted there drops out at once. So, since #142, does a series whose Status
+the phone moves off Watching: the Watch App draws a Lapsed Row only for an answer given on the
+watch, so the undo sits on the row that was mis-tapped, and leaves out one lapsed elsewhere
+rather than holding a row it has no way to explain.
