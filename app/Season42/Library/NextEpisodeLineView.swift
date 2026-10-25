@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Draws a series' Next Episode Line — the Library's series row and all three of the
-/// Watching tab's rows draw this one, so a Release Slot and a Next Episode Date read the
-/// same way everywhere either is drawn.
+/// Draws a series' Next Episode Line — the Library's series row, all three of the
+/// Watching tab's rows and the Watch App's rows draw this one, so a Release Slot and a Next
+/// Episode Date read the same way everywhere either is drawn. A member of the Watch App
+/// target too, so it must keep building for watchOS.
 ///
 /// Draws nothing at all, not an empty line, for a series with neither. Never judges what
 /// it is handed: a date that has gone by is still what the row says, and a Slot says the

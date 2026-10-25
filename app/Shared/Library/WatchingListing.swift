@@ -31,11 +31,17 @@ final class WatchingListing {
     /// the Library store (ADR-0005). Picking one is one of the three moments the snapshot
     /// is re-taken.
     var order: WatchingOrder {
-        didSet {
-            orderStore.write(order.rawValue)
+        get { orderInForce }
+        set {
+            orderInForce = newValue
+            orderStore.write(newValue.rawValue)
             retake()
         }
     }
+
+    /// What `order` reads, set apart so the Watch App can take up a choice made on the
+    /// phone without writing it back (`retakeInStoredOrder`).
+    private var orderInForce: WatchingOrder
 
     /// How the user has narrowed the tab: the Watching tab's own Library Filter, of which
     /// the tab offers the search text alone for now. Settable, so the view binds the
@@ -56,8 +62,13 @@ final class WatchingListing {
     init(library: Library, orderStore: any WatchingOrderStore) {
         self.library = library
         self.orderStore = orderStore
-        order = orderStore.read().flatMap(WatchingOrder.init(rawValue:)) ?? .lastWatched
+        orderInForce = Self.storedOrder(in: orderStore)
         retake()
+    }
+
+    /// The order the store holds, or Last watched where it holds none it can read.
+    private static func storedOrder(in orderStore: any WatchingOrderStore) -> WatchingOrder {
+        orderStore.read().flatMap(WatchingOrder.init(rawValue:)) ?? .lastWatched
     }
 
     /// The Watching listing as the tab draws it: `held` narrowed by the filter. A Lapsed
@@ -127,6 +138,16 @@ final class WatchingListing {
     /// to fix (ADR-0014).
     func retake() {
         snapshot = library.watching.sorted(by: comparator).map(\.persistentModelID)
+    }
+
+    /// Re-reads which order is in force from the order store, then re-takes the snapshot in
+    /// it. What the Watch App calls where the iPhone calls `retake()`: it has no picker, so
+    /// the order in force there is whichever the user last picked on the phone, and that can
+    /// have changed since the listing was made. Writes nothing back — reading the choice is
+    /// not making one (ADR-0022).
+    func retakeInStoredOrder() {
+        orderInForce = Self.storedOrder(in: orderStore)
+        retake()
     }
 
     /// How the order in force sorts two series.
