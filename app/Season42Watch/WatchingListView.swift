@@ -11,7 +11,7 @@ import SwiftUI
 /// is too, drawn as it was and offering nothing, until the next re-take sweeps it — never
 /// as a Lapsed Row (see Watch App in GLOSSARY.md).
 struct WatchingListView: View {
-    let library: Library
+    private let library: Library
     @State private var listing: WatchingListing
     @State private var iCloud = ICloudAccount()
     @Environment(\.scenePhase) private var scenePhase
@@ -63,9 +63,9 @@ struct WatchingListView: View {
                 if !listing.series.isEmpty {
                     Section {
                         ForEach(listing.series) { series in
-                            // Its Status was changed on the phone since the re-take, so it
-                            // is drawn as it was and offers nothing to tap until the next
-                            // re-take sweeps it.
+                            // Nothing on the Watch App changes a Status yet, so the only
+                            // rows `isLapsed` finds here are ones changed on the phone —
+                            // not Lapsed Rows on the Watch App (GLOSSARY.md), just held.
                             if listing.isLapsed(series) {
                                 SeriesRow(series: series)
                             } else {
