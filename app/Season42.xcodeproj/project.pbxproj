@@ -30,14 +30,12 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		AA0000000000000000000090 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
+			dstSubfolder = Product;
 			files = (
 				AA0000000000000000000091 /* Season42 Watch.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -204,8 +202,8 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				AA0000000000000000000033 /* Season42Watch */,
 				AA0000000000000000000032 /* Shared */,
+				AA0000000000000000000033 /* Season42Watch */,
 			);
 			name = "Season42 Watch";
 			productName = "Season42 Watch";
