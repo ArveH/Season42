@@ -4,16 +4,20 @@ import SwiftUI
 /// the phone, and the Waiting listing below it. Every rule about the order lives in
 /// `WatchingListing`, as on the phone; this view names things and draws them.
 ///
-/// Read-only for now: nothing on a row can be tapped, so nothing on the Watch App lapses a
-/// row either. A series whose Status was changed on the phone is held where it is, drawn
-/// as it was, until the next re-take sweeps it — never as a Lapsed Row (see Watch App in
-/// GLOSSARY.md).
+/// A Watching row marks the next episode watched and, by a swipe, takes the last one back,
+/// through the same `Library` operations as the phone's row, so both stamp Watched At the
+/// same way (ADR-0014). Neither moves a row: the listing is held still until the next
+/// re-take, as on the phone. A series whose Status was changed on the phone is held where it
+/// is too, drawn as it was and offering nothing, until the next re-take sweeps it — never
+/// as a Lapsed Row (see Watch App in GLOSSARY.md).
 struct WatchingListView: View {
+    let library: Library
     @State private var listing: WatchingListing
     @State private var iCloud = ICloudAccount()
     @Environment(\.scenePhase) private var scenePhase
 
     init(library: Library) {
+        self.library = library
         _listing = State(
             initialValue: WatchingListing(
                 library: library,
@@ -58,13 +62,51 @@ struct WatchingListView: View {
             List {
                 if !listing.series.isEmpty {
                     Section {
-                        ForEach(listing.series) { SeriesRow(series: $0) }
+                        ForEach(listing.series) { series in
+                            // Its Status was changed on the phone since the re-take, so it
+                            // is drawn as it was and offers nothing to tap until the next
+                            // re-take sweeps it.
+                            if listing.isLapsed(series) {
+                                SeriesRow(series: series)
+                            } else {
+                                WatchingRow(library: library, series: series)
+                            }
+                        }
                     }
                 }
                 if !listing.waiting.isEmpty {
                     Section("Waiting") {
                         ForEach(listing.waiting) { SeriesRow(series: $0) }
                     }
+                }
+            }
+        }
+    }
+}
+
+/// A series the user is watching, and what the Watch App lets them do about it: mark the
+/// next episode watched, or swipe to take the last one back. The same rules as the phone's
+/// Watching row — once the Position is at the last known episode there is nothing to mark,
+/// and with no Position there is nothing to take back.
+private struct WatchingRow: View {
+    let library: Library
+    let series: TrackedSeries
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SeriesRow(series: series)
+            if let nextEpisode = series.nextEpisode {
+                Button("Mark \(nextEpisode.shorthand) watched") {
+                    library.markNextEpisodeWatched(series)
+                }
+                // Bordered, so the button is the tap target and not the whole row.
+                .buttonStyle(.bordered)
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            if series.position != nil {
+                Button("Un-watch", systemImage: "arrow.uturn.backward") {
+                    library.unwatchLastEpisode(series)
                 }
             }
         }
