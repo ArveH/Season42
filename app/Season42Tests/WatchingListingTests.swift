@@ -348,6 +348,109 @@ struct WatchingListingTests {
         #expect(listing.waiting.map(\.title) == ["Fargo"])
     }
 
+    // MARK: - Lapsed by this listing (the Watch App)
+
+    @Test func answeringThroughTheListingLapsesTheRowWhereItStands() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+
+        listing.setStatus(.finished, on: andor)
+
+        #expect(andor.status == .finished)
+        #expect(listing.seriesWithoutLapsesFromElsewhere.map(\.title) == ["Severance", "Andor", "Fargo"])
+        #expect(listing.isLapsed(andor))
+    }
+
+    @Test func answeringWaitingThroughTheListingKeepsTheRowOutOfTheWaitingListing() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+
+        listing.setStatus(.waiting, on: andor)
+
+        #expect(listing.seriesWithoutLapsesFromElsewhere.map(\.title) == ["Andor"])
+        #expect(listing.waiting.isEmpty)
+    }
+
+    @Test func backToWatchingThroughTheListingUnLapsesTheRowWhereItStands() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        try library.addTrackedSeries(title: "Severance", seasons: [9], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+        listing.setStatus(.finished, on: andor)
+
+        listing.setStatus(.watching, on: andor)
+
+        #expect(andor.status == .watching)
+        #expect(listing.seriesWithoutLapsesFromElsewhere.map(\.title) == ["Severance", "Andor", "Fargo"])
+        #expect(!listing.isLapsed(andor))
+    }
+
+    @Test func aSeriesLapsedDirectlyOnTheLibraryIsLeftOut() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+
+        library.setStatus(.finished, on: andor)
+
+        #expect(listing.seriesWithoutLapsesFromElsewhere.map(\.title) == ["Fargo"])
+        // The iPhone's listing still holds it as a Lapsed Row.
+        #expect(listing.series.map(\.title) == ["Andor", "Fargo"])
+    }
+
+    @Test func aSeriesTakenBackToWatchingHereThenLapsedElsewhereIsLeftOut() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+        listing.setStatus(.finished, on: andor)
+        listing.setStatus(.watching, on: andor)
+
+        library.setStatus(.dropped, on: andor)
+
+        #expect(listing.seriesWithoutLapsesFromElsewhere.isEmpty)
+    }
+
+    @Test func aRetakeForgetsWhatTheListingLapsed() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        let andor = try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+        listing.setStatus(.finished, on: andor)
+
+        listing.retakeInStoredOrder()
+        #expect(listing.seriesWithoutLapsesFromElsewhere.isEmpty)
+
+        // Set back to Watching on the phone and lapsed there again after the re-take, it
+        // is left out: the earlier answer here is not remembered.
+        library.setStatus(.watching, on: andor)
+        listing.retakeInStoredOrder()
+        library.setStatus(.finished, on: andor)
+
+        #expect(listing.seriesWithoutLapsesFromElsewhere.isEmpty)
+    }
+
+    @Test func theSeriesWithoutLapsesFromElsewhereAreNarrowedByTheFilter() throws {
+        let orderStore = TestOrderStore()
+        let library = try Library.inMemory()
+        try library.addTrackedSeries(title: "Fargo", seasons: [10], status: .watching)
+        try library.addTrackedSeries(title: "Andor", seasons: [12], status: .watching)
+        let listing = WatchingListing(library: library, orderStore: orderStore)
+
+        listing.filter.searchText = "far"
+
+        #expect(listing.seriesWithoutLapsesFromElsewhere.map(\.title) == ["Fargo"])
+    }
+
     // MARK: - Joined rows
 
     @Test func aWaitingSeriesSetToWatchingJoinsTheListingAtTheBottom() throws {

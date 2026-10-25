@@ -6,10 +6,11 @@ import SwiftUI
 ///
 /// A Watching row marks the next episode watched and, by a swipe, takes the last one back,
 /// through the same `Library` operations as the phone's row, so both stamp Watched At the
-/// same way (ADR-0014). Neither moves a row: the listing is held still until the next
-/// re-take, as on the phone. A series whose Status was changed on the phone is held where it
-/// is too, drawn as it was and offering nothing, until the next re-take sweeps it — never
-/// as a Lapsed Row (see Watch App in GLOSSARY.md).
+/// same way (ADR-0014). At the last known episode it asks Finished or Waiting instead, and
+/// answering lapses the row where it stands, offering Back to Watching. Nothing moves a row:
+/// the listing is held still until the next re-take, as on the phone. A series whose Status
+/// was changed on the phone is left out altogether — never drawn as a Lapsed Row here (see
+/// Watch App in GLOSSARY.md).
 struct WatchingListView: View {
     private let library: Library
     @State private var listing: WatchingListing
@@ -52,7 +53,7 @@ struct WatchingListView: View {
                         + "Apple Watch to see it here."
                 )
             )
-        } else if listing.isEmpty {
+        } else if watching.isEmpty && listing.waiting.isEmpty {
             ContentUnavailableView(
                 "Nothing on the go",
                 systemImage: "play.circle",
@@ -60,16 +61,14 @@ struct WatchingListView: View {
             )
         } else {
             List {
-                if !listing.series.isEmpty {
+                if !watching.isEmpty {
                     Section {
-                        ForEach(listing.series) { series in
-                            // Nothing on the Watch App changes a Status yet, so the only
-                            // rows `isLapsed` finds here are ones changed on the phone —
-                            // not Lapsed Rows on the Watch App (GLOSSARY.md), just held.
+                        ForEach(watching) { series in
+                            // Every Lapsed Row left in `watching` was lapsed here.
                             if listing.isLapsed(series) {
-                                SeriesRow(series: series)
+                                LapsedRow(listing: listing, series: series)
                             } else {
-                                WatchingRow(library: library, series: series)
+                                WatchingRow(library: library, listing: listing, series: series)
                             }
                         }
                     }
@@ -82,20 +81,36 @@ struct WatchingListView: View {
             }
         }
     }
+
+    /// The Watching listing less any series lapsed on the phone, which the Watch App leaves
+    /// out rather than drawing as a Lapsed Row. The Watch App has no Library Filter, so this
+    /// emptying out, with nothing Waiting, is "Nothing on the go".
+    private var watching: [TrackedSeries] {
+        listing.seriesWithoutLapsesFromElsewhere
+    }
 }
 
 /// A series the user is watching, and what the Watch App lets them do about it: mark the
 /// next episode watched, or swipe to take the last one back. The same rules as the phone's
 /// Watching row — once the Position is at the last known episode there is nothing to mark,
-/// and with no Position there is nothing to take back.
+/// so it asks Finished or Waiting instead, and with no Position there is nothing to take
+/// back. The answer goes through the listing, which remembers that it lapsed the row here.
 private struct WatchingRow: View {
     let library: Library
+    let listing: WatchingListing
     let series: TrackedSeries
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             SeriesRow(series: series)
-            if let nextEpisode = series.nextEpisode {
+            if series.isAtLastKnownEpisode {
+                Text("Finished, or waiting for more?")
+                    .font(.footnote)
+                Button("Finished") { listing.setStatus(.finished, on: series) }
+                    .buttonStyle(.bordered)
+                Button("Waiting") { listing.setStatus(.waiting, on: series) }
+                    .buttonStyle(.bordered)
+            } else if let nextEpisode = series.nextEpisode {
                 Button("Mark \(nextEpisode.shorthand) watched") {
                     library.markNextEpisodeWatched(series)
                 }
@@ -113,10 +128,30 @@ private struct WatchingRow: View {
     }
 }
 
-/// A series as the Watch App draws it, Watching or Waiting alike: Poster and title, where
-/// the user got to and where they watch it, and the Next Episode Line.
+/// A Lapsed Row on the Watch App: a series the user answered Finished or Waiting on here.
+/// Dimmed, saying its new Status where the Position was, and offering Back to Watching and
+/// nothing else — the one undo a mis-tapped answer needs, standing in for the phone's Edit.
+/// It un-lapses the row where it stands.
+private struct LapsedRow: View {
+    let listing: WatchingListing
+    let series: TrackedSeries
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SeriesRow(series: series, inPlaceOfPosition: series.status.title)
+                .opacity(0.5)
+            Button("Back to Watching") { listing.setStatus(.watching, on: series) }
+                .buttonStyle(.bordered)
+        }
+    }
+}
+
+/// A series as the Watch App draws it, Watching, Waiting or lapsed alike: Poster and title,
+/// where the user got to — or, on a Lapsed Row, its new Status — and where they watch it,
+/// and the Next Episode Line.
 private struct SeriesRow: View {
     let series: TrackedSeries
+    var inPlaceOfPosition: String?
 
     @ScaledMetric(relativeTo: .headline) private var posterHeight = 45
     @ScaledMetric(relativeTo: .footnote) private var logoHeight = 16
@@ -143,7 +178,7 @@ private struct SeriesRow: View {
     /// one run of text in the name case, so it wraps at large text sizes.
     @ViewBuilder
     private var positionAndService: some View {
-        let position = series.position?.shorthand ?? "Not started"
+        let position = inPlaceOfPosition ?? series.position?.shorthand ?? "Not started"
         if let service = series.streamingService,
            let logo = service.logo.flatMap(UIImage.init(data:)) {
             HStack(spacing: 4) {
