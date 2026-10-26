@@ -94,8 +94,8 @@ episode watched and take the last one back, by the same rules and stamping Watch
 way — and, once the Position is at the last known episode, answer Finished or Waiting, with
 Back to Watching on the Lapsed Row that leaves. Nothing else about a series is edited there, and
 nothing is searched, added or deleted from it; no Tracked Movie is drawn on it. A series lapsed
-by a change made on the iPhone is not a Lapsed Row on the Watch App: it is simply gone at the
-next re-take.
+by a change made on the iPhone is not a Lapsed Row on the Watch App: it is left out at once,
+from the Waiting listing too until the next re-take sweeps it there.
 _Avoid_: watch (lowercase, for the app — it collides with Watching, watched and Watched At),
 wrist app, watch extension
 

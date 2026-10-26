@@ -59,6 +59,15 @@ final class WatchingListing {
     /// mutation saves, so the identifiers are permanent by the time they are taken.
     private var snapshot: [PersistentIdentifier] = []
 
+    /// The series this listing itself lapsed, through `setStatus`, since the snapshot was
+    /// taken, with the Status it set. Only the Watch App asks: it draws a Lapsed Row for
+    /// these and for no other, so a series lapsed by a change on the phone is left out
+    /// rather than drawn as one there (see Watch App in GLOSSARY.md). The Status is kept so
+    /// that a later change made elsewhere — Finished here, then Dropped on the phone — no
+    /// longer counts as this listing's. Like the snapshot it is never stored, and a re-take
+    /// forgets it.
+    private var lapsedHere: [PersistentIdentifier: WatchStatus] = [:]
+
     init(library: Library, orderStore: any WatchingOrderStore) {
         self.library = library
         self.orderStore = orderStore
@@ -80,6 +89,22 @@ final class WatchingListing {
     /// The Waiting listing as the tab draws it: `heldWaiting` narrowed by the filter.
     var waiting: [TrackedSeries] {
         heldWaiting.filter { filter.matches(.series($0)) }
+    }
+
+    /// The Watching listing as the Watch App draws it: `series`, less any Lapsed Row this
+    /// listing did not lapse itself. A series whose Status stopped being Watching other than
+    /// through `setStatus` — on the phone, say — is not drawn at all, not even as a Lapsed
+    /// Row; the iPhone, which draws every Lapsed Row, reads `series` instead.
+    var watchAppSeries: [TrackedSeries] {
+        series.filter { !isLapsed($0) || lapsedHere[$0.persistentModelID] == $0.status }
+    }
+
+    /// Whether the Watch App has nothing to draw: no `watchAppSeries` and nothing Waiting.
+    /// What "Nothing on the go" keys off there. Unlike `isEmpty` it counts what the filter
+    /// leaves, the Watch App having no filter, and it is true when every row left is a
+    /// series lapsed on the phone.
+    var isWatchAppEmpty: Bool {
+        watchAppSeries.isEmpty && waiting.isEmpty
     }
 
     /// Whether there is nothing to list at all, whatever the filter says: no Watching
@@ -122,6 +147,15 @@ final class WatchingListing {
         series.status != .watching && snapshot.contains(series.persistentModelID)
     }
 
+    /// Sets a series' Status through the Library and remembers whether this listing lapsed
+    /// it, for `watchAppSeries`. What the Watch App's Finished, Waiting
+    /// and Back to Watching call; the row lapses or un-lapses where it stands either way.
+    /// Back to Watching forgets the lapse, so a later one made elsewhere is left out.
+    func setStatus(_ status: WatchStatus, on series: TrackedSeries) {
+        library.setStatus(status, on: series)
+        lapsedHere[series.persistentModelID] = status == .watching ? nil : status
+    }
+
     /// The Waiting listing below the Watching one: the Library's, in the Library's order,
     /// less any series the snapshot still holds. A row that has just lapsed to Waiting is
     /// drawn once, where it stands, and not again below until a re-take sweeps it there.
@@ -138,6 +172,7 @@ final class WatchingListing {
     /// to fix (ADR-0014).
     func retake() {
         snapshot = library.watching.sorted(by: comparator).map(\.persistentModelID)
+        lapsedHere = [:]
     }
 
     /// Re-reads which order is in force from the order store, then re-takes the snapshot in
