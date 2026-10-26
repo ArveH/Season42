@@ -1,6 +1,6 @@
-# The BFF's CI: tests on every pull request that touches more than documentation, and on main a build-push-deploy that the same tests
-# gate. Nothing here builds or tests the iOS app — that needs a macOS runner and the code-signing
-# setup, which is its own fight.
+# The BFF's CI: tests on every pull request that touches more than documentation, and on main a
+# build-push-deploy that the same tests gate. Nothing here builds or tests the iOS app — that needs
+# a macOS runner and the code-signing setup, which is its own fight.
 #
 # Fly authentication is an app-scoped deploy token held as a repository secret. Fly offers no
 # GitHub OIDC federation for deploys, so unlike the Azure arrangement this replaced there is a
