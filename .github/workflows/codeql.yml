@@ -11,9 +11,17 @@
 name: CodeQL
 
 on:
+  # A change that only touches documentation has no code to scan, so it starts no run. The weekly
+  # schedule still scans everything. Keep these two patterns the same as `docs-only` in bff.yml.
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   # Default setup scanned weekly, and a scheduled run is what catches a new query finding something
   # in code that has not changed. Off-peak, because a queue is the one cost a free macOS runner has.
   schedule:
