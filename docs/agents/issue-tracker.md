@@ -11,6 +11,13 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 - **Comment on an issue**: `gh issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
+- **Closing a parent**: a parent is ready when every sub-issue is closed and has no unticked box. Checks only the owner can do (on real devices, say) sit on the sub-issue as unticked boxes, not only in PR bodies, so this one call answers it:
+
+  ```sh
+  gh api graphql -F owner='{owner}' -F repo='{repo}' -F n=<parent> \
+    -f query='query($owner:String!,$repo:String!,$n:Int!){repository(owner:$owner,name:$repo){issue(number:$n){subIssues(first:50){nodes{number state body}}}}}' \
+    --jq '.data.repository.issue.subIssues.nodes[] | "#\(.number) \(.state) unticked:\([.body | scan("(?m)^\\s*- \\[ \\]")] | length)"'
+  ```
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
