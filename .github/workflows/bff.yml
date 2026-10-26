@@ -1,4 +1,4 @@
-# The BFF's CI: tests on every pull request, and on main a build-push-deploy that the same tests
+# The BFF's CI: tests on every pull request that touches more than documentation, and on main a build-push-deploy that the same tests
 # gate. Nothing here builds or tests the iOS app — that needs a macOS runner and the code-signing
 # setup, which is its own fight.
 #
@@ -34,8 +34,44 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # `Test` is a required status check on main, so a pull request that only touches documentation
+  # can't simply not start this workflow: the check would never report and the merge would wait
+  # for it forever. Instead `Test` is skipped by its `if:`, and a skipped job counts as passing.
+  # Documentation is `docs/**` and Markdown anywhere, the same two patterns codeql.yml ignores.
+  # Pushes to main and dispatches always count as code: the `paths` filter above already drops
+  # docs-only pushes.
+  changes:
+    name: Docs-only check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          code=true
+          if [ "$EVENT" = "pull_request" ]; then
+            code=false
+            while IFS= read -r file; do
+              case "$file" in
+                docs/*|*.md) ;;
+                *) code=true; echo "Code changed: $file"; break ;;
+              esac
+            done < <(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
